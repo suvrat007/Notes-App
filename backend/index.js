@@ -88,7 +88,7 @@ app.post("/login", async(req, res) => {
         })
     }
 
-    if(userInfo.email == email && userInfo.password == password){
+    if(userInfo.email === email && userInfo.password === password){
         const user = {user:userInfo};
         const accessToken = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
             expiresIn: '36000m'
