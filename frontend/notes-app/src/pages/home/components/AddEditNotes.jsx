@@ -70,6 +70,7 @@ const AddEditNotes=({noteData,type,onClose,getAllNotes , showToastMessage})=>{
             addNewNote()
         }
     }
+    
     return (
         <div className="relative">
             <button onClick={onClose} className="w-10 h-10 rounded-full flex items-center absolute -top-3 -right-3 hover:bg-slate-50">
@@ -79,7 +80,7 @@ const AddEditNotes=({noteData,type,onClose,getAllNotes , showToastMessage})=>{
                 <label className="input-label">TITLE</label>
                 <input type="text"
                        className="text-2xl text-slate-950 outline-none"
-                       placeholder="Gym Jao BC"
+                       placeholder="Go to Gym"
                        value={title}
                        onChange={(e) => setTitle(e.target.value)}/>
             </div>

@@ -125,22 +125,23 @@ const Home = () => {
         getAllNotes();
     }
 
-    const updateIsPinned = async(notesData) => {
-        const noteId = notesData._id
-        try{
-            const response = await axiosInstance.put("/update-note-pinned/" + noteId,{
-                "isPinned": !noteId.isPinned,
+    const updateIsPinned = async (notesData) => {
+        const noteId = notesData?._id;
+        // console.log(notesData.isPinned)
+        try {
+            const response = await axiosInstance.put(`/update-note-pinned/${noteId}`, {
+                isPinned: !(notesData?.isPinned),
             });
-
-            if(response.data && response.data.note){
-                showToastMessage("Note Updated Successfully","update");
-                getAllNotes()
+            // console.log(notesData.isPinned)
+            if (response.data && response.data.note) {
+                showToastMessage("Note Updated Successfully", "update");
+                getAllNotes();
             }
-        }catch(e){
-            console.log(e)
-
+        } catch (e) {
+            console.log(e);
         }
-    }
+    };
+    
 
 
     useEffect(() => {
