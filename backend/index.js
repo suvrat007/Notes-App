@@ -1,9 +1,8 @@
 require('dotenv').config();
 
-// const config = require('./config.json');
 const mongoose = require('mongoose');
-// mongoose.connect(config.connectionString);
 mongoose.connect(process.env.VITE_MONGO_URI);
+
 // PERCENT ENCODING FOR PASSWORD
 
 const express = require('express');
@@ -280,6 +279,7 @@ app.put('/update-note-pinned/:noteId',authenticateToken,async(req,res) =>{
         }
 
         note.isPinned = isPinned ;
+        await note.save();
         return res.json({
             error: false,
             note,
@@ -293,6 +293,12 @@ app.put('/update-note-pinned/:noteId',authenticateToken,async(req,res) =>{
     }
 })
 
+
+app.use(cors({
+    origin: 'https://notes-app-23xt.vercel.app',  // Allow requests from Vercel frontend
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true // If using cookies or sessions
+}));
 // SEARCH NOTES
 app.get('/search-notes', authenticateToken, async (req, res) => {
     const { user } = req.user;
