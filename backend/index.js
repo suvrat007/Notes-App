@@ -1,8 +1,9 @@
 require('dotenv').config();
 
-const config = require('./config.json');
+// const config = require('./config.json');
 const mongoose = require('mongoose');
-mongoose.connect(config.connectionString);
+// mongoose.connect(config.connectionString);
+mongoose.connect(process.env.VITE_MONGO_URI);
 // PERCENT ENCODING FOR PASSWORD
 
 const express = require('express');
