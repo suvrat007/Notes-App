@@ -422,6 +422,14 @@
   background: rgba(229, 72, 77, 0.08);
 }
 
+/* Green/red carry polarity meaning in this app. A neutral selector (date
+   range, due-date) must not borrow them — it selects in ember instead. */
+.seg--neutral .seg__opt--on {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(255, 106, 43, 0.1);
+}
+
 .iconpick {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
@@ -768,4 +776,94 @@
 .rewardadd__cost {
   width: 90px;
   flex-shrink: 0;
+}
+
+/* ---- Charts ---- */
+
+.chart {
+  background: var(--surface);
+  border: 1px solid var(--steel);
+  border-radius: var(--radius);
+  padding: 8px 8px 4px;
+  margin-bottom: 8px;
+}
+
+.chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: none;
+}
+
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--steel);
+  border-radius: 999px;
+  color: var(--text-dim);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.chip--on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ---- Heatmap ---- */
+
+.heat {
+  display: flex;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--steel);
+  border-radius: var(--radius);
+  padding: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.heat::-webkit-scrollbar {
+  display: none;
+}
+
+.heat__days {
+  display: grid;
+  grid-template-rows: repeat(7, 1fr);
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.heat__daylabel {
+  font-size: 9px;
+  color: var(--text-dim);
+  line-height: 13px;
+}
+
+.heat__grid {
+  display: flex;
+  gap: 3px;
+}
+
+.heat__col {
+  display: grid;
+  grid-template-rows: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.heat__cell {
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+}
+
+.streak__record {
+  color: var(--text-dim);
+  font-size: 11px;
 }

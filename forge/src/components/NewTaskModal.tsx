@@ -31,7 +31,7 @@ export default function NewTaskModal({ onClose, onSave }: Props) {
 
       <div className="field">
         <span className="field__label">Due</span>
-        <div className="seg">
+        <div className="seg seg--neutral">
           <button type="button" data-testid="due-today"
                   className={'seg__opt' + (dueDate === todayStr() ? ' seg__opt--on' : '')}
                   onClick={() => setDueDate(todayStr())}>Today</button>
