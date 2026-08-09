@@ -1,47 +1,89 @@
 import { useEffect, useState } from 'react';
-import { db } from '../db/schema';
-import { ensureAppState } from '../db/init';
-import { addHabit, listActiveHabits, addTask, listTasksForDate, addReward, listRewards } from '../db/queries';
-import { todayStr } from '../lib/dates';
+import { useForge } from '../store/useForge';
+import HabitCard from '../components/HabitCard';
+import TodayRing from '../components/TodayRing';
+import NewHabitModal from '../components/NewHabitModal';
 
-/** TEMPORARY Phase 1 dev panel — replaced by the real dashboard in Phase 3. */
+/** Placeholder until engine/rank.ts lands in Phase 8. */
+const PLACEHOLDER_RANK = 'Recruit';
+const PLACEHOLDER_TARGET = 50;
+
 export default function HomeScreen() {
-  const [out, setOut] = useState('(loading)');
+  const {
+    ready, habits, appState, loadToday, logHabitRep, undoHabitRep,
+    createHabit, repsToday, weekBalance, todayNet,
+  } = useForge();
+  const [showNew, setShowNew] = useState(false);
 
-  async function refresh() {
-    const [habits, tasks, rewards, state] = await Promise.all([
-      listActiveHabits(),
-      listTasksForDate(todayStr()),
-      listRewards(),
-      db.appState.toArray(),
-    ]);
-    setOut(JSON.stringify({ habits, tasks, rewards, appState: state }, null, 1));
-  }
+  useEffect(() => { void loadToday(); }, [loadToday]);
 
-  useEffect(() => {
-    (async () => {
-      await db.open();
-      await ensureAppState();
-      await refresh();
-    })();
-  }, []);
+  if (!ready) return <div className="screen" data-testid="screen-home">Loading…</div>;
+
+  const good = habits.filter((h) => h.polarity === 'good');
+  const bad = habits.filter((h) => h.polarity === 'bad');
+  const balance = weekBalance();
 
   return (
     <div className="screen" data-testid="screen-home">
-      <h1 className="screen__title">Home</h1>
-      <button data-testid="dev-add-habit" onClick={async () => {
-        await addHabit({ name: 'Gym', polarity: 'good', icon: '🏋️', weeklyTarget: 5 });
-        await refresh();
-      }}>dev: add habit</button>
-      <button data-testid="dev-add-task" onClick={async () => {
-        await addTask({ name: 'Read 20 pages' });
-        await refresh();
-      }}>dev: add task</button>
-      <button data-testid="dev-add-reward" onClick={async () => {
-        await addReward('Cheesecake', 100);
-        await refresh();
-      }}>dev: add reward</button>
-      <pre data-testid="dev-out" style={{ fontSize: 10, whiteSpace: 'pre-wrap' }}>{out}</pre>
+      <header className="hero">
+        <div className="hero__stats">
+          <div className="stat">
+            <span className="stat__label">Lifetime</span>
+            <span className="stat__value num" data-testid="lifetime">
+              {appState?.lifetimeStars ?? 0} ★
+            </span>
+            <span className="rankbadge" data-testid="rank">{PLACEHOLDER_RANK}</span>
+          </div>
+          <div className="stat">
+            <span className="stat__label">This week</span>
+            <span
+              className={'stat__value num' + (balance < 0 ? ' stat__value--neg' : '')}
+              data-testid="week-balance"
+            >
+              {balance > 0 ? '+' : ''}{balance} ★
+            </span>
+          </div>
+        </div>
+        <TodayRing value={todayNet()} target={PLACEHOLDER_TARGET} />
+      </header>
+
+      {habits.length === 0 && (
+        <p className="empty" data-testid="empty-habits">
+          No habits yet. Add the first thing you want to forge.
+        </p>
+      )}
+
+      {good.length > 0 && (
+        <section>
+          <h2 className="sect">Build</h2>
+          {good.map((h) => (
+            <HabitCard key={h.id} habit={h} reps={repsToday(h.id)}
+                       onLog={() => void logHabitRep(h.id)}
+                       onUndo={() => void undoHabitRep(h.id)} />
+          ))}
+        </section>
+      )}
+
+      {bad.length > 0 && (
+        <section>
+          <h2 className="sect">Break</h2>
+          {bad.map((h) => (
+            <HabitCard key={h.id} habit={h} reps={repsToday(h.id)}
+                       onLog={() => void logHabitRep(h.id)}
+                       onUndo={() => void undoHabitRep(h.id)} />
+          ))}
+        </section>
+      )}
+
+      <button className="btn btn--ghost" onClick={() => setShowNew(true)}
+              data-testid="new-habit">+ New Habit</button>
+
+      {showNew && (
+        <NewHabitModal
+          onClose={() => setShowNew(false)}
+          onSave={async (h) => { await createHabit(h); setShowNew(false); }}
+        />
+      )}
     </div>
   );
 }
