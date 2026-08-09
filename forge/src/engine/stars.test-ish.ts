@@ -26,6 +26,7 @@ import {
   buildRoadmap,
   projectedWeekFinish,
 } from './targets';
+import { runningBalances, affordableStreak, buildRewardViews } from './rewards';
 import type { HabitLike, LogLike } from './types';
 
 const habit = (over: Partial<HabitLike> = {}): HabitLike => ({
@@ -191,6 +192,35 @@ export function runStarEngineTests(): TestResult[] {
 
   // 17 — straight-line projection of the week's finish
   check('projection: 40★ over 2 days → 140 for the week', projectedWeekFinish(40, 2), 140);
+
+  /* ---- rewards (Phase 6) ---- */
+
+  // 18 — running balance accumulates across the week
+  const rwLogs: LogLike[] = [
+    log({ date: dates[0], starsDelta: 60 }),
+    log({ date: dates[1], starsDelta: 60 }),
+    log({ date: dates[2], starsDelta: 30 }),
+  ];
+  check('runningBalances accumulate', runningBalances(rwLogs, dates.slice(0, 4)),
+    [60, 120, 150, 150]);
+
+  // 19 — affordable streak counts back from today only
+  check('affordable for the last 3 days at cost 100',
+    affordableStreak([60, 120, 150, 150], 100), 3);
+  check('not affordable today = streak 0',
+    affordableStreak([150, 150, 20], 100), 0);
+
+  // 20 — reward views: affordable, remaining, and the 2-day nudge
+  const views = buildRewardViews(
+    [{ id: 'r1', cost: 100, name: 'Cheesecake' }, { id: 'r2', cost: 500, name: 'Headphones' }],
+    150,
+    [60, 120, 150, 150],
+  );
+  check('affordable reward has remaining 0', [views[0].affordable, views[0].remaining], [true, 0]);
+  check('locked reward reports stars remaining', [views[1].affordable, views[1].remaining],
+    [false, 350]);
+  check('nudge fires after 2+ affordable days', views[0].nudge, true);
+  check('no nudge on an unaffordable reward', views[1].nudge, false);
 
   return results;
 }
