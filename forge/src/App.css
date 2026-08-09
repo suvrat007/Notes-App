@@ -1058,3 +1058,25 @@
   color: var(--text-dim);
   flex-shrink: 0;
 }
+
+/* ---- Settings ---- */
+
+.setting__hint {
+  display: block;
+  font-size: 11px;
+  color: var(--text-dim);
+  opacity: 0.75;
+}
+
+.setting__ok {
+  font-size: 12px;
+  color: var(--good);
+  margin: 10px 0 0;
+}
+
+.card__row input[type='checkbox'] {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}

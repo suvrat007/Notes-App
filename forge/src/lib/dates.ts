@@ -28,12 +28,20 @@ export function addDays(dateStr: string, n: number): string {
   return toDateStr(d);
 }
 
+/**
+ * Start of the week containing `dateStr`, for a configurable first day
+ * (`startDay`: 0=Sun..6=Sat, default 1=Monday — the `weekResetDay` setting).
+ */
+export function weekStartOf(dateStr: string, startDay = 1): string {
+  const d = fromDateStr(dateStr);
+  // getDay(): 0=Sun..6=Sat. Distance back to the configured start day.
+  const back = (d.getDay() - startDay + 7) % 7;
+  return addDays(dateStr, -back);
+}
+
 /** Monday (ISO week start) of the week containing `dateStr`. */
 export function mondayOf(dateStr: string): string {
-  const d = fromDateStr(dateStr);
-  // getDay(): 0=Sun..6=Sat. Distance back to Monday.
-  const back = (d.getDay() + 6) % 7;
-  return addDays(dateStr, -back);
+  return weekStartOf(dateStr, 1);
 }
 
 /** The 7 date strings of the week starting at `mondayStr`. */

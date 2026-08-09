@@ -4,6 +4,7 @@ import { useForge } from '../store/useForge';
 import RewardList from '../components/RewardList';
 import Avatar from '../components/Avatar';
 import { rankFor, MAX_LEVEL } from '../engine/rank';
+import SettingsPanel from '../components/SettingsPanel';
 
 export default function ProfileScreen() {
   const {
@@ -87,6 +88,8 @@ export default function ProfileScreen() {
           Add
         </button>
       </div>
+
+      <SettingsPanel />
     </div>
   );
 }

@@ -34,7 +34,7 @@ import {
   projectedWeekFinish,
   type RoadmapNode,
 } from '../engine/targets';
-import { todayStr, mondayOf, weekDates, addDays, daysBetween } from '../lib/dates';
+import { todayStr, weekStartOf, weekDates, addDays, daysBetween } from '../lib/dates';
 
 /** How far back the adaptive target looks when averaging recent days. */
 const LOOKBACK_DAYS = 14;
@@ -69,6 +69,7 @@ type ForgeState = {
   acceptDailyTarget: (value: number) => Promise<void>;
 
   commitVoiceItems: (items: ParsedItem[]) => Promise<void>;
+  updateSettings: (patch: Partial<AppState['settings']>) => Promise<void>;
 
   createReward: (name: string, cost: number) => Promise<void>;
   removeReward: (id: string) => Promise<void>;
@@ -106,7 +107,8 @@ export const useForge = create<ForgeState>((set, get) => ({
     await sweepMissedTasks();
 
     const today = todayStr();
-    const monday = mondayOf(today);
+    // The week window follows the user's configured reset day.
+    const monday = weekStartOf(today, appState.settings.weekResetDay);
     const [habits, weekLogs, todayTasks, recentLogs, targetRow, rewards] = await Promise.all([
       q.listActiveHabits(),
       q.listLogsInRange(monday, weekDates(monday)[6]),
@@ -162,6 +164,15 @@ export const useForge = create<ForgeState>((set, get) => ({
       dailyTarget: targetRow?.value ?? null,
       suggestedTarget,
     });
+  },
+
+  async updateSettings(patch) {
+    const { appState } = get();
+    if (!appState) return;
+    await db.appState.update('singleton', {
+      settings: { ...appState.settings, ...patch },
+    });
+    await get().loadToday();
   },
 
   async acceptDailyTarget(value) {

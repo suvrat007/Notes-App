@@ -9,7 +9,7 @@ import type { LogEntry } from '../db/schema';
 import {
   starsPerDay, cumulativeLifetime, repsPerDay, perHabitStats, habitStreak,
 } from '../engine/analytics';
-import { weekDates, mondayOf, todayStr, addDays, shortDayName } from '../lib/dates';
+import { weekDates, weekStartOf, todayStr, addDays, shortDayName } from '../lib/dates';
 import Heatmap from '../components/Heatmap';
 
 const GOOD = '#3ecf8e';
@@ -38,14 +38,15 @@ export default function StatsScreen() {
 
   const today = todayStr();
   const floor = appState?.settings.negativeFloor ?? false;
+  const weekStartDay = appState?.settings.weekResetDay ?? 1;
 
   const weekPoints = useMemo(() => {
-    const dates = weekDates(mondayOf(today));
+    const dates = weekDates(weekStartOf(today, weekStartDay));
     return starsPerDay(logs, dates, { floor }).map((p) => ({
       ...p,
       label: shortDayName(p.date),
     }));
-  }, [logs, today, floor]);
+  }, [logs, today, floor, weekStartDay]);
 
   const lifetimePoints = useMemo(() => {
     const span = range === 'day' ? 30 : range === 'week' ? 120 : 365;
@@ -67,15 +68,15 @@ export default function StatsScreen() {
 
   const heatPoints = useMemo(() => {
     if (!activeHeatHabit) return [];
-    // Align to a Monday so rows are consistent weekdays.
-    const end = mondayOf(today);
+    // Align to the configured week start so rows are consistent weekdays.
+    const end = weekStartOf(today, weekStartDay);
     const start = addDays(end, -7 * (HEATMAP_WEEKS - 1));
     const dates = Array.from(
       { length: HEATMAP_WEEKS * 7 },
       (_, i) => addDays(start, i),
     );
     return repsPerDay(logs, activeHeatHabit, dates);
-  }, [logs, activeHeatHabit, today]);
+  }, [logs, activeHeatHabit, today, weekStartDay]);
 
   const heatMax = Math.max(1, ...heatPoints.map((p) => p.value));
 
@@ -127,7 +128,10 @@ export default function StatsScreen() {
               contentStyle={{ background: '#1e232b', border: '1px solid #2a2f38',
                               borderRadius: 10, fontSize: 12 }}
               labelStyle={{ color: '#e6e8eb' }}
-              formatter={(v: number) => [`${v > 0 ? '+' : ''}${v} ★`, 'Net']}
+              formatter={(v) => {
+                const n = Number(v ?? 0);
+                return [`${n > 0 ? '+' : ''}${n} ★`, 'Net'];
+              }}
             />
             <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={false}>
               {weekPoints.map((p) => (
@@ -160,7 +164,7 @@ export default function StatsScreen() {
               contentStyle={{ background: '#1e232b', border: '1px solid #2a2f38',
                               borderRadius: 10, fontSize: 12 }}
               labelStyle={{ color: '#e6e8eb' }}
-              formatter={(v: number) => [`${v} ★`, 'Lifetime']}
+              formatter={(v) => [`${Number(v ?? 0)} ★`, 'Lifetime']}
             />
             <Line type="monotone" dataKey="value" stroke={ACCENT} strokeWidth={2}
                   dot={false} isAnimationActive={false} />
