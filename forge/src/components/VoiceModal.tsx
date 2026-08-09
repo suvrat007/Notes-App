@@ -2,7 +2,7 @@ import { useState } from 'react';
 import Modal from './Modal';
 import { IconMic } from './icons';
 import { useForge } from '../store/useForge';
-import { startListening, stopListening, isVoiceSupported } from '../lib/voice';
+import { startListening, stopListening, isVoiceSupported, VoiceError } from '../lib/voice';
 import { parseVoice, type ParsedItem, type IntentKind } from '../engine/parseVoice';
 import { todayStr, addDays } from '../lib/dates';
 
@@ -50,7 +50,10 @@ export default function VoiceModal({ onClose }: Props) {
       }
       runParse(text);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Voice failed');
+      // VoiceError already carries human-readable text; anything else is a
+      // surprise, so don't leak its raw message either.
+      setError(e instanceof VoiceError ? e.message : 'Voice failed. Type it below instead.');
+      if (!(e instanceof VoiceError)) console.error('voice:', e);
       setPhase('idle');
     }
   };

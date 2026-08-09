@@ -38,6 +38,50 @@ export class VoiceUnsupportedError extends Error {
   }
 }
 
+/**
+ * Error carrying both the raw Web Speech code (for debugging) and text a
+ * person can act on. The raw codes are enum values like `network` and
+ * `not-allowed` — never show them to the user.
+ */
+export class VoiceError extends Error {
+  /** Declared as a field, not a parameter property — this project builds
+      with `erasableSyntaxOnly`, which disallows the shorthand. */
+  code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = 'VoiceError';
+    this.code = code;
+  }
+}
+
+/**
+ * Web Speech in Chrome is a CLOUD service: audio goes to Google's servers and
+ * the transcript comes back. That makes `network` the expected failure the
+ * moment FORGE is used offline — which is most of the time, by design.
+ */
+export function describeVoiceError(code: string): string {
+  switch (code) {
+    case 'network':
+      return 'Voice needs an internet connection — your browser sends the audio '
+        + 'off to be transcribed. Everything else in FORGE works offline; type it below instead.';
+    case 'not-allowed':
+    case 'service-not-allowed':
+      return 'Microphone access is blocked. Allow it in your browser\'s site '
+        + 'settings, or type it below.';
+    case 'audio-capture':
+      return 'No microphone found. Plug one in, or type it below.';
+    case 'no-speech':
+      return 'Didn\'t catch anything. Try again, or type it below.';
+    case 'aborted':
+      return 'Listening stopped.';
+    case 'language-not-supported':
+      return 'That language isn\'t supported for dictation. Type it below instead.';
+    default:
+      return 'Voice failed (' + code + '). Type it below instead.';
+  }
+}
+
 let active: SpeechRecognitionLike | null = null;
 
 /** Cancel an in-flight recognition session. */
@@ -82,7 +126,8 @@ export function startListening(lang = 'en-US'): Promise<string> {
       if (settled) return;
       settled = true;
       active = null;
-      reject(new Error(e.error || 'speech-error'));
+      const code = e.error || 'speech-error';
+      reject(new VoiceError(code, describeVoiceError(code)));
     };
 
     // `onend` is the reliable completion signal — onresult may never fire
@@ -96,10 +141,11 @@ export function startListening(lang = 'en-US'): Promise<string> {
 
     try {
       rec.start();
-    } catch (err) {
+    } catch {
       settled = true;
       active = null;
-      reject(err instanceof Error ? err : new Error('speech-start-failed'));
+      reject(new VoiceError('start-failed',
+        'Could not start listening. Type it below instead.'));
     }
   });
 }
