@@ -6,7 +6,19 @@ import { db, type Habit, type Task, type LogEntry, type Reward, type LogKind } f
 import { newId } from '../lib/id';
 import { todayStr } from '../lib/dates';
 
-const nowIso = () => new Date().toISOString();
+/**
+ * Strictly-increasing timestamp. Two logs written in the same millisecond
+ * (rapid tapping, or a voice batch committing several items at once) would
+ * otherwise tie, making "undo the last rep" ambiguous — and the bad-habit
+ * ladder means the tied entries can carry different deltas.
+ */
+let lastTs = 0;
+const nowIso = () => {
+  let t = Date.now();
+  if (t <= lastTs) t = lastTs + 1;
+  lastTs = t;
+  return new Date(t).toISOString();
+};
 
 /* ---------------- Habits ---------------- */
 
