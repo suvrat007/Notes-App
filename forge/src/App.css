@@ -442,3 +442,95 @@
   border-color: var(--accent);
   background: rgba(255, 106, 43, 0.12);
 }
+
+/* ---- Task rows ---- */
+
+.task {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--tap);
+  background: var(--surface);
+  border: 1px solid var(--steel);
+  border-radius: var(--radius);
+  padding: 4px 8px 4px 4px;
+  margin-bottom: 6px;
+  transition: opacity var(--fast) ease;
+}
+
+.task--done {
+  opacity: 0.55;
+}
+
+.task--done .task__name {
+  text-decoration: line-through;
+  color: var(--text-dim);
+}
+
+.task__check {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius);
+  color: var(--good);
+  font-size: 18px;
+}
+
+/* The visible box is inset; the button around it stays a 40px target. */
+.task__check::before {
+  content: '';
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--steel);
+  border-radius: 6px;
+  transition: border-color var(--fast) ease;
+}
+
+.task--done .task__check::before {
+  border-color: var(--good);
+}
+
+.task__check > * ,
+.task__check {
+  position: relative;
+}
+
+.task__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task__tag {
+  /* inline-block stops the parent's line-through from crossing the pill */
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 1px 6px;
+  vertical-align: middle;
+}
+
+.task__stars {
+  font-size: 13px;
+  color: var(--good);
+  flex-shrink: 0;
+}
+
+.task__del {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+}

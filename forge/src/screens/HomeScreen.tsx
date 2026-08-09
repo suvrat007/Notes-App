@@ -3,6 +3,8 @@ import { useForge } from '../store/useForge';
 import HabitCard from '../components/HabitCard';
 import TodayRing from '../components/TodayRing';
 import NewHabitModal from '../components/NewHabitModal';
+import NewTaskModal from '../components/NewTaskModal';
+import TaskRow from '../components/TaskRow';
 
 /** Placeholder until engine/rank.ts lands in Phase 8. */
 const PLACEHOLDER_RANK = 'Recruit';
@@ -12,8 +14,10 @@ export default function HomeScreen() {
   const {
     ready, habits, appState, loadToday, logHabitRep, undoHabitRep,
     createHabit, repsToday, weekBalance, todayNet,
+    todayTasks, createTask, completeTask, uncompleteTask, removeTask, recurringRows,
   } = useForge();
   const [showNew, setShowNew] = useState(false);
+  const [showNewTask, setShowNewTask] = useState(false);
 
   useEffect(() => { void loadToday(); }, [loadToday]);
 
@@ -22,6 +26,8 @@ export default function HomeScreen() {
   const good = habits.filter((h) => h.polarity === 'good');
   const bad = habits.filter((h) => h.polarity === 'bad');
   const balance = weekBalance();
+  const recurring = recurringRows();
+  const hasTasks = todayTasks.length > 0 || recurring.length > 0;
 
   return (
     <div className="screen" data-testid="screen-home">
@@ -75,6 +81,31 @@ export default function HomeScreen() {
         </section>
       )}
 
+      {hasTasks && (
+        <section data-testid="tasks-section">
+          <h2 className="sect">Today's Tasks</h2>
+          {/* Recurring habits render as virtual rows — completing one logs the
+              habit rep itself, so there is no separate record to double-count. */}
+          {recurring.map((r) => (
+            <TaskRow
+              key={r.id} id={r.id} name={r.name} stars={r.stars} done={r.done}
+              icon={r.icon} recurring
+              onToggle={(next) =>
+                void (next ? logHabitRep(r.habitId) : undoHabitRep(r.habitId))}
+            />
+          ))}
+          {todayTasks.map((t) => (
+            <TaskRow
+              key={t.id} id={t.id} name={t.name} stars={t.stars} done={t.done}
+              onToggle={(next) => void (next ? completeTask(t.id) : uncompleteTask(t.id))}
+              onDelete={() => void removeTask(t.id)}
+            />
+          ))}
+        </section>
+      )}
+
+      <button className="btn btn--ghost" onClick={() => setShowNewTask(true)}
+              data-testid="new-task">+ New Task</button>
       <button className="btn btn--ghost" onClick={() => setShowNew(true)}
               data-testid="new-habit">+ New Habit</button>
 
@@ -82,6 +113,12 @@ export default function HomeScreen() {
         <NewHabitModal
           onClose={() => setShowNew(false)}
           onSave={async (h) => { await createHabit(h); setShowNew(false); }}
+        />
+      )}
+      {showNewTask && (
+        <NewTaskModal
+          onClose={() => setShowNewTask(false)}
+          onSave={async (t) => { await createTask(t); setShowNewTask(false); }}
         />
       )}
     </div>
