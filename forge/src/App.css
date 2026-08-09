@@ -534,3 +534,168 @@
   color: var(--text-dim);
   font-size: 13px;
 }
+
+/* ---- Daily target banner ---- */
+
+.banner {
+  background: var(--surface-raised);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+
+.banner__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.banner__text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.banner__text b {
+  color: var(--accent);
+  font-size: 16px;
+}
+
+.banner__input {
+  width: 84px;
+  min-height: 40px;
+  flex-shrink: 0;
+}
+
+.banner__btn {
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--steel);
+  color: var(--text-dim);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.banner__btn--go {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0d0f12;
+  font-weight: 700;
+}
+
+/* ---- Roadmap track ---- */
+
+.track {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  padding: 8px 0 14px;
+  scrollbar-width: none;
+}
+
+.track::-webkit-scrollbar {
+  display: none;
+}
+
+.track__node {
+  flex: 0 0 auto;
+  width: 92px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+}
+
+/* The connecting rail between nodes. */
+.track__node:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 30px;
+  left: calc(50% + 32px);
+  width: calc(100% - 64px);
+  height: 2px;
+  background: var(--steel);
+}
+
+.node__dial {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+
+.node__fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  transition: background 300ms ease;
+}
+
+/* Punch the middle out so the conic gradient reads as a ring. */
+.node__dial::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: var(--bg);
+}
+
+.node__icon {
+  position: relative;
+  z-index: 1;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.node__name {
+  font-size: 11px;
+  color: var(--text-dim);
+  max-width: 88px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.node__reps {
+  font-size: 13px;
+  font-family: var(--font-display);
+}
+
+/* ---- Generic info card ---- */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--steel);
+  border-radius: var(--radius);
+  padding: 4px 12px;
+}
+
+.card__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--steel);
+}
+
+.card__row:last-child {
+  border-bottom: none;
+}
+
+.card__label {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.card__val {
+  font-size: 15px;
+  font-family: var(--font-display);
+  flex-shrink: 0;
+}
