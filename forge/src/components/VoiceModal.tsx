@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Modal from './Modal';
+import { IconMic } from './icons';
 import { useForge } from '../store/useForge';
 import { startListening, stopListening, isVoiceSupported } from '../lib/voice';
 import { parseVoice, type ParsedItem, type IntentKind } from '../engine/parseVoice';
@@ -93,7 +94,9 @@ export default function VoiceModal({ onClose }: Props) {
           {supported ? (
             <button className="btn btn--primary" data-testid="voice-mic"
                     disabled={phase === 'listening'} onClick={() => void listen()}>
-              {phase === 'listening' ? 'Listening…' : '🎙 Start speaking'}
+              {phase === 'listening'
+                ? 'Listening…'
+                : <><IconMic size={18} /> Start speaking</>}
             </button>
           ) : (
             <p className="reward__note" data-testid="voice-unsupported">

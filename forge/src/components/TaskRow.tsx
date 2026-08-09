@@ -1,3 +1,5 @@
+import { IconCheck } from './icons';
+
 type Props = {
   id: string;
   name: string;
@@ -23,7 +25,7 @@ export default function TaskRow({
         data-testid={`check-${id}`}
         onClick={() => onToggle(!done)}
       >
-        {done ? '✓' : ''}
+        {done && <IconCheck />}
       </button>
 
       <span className="task__name">

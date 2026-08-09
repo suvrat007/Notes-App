@@ -1,6 +1,8 @@
 import { useRef } from 'react';
 import type React from 'react';
 import type { Habit } from '../db/schema';
+import { IconPlus } from './icons';
+import { periodShortLabel } from '../engine/period';
 
 type Props = {
   habit: Habit;
@@ -62,7 +64,8 @@ export default function HabitCard({ habit, reps, onLog, onUndo }: Props) {
           ) : (
             <>
               +{habit.starsPerRep}★ each
-              {habit.weeklyTarget > 0 && ` · target ${habit.weeklyTarget}/wk`}
+              {habit.targetReps > 0 &&
+                ` · goal ${habit.targetReps}/${periodShortLabel(habit.targetPeriodWeeks)}`}
             </>
           )}
         </span>
@@ -80,7 +83,7 @@ export default function HabitCard({ habit, reps, onLog, onUndo }: Props) {
         onPointerCancel={cancel}
         onContextMenu={(e) => e.preventDefault()}
       >
-        +
+        <IconPlus />
       </button>
     </div>
   );

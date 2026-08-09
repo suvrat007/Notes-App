@@ -6,24 +6,27 @@ type Props = {
   onChange: (key: ScreenKey) => void;
 };
 
-/** Bottom tab bar. Tap targets are >= 48px tall per the shell spec. */
+/**
+ * Bottom tab bar — the mobile navigation. Hidden at desktop widths, where
+ * `Sidebar` takes over. Tap targets are >= 48px tall per the shell spec.
+ */
 export default function TabBar({ active, onChange }: Props) {
   return (
     <nav className="tabbar no-select" aria-label="Primary">
-      {SCREENS.map((s) => {
-        const isActive = s.key === active;
+      {SCREENS.map(({ key, label, Icon }) => {
+        const isActive = key === active;
         return (
           <button
-            key={s.key}
+            key={key}
             className={'tab' + (isActive ? ' tab--active' : '')}
-            onClick={() => onChange(s.key)}
+            onClick={() => onChange(key)}
             aria-current={isActive ? 'page' : undefined}
-            data-testid={`tab-${s.key}`}
+            data-testid={`tab-${key}`}
           >
-            <span className="tab__icon" aria-hidden="true">
-              {s.icon}
+            <span className="tab__icon">
+              <Icon />
             </span>
-            <span className="tab__label">{s.label}</span>
+            <span className="tab__label">{label}</span>
           </button>
         );
       })}

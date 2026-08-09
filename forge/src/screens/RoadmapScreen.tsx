@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useForge } from '../store/useForge';
 import { weeklyGoalStars } from '../engine/targets';
+import { IconFlag } from '../components/icons';
 
 export default function RoadmapScreen() {
   const { ready, habits, loadToday, roadmap, weekBalance, weekProjection } = useForge();
@@ -40,7 +41,15 @@ export default function RoadmapScreen() {
                   <span className="node__icon" aria-hidden="true">{n.icon}</span>
                 </div>
                 <span className="node__name">{n.name}</span>
-                <span className="node__reps num">{n.done}/{n.target}</span>
+                <span className="node__reps num">
+                  {n.done}/{n.target}
+                  <span className="node__per">/{n.periodShort}</span>
+                </span>
+                {n.fill < 1 && (
+                  <span className={'node__pace' + (n.aheadBy < 0 ? ' node__pace--behind' : '')}>
+                    {n.aheadBy >= 0 ? `+${n.aheadBy} ahead` : `${Math.abs(n.aheadBy)} behind`}
+                  </span>
+                )}
               </div>
             ))}
 
@@ -50,7 +59,7 @@ export default function RoadmapScreen() {
                 <div className="node__fill"
                      style={{ background:
                        `conic-gradient(var(--good) ${endFill * 360}deg, var(--steel) 0deg)` }} />
-                <span className="node__icon" aria-hidden="true">🏁</span>
+                <span className="node__icon"><IconFlag size={22} /></span>
               </div>
               <span className="node__name">Week</span>
               <span className="node__reps num">{balance}/{goal}</span>
@@ -64,7 +73,7 @@ export default function RoadmapScreen() {
                     data-testid="rm-balance">{balance} ★</span>
             </div>
             <div className="card__row">
-              <span className="card__label">Week goal</span>
+              <span className="card__label">Week goal (all goals, per week)</span>
               <span className="card__val num" data-testid="rm-goal">{goal} ★</span>
             </div>
             <div className="card__row">
