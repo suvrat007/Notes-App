@@ -7,7 +7,11 @@
   --steel: #2a2f38;
   --text: #e6e8eb;
   --text-dim: #8a929e;
-  --accent: #ff6a2b;
+  --accent: #c0b3a5;
+  /* rgb triplet of --accent, for rgba() tints */
+  --accent-rgb: 192, 179, 165;
+  /* Deep end of the sequential ramp; MALTA is too light to tint from alone. */
+  --accent-deep: #5c5148;
   --good: #3ecf8e;
   --bad: #e5484d;
 

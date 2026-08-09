@@ -10,7 +10,7 @@ export const tokens = {
     steel: '#2a2f38',
     text: '#e6e8eb',
     textDim: '#8a929e',
-    accent: '#ff6a2b', // ember
+    accent: '#c0b3a5', // malta — warm stone
     good: '#3ecf8e',
     bad: '#e5484d',
   },

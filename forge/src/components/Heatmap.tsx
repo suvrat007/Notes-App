@@ -22,7 +22,14 @@ export default function Heatmap({ points, max }: Props) {
     // 4 discrete steps read better than a continuous ramp at this cell size.
     return Math.min(4, Math.ceil((v / max) * 4));
   };
-  const alpha = [0, 0.25, 0.45, 0.7, 1];
+
+  /**
+   * Sequential ramp, one hue, monotonically lighter with intensity.
+   * MALTA is a near-neutral (chroma 0.025), so tinting it by alpha would
+   * collapse the low steps into the empty-cell grey — these are explicit
+   * steps stepping up in lightness from a deep stone instead.
+   */
+  const RAMP = ['#5c5148', '#7d7064', '#9e9184', '#c0b3a5'];
 
   return (
     <div className="heat" data-testid="heatmap">
@@ -46,9 +53,7 @@ export default function Heatmap({ points, max }: Props) {
                   data-level={lv}
                   title={`${p.date}: ${p.value} rep${p.value === 1 ? '' : 's'}`}
                   style={{
-                    background: lv === 0
-                      ? 'var(--steel)'
-                      : `rgba(255, 106, 43, ${alpha[lv]})`,
+                    background: lv === 0 ? 'var(--steel)' : RAMP[lv - 1],
                   }}
                 />
               );

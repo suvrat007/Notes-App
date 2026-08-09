@@ -19,7 +19,7 @@ export const BANDS: Band[] = [
   { name: 'Recruit',     from: 1,  to: 5,  tier: 1, color: '#8a929e' },
   { name: 'Disciplined', from: 6,  to: 10, tier: 2, color: '#5b9dd9' },
   { name: 'Ironclad',    from: 11, to: 18, tier: 3, color: '#3ecf8e' },
-  { name: 'Vanguard',    from: 19, to: 25, tier: 4, color: '#ff6a2b' },
+  { name: 'Vanguard',    from: 19, to: 25, tier: 4, color: '#c0b3a5' },
   { name: 'Warlord',     from: 26, to: 30, tier: 5, color: '#e5484d' },
 ];
 

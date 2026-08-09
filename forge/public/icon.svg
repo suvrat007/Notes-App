@@ -2,8 +2,8 @@
   <!-- Maskable: all meaning sits inside the central 80% safe circle (r=205). -->
   <defs>
     <linearGradient id="ember" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#ff8f4d"/>
-      <stop offset="100%" stop-color="#ff5a12"/>
+      <stop offset="0%" stop-color="#d6cabd"/>
+      <stop offset="100%" stop-color="#a29484"/>
     </linearGradient>
   </defs>
 
@@ -22,7 +22,7 @@
   </g>
 
   <!-- Sparks -->
-  <g fill="#ff8f4d">
+  <g fill="#d6cabd">
     <circle cx="176" cy="214" r="7"/>
     <circle cx="150" cy="188" r="5"/>
     <circle cx="196" cy="180" r="4"/>
