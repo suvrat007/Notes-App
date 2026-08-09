@@ -18,7 +18,8 @@ export default function VoiceModal({ onClose }: Props) {
   const { habits, rewards, commitVoiceItems } = useForge();
   const supported = isVoiceSupported();
 
-  const [phase, setPhase] = useState<'idle' | 'listening' | 'preview' | 'saving'>('idle');
+  const [phase, setPhase] = useState<'idle' | 'listening' | 'preview'>('idle');
+  const [saving, setSaving] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [items, setItems] = useState<ParsedItem[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +75,7 @@ export default function VoiceModal({ onClose }: Props) {
   const drop = (id: string) => setItems((prev) => prev.filter((it) => it.id !== id));
 
   const commit = async () => {
-    setPhase('saving');
+    setSaving(true);
     await commitVoiceItems(items);
     onClose();
   };
@@ -155,7 +156,7 @@ export default function VoiceModal({ onClose }: Props) {
             </p>
           )}
 
-          <button className="btn btn--primary" disabled={!canCommit || phase === 'saving'}
+          <button className="btn btn--primary" disabled={!canCommit || saving}
                   data-testid="voice-ok" onClick={() => void commit()}>
             OK — commit {items.length} item{items.length === 1 ? '' : 's'}
           </button>

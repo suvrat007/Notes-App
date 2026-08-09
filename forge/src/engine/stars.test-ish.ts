@@ -37,6 +37,10 @@ import {
   habitStreak,
 } from './analytics';
 import type { HabitLike, LogLike } from './types';
+// lib/dates is pure and React-free, so the engine suite can guard it too.
+import {
+  mondayOf, weekStartOf, weekDates, addDays, toDateStr, daysBetween,
+} from '../lib/dates';
 
 const habit = (over: Partial<HabitLike> = {}): HabitLike => ({
   id: 'h1',
@@ -333,6 +337,31 @@ export function runStarEngineTests(): TestResult[] {
   // 34 — clause splitting on the various conjunctions
   check('splits on "and"', splitClauses('gym and read').length, 2);
   check('empty transcript yields nothing', parseVoice('', vctx).length, 0);
+
+  /* ---- date helpers (lib/dates) ---- */
+
+  // 35 — week start for each configurable reset day. 2026-01-07 is a Wednesday.
+  check('mondayOf(Wed 2026-01-07) = Mon 2026-01-05', mondayOf('2026-01-07'), '2026-01-05');
+  check('weekStartOf(..., Sunday) = 2026-01-04', weekStartOf('2026-01-07', 0), '2026-01-04');
+  check('weekStartOf(..., Saturday) = 2026-01-03', weekStartOf('2026-01-07', 6), '2026-01-03');
+  check('week start of the start day is itself', weekStartOf('2026-01-05', 1), '2026-01-05');
+
+  // 36 — weekDates spans exactly 7 consecutive days
+  const wd = weekDates('2026-01-05');
+  check('weekDates length 7', wd.length, 7);
+  check('weekDates ends 6 days later', wd[6], '2026-01-11');
+
+  // 37 — addDays crosses month and year boundaries correctly
+  check('addDays across a month end', addDays('2026-01-31', 1), '2026-02-01');
+  check('addDays across a year end', addDays('2026-12-31', 1), '2027-01-01');
+  check('addDays backwards across a year start', addDays('2026-01-01', -1), '2025-12-31');
+  check('leap day exists in 2028', addDays('2028-02-28', 1), '2028-02-29');
+
+  // 38 — date strings are LOCAL, not UTC (a late-evening Date must not roll over)
+  check('toDateStr uses local time, not UTC',
+    toDateStr(new Date(2026, 0, 5, 23, 30)), '2026-01-05');
+
+  check('daysBetween counts whole days', daysBetween('2026-01-05', '2026-01-11'), 6);
 
   return results;
 }

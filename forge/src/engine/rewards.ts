@@ -50,7 +50,7 @@ export function affordableStreak(balances: number[], cost: number): number {
 }
 
 export function buildRewardViews(
-  rewards: RewardLike[] & Array<{ name: string }>,
+  rewards: Array<RewardLike & { name: string }>,
   balance: number,
   balancesByDay: number[],
 ): RewardView[] {
