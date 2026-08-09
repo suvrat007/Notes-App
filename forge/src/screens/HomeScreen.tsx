@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForge } from '../store/useForge';
 import HabitCard from '../components/HabitCard';
 import TodayRing from '../components/TodayRing';
@@ -7,9 +7,10 @@ import NewTaskModal from '../components/NewTaskModal';
 import TaskRow from '../components/TaskRow';
 import TargetBanner from '../components/TargetBanner';
 import RewardList from '../components/RewardList';
-
-/** Placeholder until engine/rank.ts lands in Phase 8. */
-const PLACEHOLDER_RANK = 'Recruit';
+import FloatingDelta, { type Delta } from '../components/FloatingDelta';
+import LevelUpFlash from '../components/LevelUpFlash';
+import { rankFor, type RankInfo } from '../engine/rank';
+import { tapPulse, penaltyPulse, levelUpPulse } from '../lib/haptics';
 
 export default function HomeScreen() {
   const {
@@ -21,6 +22,37 @@ export default function HomeScreen() {
   } = useForge();
   const [showNew, setShowNew] = useState(false);
   const [showNewTask, setShowNewTask] = useState(false);
+  const [deltas, setDeltas] = useState<Delta[]>([]);
+  const [levelUp, setLevelUp] = useState<RankInfo | null>(null);
+  const deltaId = useRef(0);
+  // Tracks the level we last rendered, so a threshold crossing fires once.
+  const lastLevel = useRef<number | null>(null);
+
+  const lifetime = appState?.lifetimeStars ?? 0;
+  const rank = rankFor(lifetime);
+
+  useEffect(() => {
+    if (!ready) return;
+    if (lastLevel.current === null) {
+      lastLevel.current = rank.level;   // first render: no flash
+      return;
+    }
+    if (rank.level > lastLevel.current) {
+      setLevelUp(rank);
+      levelUpPulse();
+    }
+    lastLevel.current = rank.level;
+  }, [ready, rank.level, rank]);
+
+  /** Log a rep, then float the delta from the tap point and buzz. */
+  const logWithFeedback = async (habitId: string, e: { clientX: number; clientY: number }) => {
+    const delta = await logHabitRep(habitId);
+    if (delta === null) return;
+    if (delta < 0) penaltyPulse(); else tapPulse();
+    const id = ++deltaId.current;
+    setDeltas((d) => [...d, { id, value: delta, x: e.clientX, y: e.clientY }]);
+    window.setTimeout(() => setDeltas((d) => d.filter((x) => x.id !== id)), 700);
+  };
 
   useEffect(() => { void loadToday(); }, [loadToday]);
 
@@ -40,9 +72,12 @@ export default function HomeScreen() {
           <div className="stat">
             <span className="stat__label">Lifetime</span>
             <span className="stat__value num" data-testid="lifetime">
-              {appState?.lifetimeStars ?? 0} ★
+              {lifetime} ★
             </span>
-            <span className="rankbadge" data-testid="rank">{PLACEHOLDER_RANK}</span>
+            <span className="rankbadge" data-testid="rank"
+                  style={{ color: rank.color, borderColor: rank.color }}>
+              {rank.title} {rank.level}
+            </span>
           </div>
           <div className="stat">
             <span className="stat__label">This week</span>
@@ -73,7 +108,7 @@ export default function HomeScreen() {
           <h2 className="sect">Build</h2>
           {good.map((h) => (
             <HabitCard key={h.id} habit={h} reps={repsToday(h.id)}
-                       onLog={() => void logHabitRep(h.id)}
+                       onLog={(e) => void logWithFeedback(h.id, e)}
                        onUndo={() => void undoHabitRep(h.id)} />
           ))}
         </section>
@@ -84,7 +119,7 @@ export default function HomeScreen() {
           <h2 className="sect">Break</h2>
           {bad.map((h) => (
             <HabitCard key={h.id} habit={h} reps={repsToday(h.id)}
-                       onLog={() => void logHabitRep(h.id)}
+                       onLog={(e) => void logWithFeedback(h.id, e)}
                        onUndo={() => void undoHabitRep(h.id)} />
           ))}
         </section>
@@ -138,6 +173,8 @@ export default function HomeScreen() {
           onSave={async (t) => { await createTask(t); setShowNewTask(false); }}
         />
       )}
+      <FloatingDelta deltas={deltas} />
+      <LevelUpFlash rank={levelUp} onDone={() => setLevelUp(null)} />
     </div>
   );
 }

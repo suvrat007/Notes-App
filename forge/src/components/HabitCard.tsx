@@ -1,10 +1,12 @@
 import { useRef } from 'react';
+import type React from 'react';
 import type { Habit } from '../db/schema';
 
 type Props = {
   habit: Habit;
   reps: number;
-  onLog: () => void;
+  /** Receives the release point so the floating delta can rise from the tap. */
+  onLog: (at: { clientX: number; clientY: number }) => void;
   onUndo: () => void;
 };
 
@@ -34,10 +36,10 @@ export default function HabitCard({ habit, reps, onLog, onUndo }: Props) {
   };
 
   // Fires on pointer release; a completed long-press has already acted.
-  const release = () => {
+  const release = (e: React.PointerEvent) => {
     const wasLongPress = didLongPress.current;
     cancel();
-    if (!wasLongPress) onLog();
+    if (!wasLongPress) onLog({ clientX: e.clientX, clientY: e.clientY });
   };
 
   const isBad = habit.polarity === 'bad';

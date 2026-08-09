@@ -867,3 +867,121 @@
   color: var(--text-dim);
   font-size: 11px;
 }
+
+/* ---- Rank hero ---- */
+
+.rankhero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.rankhero__meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rankhero__title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.rankhero__level {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.rankhero__next {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.pbar {
+  height: 8px;
+  background: var(--steel);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.pbar__fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+/* ---- Floating deltas ---- */
+
+.fdelta {
+  position: fixed;
+  z-index: 60;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--good);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+}
+
+.fdelta--neg {
+  color: var(--bad);
+}
+
+/* ---- Level-up flash ---- */
+
+.levelup {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.levelup__card {
+  background: var(--surface-raised);
+  border: 2px solid var(--accent);
+  border-radius: 16px;
+  padding: 26px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.levelup__eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.levelup__level {
+  font-family: var(--font-display);
+  font-size: 62px;
+  line-height: 1;
+}
+
+.levelup__title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Respect users who ask for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .fdelta,
+  .levelup,
+  .levelup__card {
+    transition: none !important;
+    animation: none !important;
+  }
+}
