@@ -50,21 +50,32 @@
   color: var(--accent);
 }
 
-/* Ember bar marking the active tab. */
+/* Bar marking the active tab. MALTA sits much closer to --text-dim than the
+   old ember did, so the active state leans on weight and a thicker rule
+   rather than on hue alone. */
 .tab--active::before {
   content: '';
   position: absolute;
   top: -1px;
-  left: 20%;
-  right: 20%;
-  height: 2px;
+  left: 18%;
+  right: 18%;
+  height: 3px;
   background: var(--accent);
-  border-radius: 0 0 2px 2px;
+  border-radius: 0 0 3px 3px;
+}
+
+.tab--active .tab__label {
+  font-weight: 700;
+}
+
+.tab:not(.tab--active) {
+  opacity: 0.72;
 }
 
 .tab__icon {
-  font-size: 20px;
-  line-height: 1;
+  display: grid;
+  place-items: center;
+  height: 22px;
 }
 
 .tab__label {
@@ -427,7 +438,7 @@
 .seg--neutral .seg__opt--on {
   border-color: var(--accent);
   color: var(--accent);
-  background: rgba(255, 106, 43, 0.1);
+  background: rgba(var(--accent-rgb), 0.12);
 }
 
 .iconpick {
@@ -448,7 +459,7 @@
 
 .iconpick__opt--on {
   border-color: var(--accent);
-  background: rgba(255, 106, 43, 0.12);
+  background: rgba(var(--accent-rgb), 0.14);
 }
 
 /* ---- Task rows ---- */
@@ -1079,4 +1090,478 @@
   height: 22px;
   accent-color: var(--accent);
   flex-shrink: 0;
+}
+
+/* =====================================================================
+   SIDEBAR  (rendered always, revealed only at desktop widths below)
+   ===================================================================== */
+
+.sidebar {
+  display: none;
+  flex-direction: column;
+  width: 248px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--steel);
+  padding: 20px 14px 16px;
+  gap: 22px;
+}
+
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px;
+}
+
+.sidebar__mark {
+  border-radius: 7px;
+}
+
+.sidebar__wordmark {
+  font-family: var(--font-display);
+  font-size: 21px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.snav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 10px;
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  text-align: left;
+  position: relative;
+  transition: background var(--fast) ease, color var(--fast) ease;
+}
+
+.snav:hover {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.snav--active {
+  background: var(--surface-raised);
+  color: var(--accent);
+}
+
+/* Ember spine on the active item — the vertical answer to the tab bar's
+   top border, so the active state reads the same in both navigations. */
+.snav--active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+}
+
+.snav__icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.snav__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.snav__label {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.snav__blurb {
+  font-size: 11px;
+  color: var(--text-dim);
+  opacity: 0.8;
+}
+
+.snav--active .snav__blurb {
+  color: var(--accent);
+  opacity: 0.7;
+}
+
+.sidebar__voice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  border-radius: var(--radius);
+  border: 1px solid var(--steel);
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 600;
+  transition: all var(--fast) ease;
+}
+
+.sidebar__voice:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.sidebar__foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebar__rank {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--steel);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+}
+
+.sidebar__level {
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 1;
+  min-width: 26px;
+  text-align: center;
+}
+
+.sidebar__ranktext {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sidebar__title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sidebar__life {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.sidebar__bal {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 4px;
+}
+
+.sidebar__ballabel {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.sidebar__balval {
+  font-family: var(--font-display);
+  font-size: 17px;
+}
+
+/* =====================================================================
+   DESKTOP  (>= 1024px)
+   Must stay near the END of this file: cascade order, not media-query
+   specificity, decides ties against the mobile rules above.
+   ===================================================================== */
+
+@media (min-width: 1024px) {
+  .app {
+    flex-direction: row;
+    max-width: none;
+    height: 100vh;
+  }
+
+  .sidebar {
+    display: flex;
+  }
+
+  /* The bottom bar and the rail must never both be present. */
+  .tabbar {
+    display: none;
+  }
+
+  .app__body {
+    padding: 28px 36px 40px;
+  }
+
+  /* Content stops growing before lines get unreadably long. */
+  .screen {
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+
+  .screen__title {
+    font-size: 32px;
+    margin: 0 0 22px;
+  }
+
+  /* ---- Home: hero band, then a two-column working area ---- */
+
+  .hero {
+    background: var(--surface);
+    border: 1px solid var(--steel);
+    border-radius: 14px;
+    padding: 22px 26px;
+    gap: 28px;
+    margin-bottom: 22px;
+  }
+
+  /* Spread the stats across the band instead of leaving a void beside the
+     ring, and separate them from it with a hairline. */
+  .hero__stats {
+    flex-direction: row;
+    justify-content: space-evenly;
+    align-items: center;
+    gap: 32px;
+    padding-right: 26px;
+    border-right: 1px solid var(--steel);
+    align-self: stretch;
+  }
+
+  .hero .stat {
+    gap: 4px;
+  }
+
+  .stat__value {
+    font-size: 34px;
+  }
+
+  .home-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 26px;
+    align-items: start;
+  }
+
+  /* Habit cards get room to breathe rather than stretching edge to edge. */
+  .habit {
+    padding: 13px 13px 13px 15px;
+  }
+
+  .habit__name {
+    font-size: 16px;
+  }
+
+  /* Full-width action row instead of stacked full-bleed buttons. */
+  .actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 26px;
+  }
+
+  .actions .btn {
+    margin-top: 0;
+  }
+
+  /* ---- Stats: charts side by side ---- */
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px 26px;
+    align-items: start;
+  }
+
+  .stats-grid__wide {
+    grid-column: 1 / -1;
+  }
+
+  .chart {
+    padding: 14px 14px 6px;
+  }
+
+  /* Bigger cells now that the heatmap sits in a full desktop column. */
+  .heat {
+    padding: 14px;
+    justify-content: flex-start;
+  }
+
+  .heat__cell {
+    width: 15px;
+    height: 15px;
+    border-radius: 3.5px;
+  }
+
+  .heat__daylabel {
+    font-size: 10px;
+    line-height: 15px;
+  }
+
+  /* ---- Profile: rank + settings beside rewards ---- */
+
+  .profile-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 26px;
+    align-items: start;
+  }
+
+  .rankhero {
+    background: var(--surface);
+    border: 1px solid var(--steel);
+    border-radius: 14px;
+    padding: 22px;
+    gap: 22px;
+  }
+
+  /* ---- Roadmap: the track can finally spread out ---- */
+
+  .track {
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 14px 0 22px;
+  }
+
+  .track__node {
+    width: 118px;
+  }
+
+  .node__dial {
+    width: 74px;
+    height: 74px;
+  }
+
+  .track__node:not(:last-child)::after {
+    top: 37px;
+    left: calc(50% + 40px);
+    width: calc(100% - 80px);
+  }
+
+  /* ---- Chrome that shouldn't be phone-sized on a large screen ---- */
+
+  .modal {
+    align-items: center;
+  }
+
+  .modal__sheet {
+    max-width: 560px;
+    border-radius: 14px;
+    max-height: 84vh;
+  }
+
+  .banner {
+    display: flex;
+    align-items: center;
+  }
+
+  /* Pointer devices get hover affordances a touchscreen can't use. */
+  .habit__log:hover {
+    background: var(--accent);
+    color: #0d0f12;
+  }
+
+  .btn--ghost:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .task:hover {
+    border-color: var(--text-dim);
+  }
+}
+
+/* Very wide screens: a third column rather than ever-wider cards. */
+@media (min-width: 1500px) {
+  .screen {
+    max-width: 1400px;
+  }
+
+  .home-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+/* ---- Icon-button alignment ---- */
+
+/* The log button now holds an SVG, not a glyph. */
+.habit__log > svg {
+  display: block;
+}
+
+.task__check > svg {
+  position: relative;
+  z-index: 1;
+}
+
+/* Buttons that pair an icon with a label. */
+.btn--voice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.streak__flame {
+  display: inline-grid;
+  place-items: center;
+  vertical-align: -1px;
+  margin-right: 3px;
+  color: var(--accent);
+}
+
+.node__icon > svg {
+  display: block;
+}
+
+/* ---- Goal (reps per period) field ---- */
+
+.goalrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.goalrow__reps {
+  width: 84px;
+  flex-shrink: 0;
+}
+
+.goalrow__per {
+  font-size: 13px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.goalrow__period {
+  flex: 1;
+  min-width: 0;
+}
+
+.goalrow__hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.node__per {
+  color: var(--text-dim);
+  font-size: 10px;
+}
+
+.node__pace {
+  font-size: 10px;
+  color: var(--good);
+}
+
+.node__pace--behind {
+  color: var(--bad);
 }

@@ -54,6 +54,8 @@ export default function ProfileScreen() {
         </div>
       </div>
 
+      <div className="profile-grid">
+      <div className="profile-col">
       <div className="card">
         <div className="card__row">
           <span className="card__label">Lifetime stars</span>
@@ -65,6 +67,10 @@ export default function ProfileScreen() {
         </div>
       </div>
 
+      <SettingsPanel />
+      </div>
+
+      <div className="profile-col">
       <h2 className="sect">Rewards</h2>
       <RewardList
         views={views}
@@ -89,7 +95,8 @@ export default function ProfileScreen() {
         </button>
       </div>
 
-      <SettingsPanel />
+      </div>
+      </div>
     </div>
   );
 }

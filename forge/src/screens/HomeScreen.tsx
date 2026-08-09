@@ -10,6 +10,7 @@ import RewardList from '../components/RewardList';
 import FloatingDelta, { type Delta } from '../components/FloatingDelta';
 import LevelUpFlash from '../components/LevelUpFlash';
 import VoiceModal from '../components/VoiceModal';
+import { IconMic } from '../components/icons';
 import { rankFor, type RankInfo } from '../engine/rank';
 import { tapPulse, penaltyPulse, levelUpPulse } from '../lib/haptics';
 
@@ -105,6 +106,8 @@ export default function HomeScreen() {
         </p>
       )}
 
+      <div className="home-grid">
+      <div className="home-col">
       {good.length > 0 && (
         <section>
           <h2 className="sect">Build</h2>
@@ -127,6 +130,8 @@ export default function HomeScreen() {
         </section>
       )}
 
+      </div>
+      <div className="home-col">
       {hasTasks && (
         <section data-testid="tasks-section">
           <h2 className="sect">Today's Tasks</h2>
@@ -158,12 +163,19 @@ export default function HomeScreen() {
         </section>
       )}
 
-      <button className="btn btn--primary" onClick={() => setShowVoice(true)}
-              data-testid="open-voice">🎙 Speak your day</button>
-      <button className="btn btn--ghost" onClick={() => setShowNewTask(true)}
-              data-testid="new-task">+ New Task</button>
-      <button className="btn btn--ghost" onClick={() => setShowNew(true)}
-              data-testid="new-habit">+ New Habit</button>
+      </div>
+      </div>
+
+      <div className="actions">
+        <button className="btn btn--primary btn--voice" onClick={() => setShowVoice(true)}
+                data-testid="open-voice">
+          <IconMic size={18} /> Speak your day
+        </button>
+        <button className="btn btn--ghost" onClick={() => setShowNewTask(true)}
+                data-testid="new-task">+ New Task</button>
+        <button className="btn btn--ghost" onClick={() => setShowNew(true)}
+                data-testid="new-habit">+ New Habit</button>
+      </div>
 
       {showNew && (
         <NewHabitModal

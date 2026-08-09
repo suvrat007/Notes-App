@@ -11,20 +11,26 @@ import {
 } from '../engine/analytics';
 import { weekDates, weekStartOf, todayStr, addDays, shortDayName } from '../lib/dates';
 import Heatmap from '../components/Heatmap';
+import { IconFlame } from '../components/icons';
+import { useIsDesktop } from '../lib/useMediaQuery';
 
 const GOOD = '#3ecf8e';
 const BAD = '#e5484d';
-const ACCENT = '#ff6a2b';
+const ACCENT = '#c0b3a5';
 const AXIS = '#8a929e';
 
 type Range = 'day' | 'week' | 'month';
-const HEATMAP_WEEKS = 12;
+/** A phone fits ~12 weeks of cells; a desktop column fits far more history. */
+const HEATMAP_WEEKS_MOBILE = 12;
+const HEATMAP_WEEKS_DESKTOP = 26;
 
 export default function StatsScreen() {
   const { ready, habits, appState, loadToday } = useForge();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [range, setRange] = useState<Range>('day');
   const [heatHabit, setHeatHabit] = useState<string | null>(null);
+  const isDesktop = useIsDesktop();
+  const heatWeeks = isDesktop ? HEATMAP_WEEKS_DESKTOP : HEATMAP_WEEKS_MOBILE;
 
   useEffect(() => { void loadToday(); }, [loadToday]);
 
@@ -70,13 +76,13 @@ export default function StatsScreen() {
     if (!activeHeatHabit) return [];
     // Align to the configured week start so rows are consistent weekdays.
     const end = weekStartOf(today, weekStartDay);
-    const start = addDays(end, -7 * (HEATMAP_WEEKS - 1));
+    const start = addDays(end, -7 * (heatWeeks - 1));
     const dates = Array.from(
-      { length: HEATMAP_WEEKS * 7 },
+      { length: heatWeeks * 7 },
       (_, i) => addDays(start, i),
     );
     return repsPerDay(logs, activeHeatHabit, dates);
-  }, [logs, activeHeatHabit, today, weekStartDay]);
+  }, [logs, activeHeatHabit, today, weekStartDay, heatWeeks]);
 
   const heatMax = Math.max(1, ...heatPoints.map((p) => p.value));
 
@@ -94,7 +100,7 @@ export default function StatsScreen() {
     const dates = Array.from({ length: span }, (_, i) => addDays(today, -(span - 1 - i)));
     return goodHabits.map((h) => ({
       habit: h,
-      ...habitStreak(logs, h.id, dates, h.weeklyTarget),
+      ...habitStreak(logs, h.id, dates, h.targetReps, h.targetPeriodWeeks),
     }));
   }, [logs, goodHabits, today]);
 
@@ -112,6 +118,9 @@ export default function StatsScreen() {
         </p>
       )}
 
+      <div className="stats-grid">
+
+      <section className="stats-cell">
       {/* 7.1 — stars per day this week. Sign is encoded by position about the
           zero baseline as well as by color, so it never reads as color alone. */}
       <h2 className="sect">Stars per day · this week</h2>
@@ -142,6 +151,9 @@ export default function StatsScreen() {
         </ResponsiveContainer>
       </div>
 
+      </section>
+
+      <section className="stats-cell">
       {/* 7.2 — cumulative lifetime */}
       <h2 className="sect">Lifetime stars</h2>
       <div className="seg seg--neutral" style={{ marginBottom: 8 }}>
@@ -172,8 +184,11 @@ export default function StatsScreen() {
         </ResponsiveContainer>
       </div>
 
+      </section>
+
+      <section className="stats-cell">
       {/* 7.3 — per-habit heatmap */}
-      <h2 className="sect">Consistency · last {HEATMAP_WEEKS} weeks</h2>
+      <h2 className="sect">Consistency · last {heatWeeks} weeks</h2>
       {goodHabits.length === 0 ? (
         <p className="empty">No good habits yet.</p>
       ) : (
@@ -191,6 +206,9 @@ export default function StatsScreen() {
         </>
       )}
 
+      </section>
+
+      <section className="stats-cell">
       {/* 7.4 — best/worst + streaks */}
       <h2 className="sect">Best &amp; worst · this month</h2>
       {monthStats.length === 0 ? (
@@ -210,6 +228,9 @@ export default function StatsScreen() {
         </div>
       )}
 
+      </section>
+
+      <section className="stats-cell">
       <h2 className="sect">Streaks</h2>
       {streaks.length === 0 ? (
         <p className="empty">No good habits yet.</p>
@@ -219,7 +240,9 @@ export default function StatsScreen() {
             <div className="card__row" key={s.habit.id}>
               <span className="card__label">{s.habit.icon} {s.habit.name}</span>
               <span className="card__val num" data-testid={`streak-${s.habit.id}`}>
-                {s.current > 0 && <span aria-hidden="true">🔥 </span>}
+                {s.current > 0 && (
+                  <span className="streak__flame"><IconFlame /></span>
+                )}
                 {s.current}d
                 <span className="streak__record"> · best {s.record}d</span>
               </span>
@@ -227,6 +250,9 @@ export default function StatsScreen() {
           ))}
         </div>
       )}
+      </section>
+
+      </div>
     </div>
   );
 }
