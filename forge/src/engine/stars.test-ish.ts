@@ -28,6 +28,7 @@ import {
 } from './targets';
 import { runningBalances, affordableStreak, buildRewardViews } from './rewards';
 import { starsForLevel, rankFor, MAX_LEVEL } from './rank';
+import { parseVoice, splitClauses } from './parseVoice';
 import {
   starsPerDay,
   cumulativeLifetime,
@@ -292,6 +293,46 @@ export function runStarEngineTests(): TestResult[] {
   check('streak broken by a real gap',
     habitStreak(sLogs, 'h1', [...sDates, '2026-01-11', '2026-01-12'], 7),
     { current: 0, record: 3 });
+
+  /* ---- voice parsing (Phase 9) ---- */
+
+  const vctx = {
+    habits: [
+      { id: 'gym', name: 'gym', polarity: 'good' as const },
+      { id: 'tv', name: 'TV', polarity: 'bad' as const },
+    ],
+    rewards: [{ id: 'cake', name: 'cheesecake' }],
+    today: '2026-01-05',
+    tomorrow: '2026-01-06',
+  };
+
+  // 29 — THE SPEC'S EXAMPLE: "tomorrow gym, read 20 pages, no TV"
+  const parsed = parseVoice('tomorrow gym, read 20 pages, no TV', vctx);
+  check('spec example yields 3 items', parsed.length, 3);
+  check('… "gym" → habit rep', [parsed[0].kind, parsed[0].refId], ['habit', 'gym']);
+  check('… "read 20 pages" → task due tomorrow',
+    [parsed[1].kind, parsed[1].dueDate], ['task', '2026-01-06']);
+  check('… "no TV" → bad-habit note', [parsed[2].kind, parsed[2].refId], ['bad-habit', 'tv']);
+
+  // 30 — day cues
+  check('"today" cue puts the task on today',
+    parseVoice('today call the bank', vctx)[0].dueDate, '2026-01-05');
+  check('unqualified tasks default to tomorrow',
+    parseVoice('call the bank', vctx)[0].dueDate, '2026-01-06');
+
+  // 31 — redemption by voice
+  const red = parseVoice('I ate the cheesecake', vctx);
+  check('"I ate the cheesecake" → redeem', [red[0].kind, red[0].refId], ['redeem', 'cake']);
+
+  // 32 — a bad habit named without negation is still a slip, not an earn
+  check('bare "TV" is a bad-habit note', parseVoice('TV', vctx)[0].kind, 'bad-habit');
+
+  // 33 — negating a GOOD habit records a miss, not an earn
+  check('"skipped gym" is not an earn', parseVoice('skipped gym', vctx)[0].kind, 'bad-habit');
+
+  // 34 — clause splitting on the various conjunctions
+  check('splits on "and"', splitClauses('gym and read').length, 2);
+  check('empty transcript yields nothing', parseVoice('', vctx).length, 0);
 
   return results;
 }
