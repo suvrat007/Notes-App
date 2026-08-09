@@ -5,16 +5,17 @@ import TodayRing from '../components/TodayRing';
 import NewHabitModal from '../components/NewHabitModal';
 import NewTaskModal from '../components/NewTaskModal';
 import TaskRow from '../components/TaskRow';
+import TargetBanner from '../components/TargetBanner';
 
 /** Placeholder until engine/rank.ts lands in Phase 8. */
 const PLACEHOLDER_RANK = 'Recruit';
-const PLACEHOLDER_TARGET = 50;
 
 export default function HomeScreen() {
   const {
     ready, habits, appState, loadToday, logHabitRep, undoHabitRep,
     createHabit, repsToday, weekBalance, todayNet,
     todayTasks, createTask, completeTask, uncompleteTask, removeTask, recurringRows,
+    dailyTarget, suggestedTarget, acceptDailyTarget, effectiveTarget,
   } = useForge();
   const [showNew, setShowNew] = useState(false);
   const [showNewTask, setShowNewTask] = useState(false);
@@ -50,8 +51,13 @@ export default function HomeScreen() {
             </span>
           </div>
         </div>
-        <TodayRing value={todayNet()} target={PLACEHOLDER_TARGET} />
+        <TodayRing value={todayNet()} target={effectiveTarget()} />
       </header>
+
+      {dailyTarget === null && (
+        <TargetBanner suggested={suggestedTarget}
+                      onAccept={(v) => void acceptDailyTarget(v)} />
+      )}
 
       {habits.length === 0 && (
         <p className="empty" data-testid="empty-habits">

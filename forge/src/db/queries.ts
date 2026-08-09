@@ -199,3 +199,17 @@ export async function subtractLifetimeStars(amount: number): Promise<void> {
     }
   });
 }
+
+/* ---------------- Daily targets ---------------- */
+
+export async function getDailyTarget(date: string) {
+  return db.dailyTargets.get(date);
+}
+
+export async function setDailyTarget(date: string, value: number): Promise<void> {
+  await db.dailyTargets.put({ date, value });
+}
+
+export async function listDailyTargets() {
+  return db.dailyTargets.toArray();
+}

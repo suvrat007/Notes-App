@@ -17,9 +17,20 @@ import {
   weeklyBalanceFloored,
   dayNet,
   repsOn,
+  repsInDates,
 } from '../engine/stars';
 import { buildRecurringRows, type VirtualTaskRow } from '../engine/recurring';
-import { todayStr, mondayOf, weekDates } from '../lib/dates';
+import {
+  suggestDailyTarget,
+  recentDailyAverage,
+  buildRoadmap,
+  projectedWeekFinish,
+  type RoadmapNode,
+} from '../engine/targets';
+import { todayStr, mondayOf, weekDates, addDays, daysBetween } from '../lib/dates';
+
+/** How far back the adaptive target looks when averaging recent days. */
+const LOOKBACK_DAYS = 14;
 
 type ForgeState = {
   ready: boolean;
@@ -29,6 +40,12 @@ type ForgeState = {
   weekLogs: LogEntry[];
   todayTasks: Task[];
   appState: AppState | null;
+  /** Accepted target for today, or null until the user confirms the banner. */
+  dailyTarget: number | null;
+  /** Engine's suggestion for today; drives the banner and the ring fallback. */
+  suggestedTarget: number;
+  /** Logs over the lookback window, for the recent-average calculation. */
+  recentLogs: LogEntry[];
 
   loadToday: () => Promise<void>;
   logHabitRep: (habitId: string) => Promise<number | null>;
@@ -41,11 +58,17 @@ type ForgeState = {
   uncompleteTask: (taskId: string) => Promise<void>;
   removeTask: (taskId: string) => Promise<void>;
 
+  acceptDailyTarget: (value: number) => Promise<void>;
+
   // Derived selectors (read-only helpers over current slices).
   repsToday: (habitId: string) => number;
+  repsThisWeek: (habitId: string) => number;
   weekBalance: () => number;
   todayNet: () => number;
+  effectiveTarget: () => number;
   recurringRows: () => VirtualTaskRow[];
+  roadmap: () => RoadmapNode[];
+  weekProjection: () => number;
 };
 
 export const useForge = create<ForgeState>((set, get) => ({
@@ -56,6 +79,9 @@ export const useForge = create<ForgeState>((set, get) => ({
   weekLogs: [],
   todayTasks: [],
   appState: null,
+  dailyTarget: null,
+  suggestedTarget: 0,
+  recentLogs: [],
 
   async loadToday() {
     await db.open();
@@ -65,11 +91,47 @@ export const useForge = create<ForgeState>((set, get) => ({
 
     const today = todayStr();
     const monday = mondayOf(today);
-    const [habits, weekLogs, todayTasks] = await Promise.all([
+    const [habits, weekLogs, todayTasks, recentLogs, targetRow] = await Promise.all([
       q.listActiveHabits(),
       q.listLogsInRange(monday, weekDates(monday)[6]),
       q.listTasksForDate(today),
+      q.listLogsInRange(addDays(today, -LOOKBACK_DAYS), addDays(today, -1)),
+      q.getDailyTarget(today),
     ]);
+
+    const floor = appState.settings.negativeFloor;
+
+    // Average only over days the user has actually been using the app, so a
+    // fresh install isn't dragged toward a target of zero by empty history.
+    const historyDates = recentLogs.length
+      ? (() => {
+          const first = recentLogs
+            .map((l) => l.date)
+            .sort((a, b) => a.localeCompare(b))[0];
+          const span = Math.max(1, daysBetween(first, today));
+          return Array.from({ length: span }, (_, i) => addDays(first, i));
+        })()
+      : [];
+    const recentAvg = recentDailyAverage(
+      historyDates.map((d) => dayNet(recentLogs, d, { floor })),
+    );
+
+    const tasksDueToday = todayTasks.filter((t) => !t.done).reduce((s, t) => s + t.stars, 0);
+    const weekDaysList = weekDates(monday);
+    const daysElapsed = daysBetween(monday, today) + 1;
+    const daysLeftInWeek = 7 - daysElapsed + 1;
+
+    const repsWeek = (habitId: string) => repsInDates(weekLogs, habitId, weekDaysList);
+
+    const suggestedTarget = suggestDailyTarget({
+      tasksDueToday,
+      activeGoodHabits: habits
+        .filter((h) => h.polarity === 'good' && h.weeklyTarget > 0)
+        .map((h) => ({ habit: h, repsThisWeek: repsWeek(h.id) })),
+      recentDailyAvg: recentAvg,
+      daysLeftInWeek,
+    });
+
     set({
       ready: true,
       today,
@@ -77,8 +139,17 @@ export const useForge = create<ForgeState>((set, get) => ({
       weekLogs,
       todayLogs: weekLogs.filter((l) => l.date === today),
       todayTasks: todayTasks.sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+      recentLogs,
       appState,
+      dailyTarget: targetRow?.value ?? null,
+      suggestedTarget,
     });
+  },
+
+  async acceptDailyTarget(value) {
+    const { today } = get();
+    await q.setDailyTarget(today, Math.max(0, Math.round(value)));
+    await get().loadToday();
   },
 
   /** Log one rep. Returns the delta applied, or null if the habit is gone. */
@@ -181,8 +252,31 @@ export const useForge = create<ForgeState>((set, get) => ({
     return dayNet(todayLogs, today, { floor: appState?.settings.negativeFloor });
   },
 
+  repsThisWeek(habitId) {
+    const { weekLogs, appState } = get();
+    if (!appState) return 0;
+    return repsInDates(weekLogs, habitId, weekDates(appState.weekStartDate));
+  },
+
+  effectiveTarget() {
+    const { dailyTarget, suggestedTarget } = get();
+    // Until the user accepts today's banner, the ring tracks the suggestion.
+    return dailyTarget ?? suggestedTarget;
+  },
+
   recurringRows() {
     const { habits, today } = get();
     return buildRecurringRows(habits, today, (id) => get().repsToday(id));
+  },
+
+  roadmap() {
+    return buildRoadmap(get().habits, (id) => get().repsThisWeek(id));
+  },
+
+  weekProjection() {
+    const { appState, today } = get();
+    if (!appState) return 0;
+    const daysElapsed = daysBetween(appState.weekStartDate, today) + 1;
+    return projectedWeekFinish(get().weekBalance(), daysElapsed);
   },
 }));
