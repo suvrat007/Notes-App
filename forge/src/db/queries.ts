@@ -2,7 +2,7 @@
  * Pure CRUD over Dexie. NO star math lives here — deltas arrive
  * pre-computed by `engine/`. This layer only reads and writes rows.
  */
-import { db, type Habit, type Task, type LogEntry, type Reward, type LogKind } from './schema';
+import { db, migrateHabit, type Habit, type Task, type LogEntry, type Reward, type LogKind } from './schema';
 import { newId } from '../lib/id';
 import { todayStr } from '../lib/dates';
 
@@ -32,7 +32,8 @@ export async function addHabit(input: NewHabit): Promise<Habit> {
     dailyAllowance: 0,
     overagePenalty: 5,
     freeWithinAllowance: false,
-    weeklyTarget: 0,
+    targetReps: 0,
+    targetPeriodWeeks: 1,
     isRecurringTask: false,
     color: input.polarity === 'bad' ? '#e5484d' : '#3ecf8e',
     archived: false,
@@ -54,13 +55,18 @@ export async function archiveHabit(id: string): Promise<void> {
 
 export async function listActiveHabits(): Promise<Habit[]> {
   const all = await db.habits.toArray();
+  // Normalise on read as well as in the v2 upgrade: a row can reach the table
+  // without a version bump (import, another tab, a partially-applied upgrade),
+  // and the rest of the app must never see a legacy shape.
   return all
     .filter((h) => !h.archived)
+    .map(migrateHabit)
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
 export async function getHabit(id: string): Promise<Habit | undefined> {
-  return db.habits.get(id);
+  const h = await db.habits.get(id);
+  return h ? migrateHabit(h) : undefined;
 }
 
 /* ---------------- Tasks ---------------- */

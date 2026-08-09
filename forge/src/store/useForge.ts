@@ -34,10 +34,16 @@ import {
   projectedWeekFinish,
   type RoadmapNode,
 } from '../engine/targets';
-import { todayStr, weekStartOf, weekDates, addDays, daysBetween } from '../lib/dates';
+import {
+  periodWindow, daysLeftInPeriod, periodElapsedFraction, periodDates,
+  type PeriodWindow,
+} from '../engine/period';
+import { todayStr, weekStartOf, weekDates, addDays, daysBetween, localDateOf } from '../lib/dates';
 
 /** How far back the adaptive target looks when averaging recent days. */
 const LOOKBACK_DAYS = 14;
+/** Log window loaded on startup — must cover the longest goal period. */
+const HISTORY_DAYS = 380;
 
 type ForgeState = {
   ready: boolean;
@@ -53,6 +59,8 @@ type ForgeState = {
   suggestedTarget: number;
   /** Logs over the lookback window, for the recent-average calculation. */
   recentLogs: LogEntry[];
+  /** Wide log window covering the longest goal period. */
+  historyLogs: LogEntry[];
   rewards: Reward[];
 
   loadToday: () => Promise<void>;
@@ -78,6 +86,9 @@ type ForgeState = {
   // Derived selectors (read-only helpers over current slices).
   repsToday: (habitId: string) => number;
   repsThisWeek: (habitId: string) => number;
+  /** Reps inside the habit's own current goal period. */
+  repsThisPeriod: (habitId: string) => number;
+  periodFor: (habitId: string) => PeriodWindow | null;
   weekBalance: () => number;
   todayNet: () => number;
   effectiveTarget: () => number;
@@ -98,6 +109,7 @@ export const useForge = create<ForgeState>((set, get) => ({
   dailyTarget: null,
   suggestedTarget: 0,
   recentLogs: [],
+  historyLogs: [],
   rewards: [],
 
   async loadToday() {
@@ -109,14 +121,21 @@ export const useForge = create<ForgeState>((set, get) => ({
     const today = todayStr();
     // The week window follows the user's configured reset day.
     const monday = weekStartOf(today, appState.settings.weekResetDay);
-    const [habits, weekLogs, todayTasks, recentLogs, targetRow, rewards] = await Promise.all([
+    // Goal periods can span months, so read one wide window and slice it
+    // rather than issuing a query per horizon.
+    const [habits, historyLogs, todayTasks, targetRow, rewards] = await Promise.all([
       q.listActiveHabits(),
-      q.listLogsInRange(monday, weekDates(monday)[6]),
+      q.listLogsInRange(addDays(today, -HISTORY_DAYS), today),
       q.listTasksForDate(today),
-      q.listLogsInRange(addDays(today, -LOOKBACK_DAYS), addDays(today, -1)),
       q.getDailyTarget(today),
       q.listRewards(),
     ]);
+
+    const weekEnd = weekDates(monday)[6];
+    const weekLogs = historyLogs.filter((l) => l.date >= monday && l.date <= weekEnd);
+    const recentLogs = historyLogs.filter(
+      (l) => l.date >= addDays(today, -LOOKBACK_DAYS) && l.date <= addDays(today, -1),
+    );
 
     const floor = appState.settings.negativeFloor;
 
@@ -136,19 +155,22 @@ export const useForge = create<ForgeState>((set, get) => ({
     );
 
     const tasksDueToday = todayTasks.filter((t) => !t.done).reduce((s, t) => s + t.stars, 0);
-    const weekDaysList = weekDates(monday);
-    const daysElapsed = daysBetween(monday, today) + 1;
-    const daysLeftInWeek = 7 - daysElapsed + 1;
-
-    const repsWeek = (habitId: string) => repsInDates(weekLogs, habitId, weekDaysList);
+    const weekStartDay = appState.settings.weekResetDay;
 
     const suggestedTarget = suggestDailyTarget({
       tasksDueToday,
       activeGoodHabits: habits
-        .filter((h) => h.polarity === 'good' && h.weeklyTarget > 0)
-        .map((h) => ({ habit: h, repsThisWeek: repsWeek(h.id) })),
+        .filter((h) => h.polarity === 'good' && h.targetReps > 0)
+        .map((h) => {
+          const w = periodWindow(today, localDateOf(h.createdAt),
+                                 h.targetPeriodWeeks, weekStartDay);
+          return {
+            habit: h,
+            repsThisPeriod: repsInDates(historyLogs, h.id, periodDates(w)),
+            daysLeftInPeriod: daysLeftInPeriod(today, w),
+          };
+        }),
       recentDailyAvg: recentAvg,
-      daysLeftInWeek,
     });
 
     set({
@@ -156,9 +178,10 @@ export const useForge = create<ForgeState>((set, get) => ({
       today,
       habits,
       weekLogs,
-      todayLogs: weekLogs.filter((l) => l.date === today),
+      todayLogs: historyLogs.filter((l) => l.date === today),
       todayTasks: todayTasks.sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
       recentLogs,
+      historyLogs,
       appState,
       rewards,
       dailyTarget: targetRow?.value ?? null,
@@ -346,8 +369,30 @@ export const useForge = create<ForgeState>((set, get) => ({
     return buildRecurringRows(habits, today, (id) => get().repsToday(id));
   },
 
+  periodFor(habitId) {
+    const { habits, appState, today } = get();
+    const h = habits.find((x) => x.id === habitId);
+    if (!h || !appState) return null;
+    return periodWindow(today, localDateOf(h.createdAt),
+                        h.targetPeriodWeeks, appState.settings.weekResetDay);
+  },
+
+  repsThisPeriod(habitId) {
+    const w = get().periodFor(habitId);
+    if (!w) return 0;
+    return repsInDates(get().historyLogs, habitId, periodDates(w));
+  },
+
   roadmap() {
-    return buildRoadmap(get().habits, (id) => get().repsThisWeek(id));
+    const { today } = get();
+    return buildRoadmap(
+      get().habits,
+      (id) => get().repsThisPeriod(id),
+      (id) => {
+        const w = get().periodFor(id);
+        return w ? periodElapsedFraction(today, w) : 1;
+      },
+    );
   },
 
   rewardViews() {

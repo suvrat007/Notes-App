@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Modal from './Modal';
 import type { NewHabit } from '../db/queries';
 import type { Polarity } from '../db/schema';
+import { PERIOD_OPTIONS } from '../engine/period';
 
 const ICONS = ['🏋️', '📚', '🏃', '🧘', '💧', '🥗', '🛏️', '✍️', '🎸', '🧹',
                '🚬', '🍺', '🍔', '📱', '🎮', '🛒', '😴', '☕'];
@@ -19,7 +20,8 @@ export default function NewHabitModal({ onClose, onSave }: Props) {
   const [dailyAllowance, setDailyAllowance] = useState(0);
   const [overagePenalty, setOveragePenalty] = useState(5);
   const [freeWithinAllowance, setFree] = useState(false);
-  const [weeklyTarget, setWeeklyTarget] = useState(0);
+  const [targetReps, setTargetReps] = useState(0);
+  const [targetPeriodWeeks, setTargetPeriodWeeks] = useState(1);
   const [isRecurringTask, setRecurring] = useState(false);
 
   const isBad = polarity === 'bad';
@@ -32,7 +34,8 @@ export default function NewHabitModal({ onClose, onSave }: Props) {
       dailyAllowance: isBad ? dailyAllowance : 0,
       overagePenalty: isBad ? overagePenalty : 0,
       freeWithinAllowance: isBad ? freeWithinAllowance : false,
-      weeklyTarget: isBad ? 0 : weeklyTarget,
+      targetReps: isBad ? 0 : targetReps,
+      targetPeriodWeeks: isBad ? 1 : targetPeriodWeeks,
       isRecurringTask: isBad ? false : isRecurringTask,
       color: isBad ? '#e5484d' : '#3ecf8e',
     });
@@ -101,12 +104,30 @@ export default function NewHabitModal({ onClose, onSave }: Props) {
         </>
       ) : (
         <>
-          <label className="field">
-            <span className="field__label">Weekly target (reps/week, 0 = none)</span>
-            <input className="input" type="number" min={0} value={weeklyTarget}
-                   data-testid="habit-target"
-                   onChange={(e) => setWeeklyTarget(Number(e.target.value))} />
-          </label>
+          <div className="field">
+            <span className="field__label">Goal (0 = no goal)</span>
+            <div className="goalrow">
+              <input className="input goalrow__reps" type="number" min={0}
+                     value={targetReps} data-testid="habit-target"
+                     onChange={(e) => setTargetReps(Number(e.target.value))} />
+              <span className="goalrow__per">reps per</span>
+              <select className="input goalrow__period" value={targetPeriodWeeks}
+                      data-testid="habit-period"
+                      onChange={(e) => setTargetPeriodWeeks(Number(e.target.value))}>
+                {PERIOD_OPTIONS.map((o) => (
+                  <option key={o.weeks} value={o.weeks}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+            {targetReps > 0 && (
+              <span className="goalrow__hint" data-testid="habit-goal-hint">
+                {targetPeriodWeeks === 1
+                  ? `About ${(targetReps / 7).toFixed(1)} a day.`
+                  : `${(targetReps / targetPeriodWeeks).toFixed(1)} a week over ` +
+                    `${targetPeriodWeeks} weeks — pace is judged across the whole window.`}
+              </span>
+            )}
+          </div>
           <label className="check">
             <input type="checkbox" checked={isRecurringTask}
                    data-testid="habit-recurring"

@@ -18,6 +18,18 @@ export function fromDateStr(dateStr: string): Date {
   return new Date(y, m - 1, d);
 }
 
+/**
+ * The LOCAL calendar date of a stored ISO instant.
+ *
+ * Never slice an ISO string to get a date: `toISOString()` is UTC, so in any
+ * positive offset an instant recorded just after local midnight carries the
+ * previous UTC day. Round-tripping through Date resolves it back to the local
+ * day the user actually experienced.
+ */
+export function localDateOf(iso: string): string {
+  return toDateStr(new Date(iso));
+}
+
 export function todayStr(): string {
   return toDateStr(new Date());
 }

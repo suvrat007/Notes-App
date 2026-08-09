@@ -25,10 +25,14 @@ import {
   recentDailyAverage,
   buildRoadmap,
   projectedWeekFinish,
+  weeklyGoalStars,
 } from './targets';
 import { runningBalances, affordableStreak, buildRewardViews } from './rewards';
 import { starsForLevel, rankFor, MAX_LEVEL } from './rank';
 import { parseVoice, splitClauses } from './parseVoice';
+import {
+  periodWindow, daysLeftInPeriod, periodElapsedFraction, safePeriodWeeks,
+} from './period';
 import {
   starsPerDay,
   cumulativeLifetime,
@@ -39,7 +43,7 @@ import {
 import type { HabitLike, LogLike } from './types';
 // lib/dates is pure and React-free, so the engine suite can guard it too.
 import {
-  mondayOf, weekStartOf, weekDates, addDays, toDateStr, daysBetween,
+  mondayOf, weekStartOf, weekDates, addDays, toDateStr, daysBetween, localDateOf,
 } from '../lib/dates';
 
 const habit = (over: Partial<HabitLike> = {}): HabitLike => ({
@@ -49,7 +53,9 @@ const habit = (over: Partial<HabitLike> = {}): HabitLike => ({
   dailyAllowance: 0,
   overagePenalty: 5,
   freeWithinAllowance: false,
-  weeklyTarget: 0,
+  targetReps: 0,
+  targetPeriodWeeks: 1,
+  createdAt: '2026-01-05',
   ...over,
 });
 
@@ -146,21 +152,20 @@ export function runStarEngineTests(): TestResult[] {
   /* ---- targets (Phase 5) ---- */
 
   // 12 — pace: 5/wk target, 4 done, 3 days left → 1 rep today → 10 stars
-  const gym = habit({ weeklyTarget: 5, starsPerRep: 10 });
+  const gym = habit({ targetReps: 5, starsPerRep: 10 });
   check('pace: 4/5 done, 3 days left = 10★', habitPaceToday(gym, 4, 3), 10);
   check('pace: 0/5 done, 5 days left = 10★', habitPaceToday(gym, 0, 5), 10);
   check('pace: 0/5 done, 2 days left = 30★ (ceil 5/2 = 3 reps)', habitPaceToday(gym, 0, 2), 30);
   check('pace: target already met = 0★', habitPaceToday(gym, 5, 3), 0);
-  check('pace: no weekly target = 0★', habitPaceToday(habit({ weeklyTarget: 0 }), 0, 3), 0);
+  check('pace: no goal = 0★', habitPaceToday(habit({ targetReps: 0 }), 0, 3), 0);
 
   // 13 — first-ever day (no history) uses the raw need, uncapped
   check(
     'suggest with no history = raw need (20 task + 10 pace)',
     suggestDailyTarget({
       tasksDueToday: 20,
-      activeGoodHabits: [{ habit: gym, repsThisWeek: 4 }],
+      activeGoodHabits: [{ habit: gym, repsThisPeriod: 4, daysLeftInPeriod: 3 }],
       recentDailyAvg: 0,
-      daysLeftInWeek: 3,
     }),
     30,
   );
@@ -172,7 +177,6 @@ export function runStarEngineTests(): TestResult[] {
       tasksDueToday: 200,
       activeGoodHabits: [],
       recentDailyAvg: 50,
-      daysLeftInWeek: 3,
     }),
     55,
   );
@@ -184,7 +188,6 @@ export function runStarEngineTests(): TestResult[] {
       tasksDueToday: 40,
       activeGoodHabits: [],
       recentDailyAvg: 50,
-      daysLeftInWeek: 3,
     }),
     45,
   );
@@ -195,10 +198,10 @@ export function runStarEngineTests(): TestResult[] {
   // 16 — roadmap node fill = reps this week / weekly target
   const roadmap = buildRoadmap(
     [{ ...gym, id: 'gym', name: 'Gym', icon: '🏋️' },
-     { ...habit({ id: 'x', weeklyTarget: 0 }), name: 'No target', icon: '⚡' }],
+     { ...habit({ id: 'x', targetReps: 0 }), name: 'No target', icon: '⚡' }],
     (id) => (id === 'gym' ? 4 : 0),
   );
-  check('roadmap only includes habits with a weekly target', roadmap.length, 1);
+  check('roadmap only includes habits with a goal', roadmap.length, 1);
   check('roadmap node fill = 4/5 = 0.8', roadmap[0].fill, 0.8);
   check('roadmap fill clamps at 1 when over target',
     buildRoadmap([{ ...gym, id: 'gym', name: 'Gym', icon: '🏋️' }], () => 9)[0].fill, 1);
@@ -262,11 +265,11 @@ export function runStarEngineTests(): TestResult[] {
   ];
   const sDates = ['2026-01-05', '2026-01-06', '2026-01-07', '2026-01-08',
                   '2026-01-09', '2026-01-10'];
-  check('streak: record 3, current 3', habitStreak(sLogs, 'h1', sDates, 7), { current: 3, record: 3 });
+  check('streak: record 3, current 3', habitStreak(sLogs, 'h1', sDates, 7, 1), { current: 3, record: 3 });
 
   // an unfinished today must not be reported as a broken streak
   check('streak tolerates an unfinished today',
-    habitStreak(sLogs, 'h1', [...sDates, '2026-01-11'], 7), { current: 3, record: 3 });
+    habitStreak(sLogs, 'h1', [...sDates, '2026-01-11'], 7, 1), { current: 3, record: 3 });
 
   // a genuine gap does break it
   /* ---- rank (Phase 8) ---- */
@@ -295,8 +298,11 @@ export function runStarEngineTests(): TestResult[] {
   check('rank never goes below level 1 on garbage input', rankFor(-500).level, 1);
 
   check('streak broken by a real gap',
-    habitStreak(sLogs, 'h1', [...sDates, '2026-01-11', '2026-01-12'], 7),
+    habitStreak(sLogs, 'h1', [...sDates, '2026-01-11', '2026-01-12'], 7, 1),
     { current: 0, record: 3 });
+  // A 4-week goal of 8 reps needs 8/28 -> rounds to a floor of 1 a day.
+  check('streak per-day need scales with the period',
+    habitStreak(sLogs, 'h1', sDates, 8, 4), { current: 3, record: 3 });
 
   /* ---- voice parsing (Phase 9) ---- */
 
@@ -338,6 +344,62 @@ export function runStarEngineTests(): TestResult[] {
   check('splits on "and"', splitClauses('gym and read').length, 2);
   check('empty transcript yields nothing', parseVoice('', vctx).length, 0);
 
+  /* ---- goal periods (Phase 11) ---- */
+
+  // 39 — a 1-week period behaves exactly like the old weekly target
+  const anchor = '2026-01-05'; // a Monday
+  const w1 = periodWindow('2026-01-08', anchor, 1);
+  check('1-week period = that week', [w1.start, w1.end], ['2026-01-05', '2026-01-11']);
+
+  // 40 — longer periods TILE from the anchor rather than floating
+  const w4a = periodWindow('2026-01-08', anchor, 4);
+  check('4-week period starts at the anchor', [w4a.start, w4a.end],
+    ['2026-01-05', '2026-02-01']);
+  check('a date late in the window stays in the SAME period',
+    periodWindow('2026-02-01', anchor, 4).start, '2026-01-05');
+  check('the next day rolls to the next period',
+    periodWindow('2026-02-02', anchor, 4).start, '2026-02-02');
+  check('period index counts whole periods', periodWindow('2026-02-02', anchor, 4).index, 1);
+  check('dates before the anchor get a negative index',
+    periodWindow('2025-12-20', anchor, 4).index, -1);
+
+  // 41 — days left drives the pace, and is what makes a long goal gentle
+  check('days left in a 4-week period from day 1', daysLeftInPeriod('2026-01-05', w4a), 28);
+  check('days left on the final day', daysLeftInPeriod('2026-02-01', w4a), 1);
+  check('elapsed fraction at the halfway point',
+    periodElapsedFraction('2026-01-18', w4a), 0.5);
+
+  // 42 — THE POINT OF THE FEATURE: the same 12 reps asked weekly vs quarterly
+  //      produce very different daily demands.
+  const weekly12 = habit({ targetReps: 12, targetPeriodWeeks: 1, starsPerRep: 10 });
+  const quarterly12 = habit({ targetReps: 12, targetPeriodWeeks: 12, starsPerRep: 10 });
+  check('12 reps/week with 7 days left asks for 2 today',
+    habitPaceToday(weekly12, 0, 7), 20);
+  check('12 reps/quarter with 84 days left asks for 1 today',
+    habitPaceToday(quarterly12, 0, 84), 10);
+  check('a met long goal asks for nothing', habitPaceToday(quarterly12, 12, 40), 0);
+
+  // 43 — goals of different lengths normalise to one weekly figure
+  const mixed = buildRoadmap(
+    [{ ...habit({ id: 'a', targetReps: 5, targetPeriodWeeks: 1 }), name: 'A', icon: '⚡' },
+     { ...habit({ id: 'b', targetReps: 12, targetPeriodWeeks: 4 }), name: 'B', icon: '⚡' }],
+    () => 0,
+  );
+  check('weeklyGoalStars normalises per week (5*10 + 3*10)',
+    weeklyGoalStars(mixed, () => 10), 80);
+  check('roadmap node carries its period', [mixed[1].periodWeeks, mixed[1].periodShort],
+    [4, 'mo']);
+
+  // 44 — ahead/behind is measured against elapsed time, not raw progress
+  const paced = buildRoadmap(
+    [{ ...habit({ id: 'a', targetReps: 10, targetPeriodWeeks: 4 }), name: 'A', icon: '⚡' }],
+    () => 6,
+    () => 0.5,
+  );
+  check('6 of 10 at the halfway mark = +1 ahead', paced[0].aheadBy, 1);
+  check('safePeriodWeeks repairs junk', [safePeriodWeeks(0), safePeriodWeeks(undefined),
+    safePeriodWeeks(999)], [1, 1, 52]);
+
   /* ---- date helpers (lib/dates) ---- */
 
   // 35 — week start for each configurable reset day. 2026-01-07 is a Wednesday.
@@ -362,6 +424,18 @@ export function runStarEngineTests(): TestResult[] {
     toDateStr(new Date(2026, 0, 5, 23, 30)), '2026-01-05');
 
   check('daysBetween counts whole days', daysBetween('2026-01-05', '2026-01-11'), 6);
+
+  // 45 — REGRESSION: an instant just after local midnight must resolve to the
+  // local day, not the UTC one. Slicing the ISO string here shifted goal
+  // periods by a whole week in any UTC+ timezone.
+  const justAfterMidnight = new Date(2026, 0, 5, 0, 30);
+  check('localDateOf resolves to the local day',
+    localDateOf(justAfterMidnight.toISOString()), '2026-01-05');
+  check('localDateOf disagrees with a naive ISO slice in UTC+ zones',
+    localDateOf(justAfterMidnight.toISOString()) === justAfterMidnight.toISOString().slice(0, 10)
+      ? 'same-zone-or-utc'
+      : 'local-wins',
+    justAfterMidnight.getTimezoneOffset() < 0 ? 'local-wins' : 'same-zone-or-utc');
 
   return results;
 }

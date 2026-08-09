@@ -75,7 +75,7 @@ export interface Streak {
 
 /**
  * Consecutive-day streak for a habit, where a day "counts" if the habit met
- * its daily share of the weekly target (target/7, at least 1 rep).
+ * its daily share of the goal (targetReps / period days, at least 1 rep).
  *
  * `dates` must be chronological. The current streak is measured from the end;
  * today not yet being done does not break it — we look back from yesterday in
@@ -85,9 +85,11 @@ export function habitStreak(
   logs: LogLike[],
   refId: string,
   dates: string[],
-  weeklyTarget: number,
+  targetReps: number,
+  periodWeeks = 1,
 ): Streak {
-  const perDayNeed = weeklyTarget > 0 ? Math.max(1, Math.round(weeklyTarget / 7)) : 1;
+  const days = Math.max(1, periodWeeks) * 7;
+  const perDayNeed = targetReps > 0 ? Math.max(1, Math.round(targetReps / days)) : 1;
   const met = repsPerDay(logs, refId, dates).map((p) => p.value >= perDayNeed);
 
   let record = 0;

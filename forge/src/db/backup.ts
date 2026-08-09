@@ -2,9 +2,9 @@
  * Whole-database export / import. This is FORGE's only cross-device story —
  * there is no server, so a JSON file is how data moves between installs.
  */
-import { db, type Habit, type Task, type LogEntry, type Reward, type AppState, type DailyTarget } from './schema';
+import { db, migrateHabit, type Habit, type Task, type LogEntry, type Reward, type AppState, type DailyTarget } from './schema';
 
-export const BACKUP_VERSION = 1;
+export const BACKUP_VERSION = 2;
 
 export interface Backup {
   forge: true;
@@ -72,7 +72,8 @@ export async function importBackup(raw: unknown): Promise<void> {
         db.rewards.clear(), db.appState.clear(), db.dailyTargets.clear(),
       ]);
       await Promise.all([
-        db.habits.bulkAdd(raw.habits),
+        // v1 backups carry `weeklyTarget`; bring them up to the current shape.
+        db.habits.bulkAdd(raw.habits.map(migrateHabit)),
         db.tasks.bulkAdd(raw.tasks),
         db.logs.bulkAdd(raw.logs),
         db.rewards.bulkAdd(raw.rewards),

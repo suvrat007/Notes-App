@@ -2,37 +2,41 @@
  * Adaptive daily target + weekly pace maths. Pure — no React, no Dexie.
  */
 import type { HabitLike } from './types';
+import { safePeriodWeeks, periodShortLabel } from './period';
 
 export interface TargetInput {
   /** Stars available from tasks due today (sum of their `stars`). */
   tasksDueToday: number;
-  /** Good habits with a weekly target, plus their reps so far this week. */
+  /** Good habits with a goal, plus their reps so far in the CURRENT period. */
   activeGoodHabits: Array<{
     habit: HabitLike;
-    repsThisWeek: number;
+    repsThisPeriod: number;
+    /** Days left in that habit's own period, including today. */
+    daysLeftInPeriod: number;
   }>;
   /** Rolling average of recent daily net stars. */
   recentDailyAvg: number;
-  /** Days left in the week INCLUDING today (1..7). */
-  daysLeftInWeek: number;
 }
 
 /** Max growth per suggestion — never ramp the user more than 10% over their average. */
 export const GROWTH_CAP = 1.1;
 
 /**
- * Stars still needed today to stay on pace for a habit's weekly target,
- * spreading the remaining reps evenly across the days left.
+ * Stars still needed today to stay on pace for a habit's goal, spreading the
+ * reps still owed evenly across the days left IN ITS OWN PERIOD.
+ *
+ * A longer period naturally produces a gentler daily ask, which is the whole
+ * point of allowing one: a 12-reps-a-quarter goal shouldn't nag daily.
  */
 export function habitPaceToday(
   habit: HabitLike,
-  repsThisWeek: number,
-  daysLeftInWeek: number,
+  repsThisPeriod: number,
+  daysLeftInPeriod: number,
 ): number {
-  if (habit.weeklyTarget <= 0) return 0;
-  const remainingReps = Math.max(0, habit.weeklyTarget - repsThisWeek);
+  if (habit.targetReps <= 0) return 0;
+  const remainingReps = Math.max(0, habit.targetReps - repsThisPeriod);
   if (remainingReps === 0) return 0;
-  const days = Math.max(1, daysLeftInWeek);
+  const days = Math.max(1, daysLeftInPeriod);
   const repsToday = Math.ceil(remainingReps / days);
   return repsToday * habit.starsPerRep;
 }
@@ -44,10 +48,10 @@ export function habitPaceToday(
  *   cap   = never more than recentAvg * 1.10 (once there IS an average to cap against)
  */
 export function suggestDailyTarget(input: TargetInput): number {
-  const { tasksDueToday, activeGoodHabits, recentDailyAvg, daysLeftInWeek } = input;
+  const { tasksDueToday, activeGoodHabits, recentDailyAvg } = input;
 
   const habitPace = activeGoodHabits.reduce(
-    (sum, a) => sum + habitPaceToday(a.habit, a.repsThisWeek, daysLeftInWeek),
+    (sum, a) => sum + habitPaceToday(a.habit, a.repsThisPeriod, a.daysLeftInPeriod),
     0,
   );
   const raw = tasksDueToday + habitPace;
@@ -77,30 +81,52 @@ export interface RoadmapNode {
   done: number;
   /** 0..1 */
   fill: number;
+  periodWeeks: number;
+  /** e.g. 'wk', 'mo', 'qtr' — what the target is measured over. */
+  periodShort: string;
+  /** 0..1 of the period already spent; lets the UI show ahead/behind. */
+  elapsed: number;
+  /** done − expected-by-now, in reps. Negative means behind pace. */
+  aheadBy: number;
 }
 
 export function buildRoadmap<T extends HabitLike & { name: string; icon: string }>(
   habits: T[],
-  repsThisWeekFor: (habitId: string) => number,
+  repsThisPeriodFor: (habitId: string) => number,
+  elapsedFractionFor: (habitId: string) => number = () => 1,
 ): RoadmapNode[] {
   return habits
-    .filter((h) => h.polarity === 'good' && h.weeklyTarget > 0)
+    .filter((h) => h.polarity === 'good' && h.targetReps > 0)
     .map((h) => {
-      const done = repsThisWeekFor(h.id);
+      const done = repsThisPeriodFor(h.id);
+      const weeks = safePeriodWeeks(h.targetPeriodWeeks);
+      const elapsed = Math.max(0, Math.min(1, elapsedFractionFor(h.id)));
       return {
         habitId: h.id,
         name: h.name,
         icon: h.icon,
-        target: h.weeklyTarget,
+        target: h.targetReps,
         done,
-        fill: Math.max(0, Math.min(1, done / h.weeklyTarget)),
+        fill: Math.max(0, Math.min(1, done / h.targetReps)),
+        periodWeeks: weeks,
+        periodShort: periodShortLabel(weeks),
+        elapsed,
+        aheadBy: Math.round((done - h.targetReps * elapsed) * 10) / 10,
       };
     });
 }
 
-/** Stars the week is worth if every good habit hits its weekly target. */
+/**
+ * Stars in play if every good habit hits its goal, normalised to ONE WEEK so
+ * goals of different lengths can be summed into a single weekly figure.
+ */
 export function weeklyGoalStars(nodes: RoadmapNode[], starsPerRep: (id: string) => number): number {
-  return nodes.reduce((sum, n) => sum + n.target * starsPerRep(n.habitId), 0);
+  return Math.round(
+    nodes.reduce(
+      (sum, n) => sum + (n.target / n.periodWeeks) * starsPerRep(n.habitId),
+      0,
+    ),
+  );
 }
 
 /**

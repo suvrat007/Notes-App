@@ -13,7 +13,10 @@ export interface Habit {
   overagePenalty: number; // bad habits only; extra stars lost per rep over allowance
   /** Bad habits: if true, reps within allowance are free (0) and only overage costs. */
   freeWithinAllowance: boolean;
-  weeklyTarget: number; // good habits: desired reps/week; 0 = none
+  /** Good habits: reps wanted across one goal period; 0 = no goal. */
+  targetReps: number;
+  /** Length of that goal period in weeks. 1 = weekly (the original behaviour). */
+  targetPeriodWeeks: number;
   isRecurringTask: boolean; // also appears on daily task list
   color: string;
   archived: boolean;
@@ -70,6 +73,24 @@ export interface DailyTarget {
   value: number;
 }
 
+/** Shape of a v1 habit row, needed by the v2 upgrade and by v1 imports. */
+export interface HabitV1 extends Omit<Habit, 'targetReps' | 'targetPeriodWeeks'> {
+  weeklyTarget?: number;
+}
+
+/**
+ * Bring a habit row from any earlier shape up to the current one.
+ * v1 stored `weeklyTarget`; that is exactly a 1-week period target.
+ */
+export function migrateHabit(h: HabitV1 & Partial<Habit>): Habit {
+  const { weeklyTarget, ...rest } = h;
+  return {
+    ...(rest as Habit),
+    targetReps: h.targetReps ?? weeklyTarget ?? 0,
+    targetPeriodWeeks: h.targetPeriodWeeks ?? 1,
+  };
+}
+
 export class ForgeDB extends Dexie {
   habits!: Table<Habit, string>;
   tasks!: Table<Task, string>;
@@ -88,6 +109,24 @@ export class ForgeDB extends Dexie {
       appState: 'id',
       dailyTargets: 'date',
     });
+
+    // v2: goal targets gained a period, so a goal can span more than a week.
+    this.version(2)
+      .stores({
+        habits: 'id, name, polarity, archived',
+        tasks: 'id, dueDate, done, [dueDate+done], linkedHabitId, missedHandled',
+        logs: 'id, date, kind, refId, [date+kind], [refId+date]',
+        rewards: 'id, archived',
+        appState: 'id',
+        dailyTargets: 'date',
+      })
+      .upgrade(async (tx) => {
+        await tx.table('habits').toCollection().modify((h) => {
+          h.targetReps = h.targetReps ?? h.weeklyTarget ?? 0;
+          h.targetPeriodWeeks = h.targetPeriodWeeks ?? 1;
+          delete h.weeklyTarget;
+        });
+      });
   }
 }
 

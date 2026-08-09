@@ -16,7 +16,12 @@ export interface HabitLike {
   dailyAllowance: number;
   overagePenalty: number;
   freeWithinAllowance: boolean;
-  weeklyTarget: number;
+  /** Reps wanted across one goal period. */
+  targetReps: number;
+  /** Length of that period in weeks (1 = weekly). */
+  targetPeriodWeeks: number;
+  /** Anchor the period tiling starts from (the habit's createdAt). */
+  createdAt?: string;
 }
 
 export interface TaskLike {
