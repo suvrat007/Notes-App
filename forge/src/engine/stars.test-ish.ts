@@ -27,6 +27,7 @@ import {
   projectedWeekFinish,
 } from './targets';
 import { runningBalances, affordableStreak, buildRewardViews } from './rewards';
+import { starsForLevel, rankFor, MAX_LEVEL } from './rank';
 import {
   starsPerDay,
   cumulativeLifetime,
@@ -263,6 +264,31 @@ export function runStarEngineTests(): TestResult[] {
     habitStreak(sLogs, 'h1', [...sDates, '2026-01-11'], 7), { current: 3, record: 3 });
 
   // a genuine gap does break it
+  /* ---- rank (Phase 8) ---- */
+
+  // 26 — the curve: level N needs 100 * N^1.6
+  check('level 1 is free', starsForLevel(1), 0);
+  check('level 2 needs 303', starsForLevel(2), 303);
+  check('level 30 needs 23196', starsForLevel(30), Math.round(100 * Math.pow(30, 1.6)));
+
+  check('0 stars = level 1 Recruit', [rankFor(0).level, rankFor(0).title], [1, 'Recruit']);
+  check('302 stars is still level 1', rankFor(302).level, 1);
+  check('303 stars crosses to level 2', rankFor(303).level, 2);
+
+  // 27 — band titles map to the specified level ranges
+  check('level 5 = Recruit', rankFor(starsForLevel(5)).title, 'Recruit');
+  check('level 6 = Disciplined', rankFor(starsForLevel(6)).title, 'Disciplined');
+  check('level 11 = Ironclad', rankFor(starsForLevel(11)).title, 'Ironclad');
+  check('level 19 = Vanguard', rankFor(starsForLevel(19)).title, 'Vanguard');
+  check('level 26 = Warlord', rankFor(starsForLevel(26)).title, 'Warlord');
+
+  // 28 — progress and the max-level ceiling
+  check('progress is 0 exactly at a level floor', rankFor(starsForLevel(4)).progress, 0);
+  check('level is capped at 30', rankFor(99_999_999).level, MAX_LEVEL);
+  check('max level has no next', [rankFor(99_999_999).nextAt, rankFor(99_999_999).progress],
+    [null, 1]);
+  check('rank never goes below level 1 on garbage input', rankFor(-500).level, 1);
+
   check('streak broken by a real gap',
     habitStreak(sLogs, 'h1', [...sDates, '2026-01-11', '2026-01-12'], 7),
     { current: 0, record: 3 });
