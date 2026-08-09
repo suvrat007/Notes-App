@@ -6,6 +6,7 @@ import NewHabitModal from '../components/NewHabitModal';
 import NewTaskModal from '../components/NewTaskModal';
 import TaskRow from '../components/TaskRow';
 import TargetBanner from '../components/TargetBanner';
+import RewardList from '../components/RewardList';
 
 /** Placeholder until engine/rank.ts lands in Phase 8. */
 const PLACEHOLDER_RANK = 'Recruit';
@@ -16,6 +17,7 @@ export default function HomeScreen() {
     createHabit, repsToday, weekBalance, todayNet,
     todayTasks, createTask, completeTask, uncompleteTask, removeTask, recurringRows,
     dailyTarget, suggestedTarget, acceptDailyTarget, effectiveTarget,
+    rewardViews, redeemReward,
   } = useForge();
   const [showNew, setShowNew] = useState(false);
   const [showNewTask, setShowNewTask] = useState(false);
@@ -29,6 +31,7 @@ export default function HomeScreen() {
   const balance = weekBalance();
   const recurring = recurringRows();
   const hasTasks = todayTasks.length > 0 || recurring.length > 0;
+  const affordable = rewardViews().filter((v) => v.affordable);
 
   return (
     <div className="screen" data-testid="screen-home">
@@ -107,6 +110,14 @@ export default function HomeScreen() {
               onDelete={() => void removeTask(t.id)}
             />
           ))}
+        </section>
+      )}
+
+      {affordable.length > 0 && (
+        <section data-testid="affordable-section">
+          <h2 className="sect">Affordable</h2>
+          <RewardList views={affordable} affordableOnly
+                      onRedeem={(id) => void redeemReward(id)} />
         </section>
       )}
 
