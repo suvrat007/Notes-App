@@ -170,7 +170,11 @@ export async function archiveReward(id: string): Promise<void> {
 
 export async function listRewards(): Promise<Reward[]> {
   const all = await db.rewards.toArray();
-  return all.filter((r) => !r.archived);
+  // Cheapest first: closest-to-reach reads best, and it gives the list a
+  // stable order (raw IndexedDB order is by random UUID, so it would shuffle).
+  return all
+    .filter((r) => !r.archived)
+    .sort((a, b) => a.cost - b.cost || a.name.localeCompare(b.name));
 }
 
 /* ---------------- AppState ---------------- */

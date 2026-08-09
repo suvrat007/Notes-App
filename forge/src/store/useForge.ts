@@ -4,7 +4,7 @@
  * Star maths is delegated entirely to `engine/`.
  */
 import { create } from 'zustand';
-import type { Habit, LogEntry, AppState, Task } from '../db/schema';
+import type { Habit, LogEntry, AppState, Task, Reward } from '../db/schema';
 import { db } from '../db/schema';
 import { ensureAppState } from '../db/init';
 import { sweepMissedTasks } from '../db/sweep';
@@ -18,7 +18,13 @@ import {
   dayNet,
   repsOn,
   repsInDates,
+  redeemDelta,
 } from '../engine/stars';
+import {
+  buildRewardViews,
+  runningBalances,
+  type RewardView,
+} from '../engine/rewards';
 import { buildRecurringRows, type VirtualTaskRow } from '../engine/recurring';
 import {
   suggestDailyTarget,
@@ -46,6 +52,7 @@ type ForgeState = {
   suggestedTarget: number;
   /** Logs over the lookback window, for the recent-average calculation. */
   recentLogs: LogEntry[];
+  rewards: Reward[];
 
   loadToday: () => Promise<void>;
   logHabitRep: (habitId: string) => Promise<number | null>;
@@ -60,6 +67,10 @@ type ForgeState = {
 
   acceptDailyTarget: (value: number) => Promise<void>;
 
+  createReward: (name: string, cost: number) => Promise<void>;
+  removeReward: (id: string) => Promise<void>;
+  redeemReward: (rewardId: string) => Promise<void>;
+
   // Derived selectors (read-only helpers over current slices).
   repsToday: (habitId: string) => number;
   repsThisWeek: (habitId: string) => number;
@@ -69,6 +80,7 @@ type ForgeState = {
   recurringRows: () => VirtualTaskRow[];
   roadmap: () => RoadmapNode[];
   weekProjection: () => number;
+  rewardViews: () => RewardView[];
 };
 
 export const useForge = create<ForgeState>((set, get) => ({
@@ -82,6 +94,7 @@ export const useForge = create<ForgeState>((set, get) => ({
   dailyTarget: null,
   suggestedTarget: 0,
   recentLogs: [],
+  rewards: [],
 
   async loadToday() {
     await db.open();
@@ -91,12 +104,13 @@ export const useForge = create<ForgeState>((set, get) => ({
 
     const today = todayStr();
     const monday = mondayOf(today);
-    const [habits, weekLogs, todayTasks, recentLogs, targetRow] = await Promise.all([
+    const [habits, weekLogs, todayTasks, recentLogs, targetRow, rewards] = await Promise.all([
       q.listActiveHabits(),
       q.listLogsInRange(monday, weekDates(monday)[6]),
       q.listTasksForDate(today),
       q.listLogsInRange(addDays(today, -LOOKBACK_DAYS), addDays(today, -1)),
       q.getDailyTarget(today),
+      q.listRewards(),
     ]);
 
     const floor = appState.settings.negativeFloor;
@@ -141,6 +155,7 @@ export const useForge = create<ForgeState>((set, get) => ({
       todayTasks: todayTasks.sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
       recentLogs,
       appState,
+      rewards,
       dailyTarget: targetRow?.value ?? null,
       suggestedTarget,
     });
@@ -189,6 +204,35 @@ export const useForge = create<ForgeState>((set, get) => ({
 
   async archiveHabit(id) {
     await q.archiveHabit(id);
+    await get().loadToday();
+  },
+
+  /* ---------------- Rewards ---------------- */
+
+  async createReward(name, cost) {
+    await q.addReward(name, cost);
+    await get().loadToday();
+  },
+
+  async removeReward(id) {
+    await q.archiveReward(id);
+    await get().loadToday();
+  },
+
+  /** Spends weekly Balance only. Lifetime and therefore Rank are untouched. */
+  async redeemReward(rewardId) {
+    const { rewards, today } = get();
+    const reward = rewards.find((r) => r.id === rewardId);
+    if (!reward) return;
+
+    await q.addLog({
+      date: today,
+      kind: 'redeem',
+      refId: rewardId,
+      count: 1,
+      starsDelta: redeemDelta(reward),
+    });
+    // Deliberately NO addLifetimeStars call — spending never moves rank.
     await get().loadToday();
   },
 
@@ -271,6 +315,18 @@ export const useForge = create<ForgeState>((set, get) => ({
 
   roadmap() {
     return buildRoadmap(get().habits, (id) => get().repsThisWeek(id));
+  },
+
+  rewardViews() {
+    const { rewards, appState, weekLogs } = get();
+    if (!appState) return [];
+    const floor = appState.settings.negativeFloor;
+    const dates = weekDates(appState.weekStartDate).filter((d) => d <= get().today);
+    return buildRewardViews(
+      rewards,
+      get().weekBalance(),
+      runningBalances(weekLogs, dates, { floor }),
+    );
   },
 
   weekProjection() {
