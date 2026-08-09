@@ -27,6 +27,13 @@ import {
   projectedWeekFinish,
 } from './targets';
 import { runningBalances, affordableStreak, buildRewardViews } from './rewards';
+import {
+  starsPerDay,
+  cumulativeLifetime,
+  repsPerDay,
+  perHabitStats,
+  habitStreak,
+} from './analytics';
 import type { HabitLike, LogLike } from './types';
 
 const habit = (over: Partial<HabitLike> = {}): HabitLike => ({
@@ -221,6 +228,44 @@ export function runStarEngineTests(): TestResult[] {
     [false, 350]);
   check('nudge fires after 2+ affordable days', views[0].nudge, true);
   check('no nudge on an unaffordable reward', views[1].nudge, false);
+
+  /* ---- analytics (Phase 7) ---- */
+
+  // 21 — stars per day mirrors dayNet across the week
+  check('starsPerDay values', starsPerDay(week, dates.slice(0, 3)).map((p) => p.value),
+    [10, -5, -100]);
+
+  // 22 — cumulative lifetime only ever climbs
+  check('cumulativeLifetime ignores penalties and never falls',
+    cumulativeLifetime(week, dates.slice(0, 4)).map((p) => p.value), [10, 20, 20, 20]);
+
+  // 23 — reps per day for the heatmap
+  check('repsPerDay counts reps', repsPerDay(week, 'h1', dates.slice(0, 3)).map((p) => p.value),
+    [1, 1, 0]);
+
+  // 24 — per-habit net, best first, ignoring non-habit kinds
+  const stats = perHabitStats(week);
+  check('perHabitStats best first', stats.map((s) => [s.refId, s.net]),
+    [['h1', 20], ['bad1', -15]]);
+
+  // 25 — streaks. target 7/wk → needs 1 rep a day.
+  const sLogs: LogLike[] = [
+    log({ date: '2026-01-05' }), log({ date: '2026-01-06' }),
+    // 01-07 missed
+    log({ date: '2026-01-08' }), log({ date: '2026-01-09' }), log({ date: '2026-01-10' }),
+  ];
+  const sDates = ['2026-01-05', '2026-01-06', '2026-01-07', '2026-01-08',
+                  '2026-01-09', '2026-01-10'];
+  check('streak: record 3, current 3', habitStreak(sLogs, 'h1', sDates, 7), { current: 3, record: 3 });
+
+  // an unfinished today must not be reported as a broken streak
+  check('streak tolerates an unfinished today',
+    habitStreak(sLogs, 'h1', [...sDates, '2026-01-11'], 7), { current: 3, record: 3 });
+
+  // a genuine gap does break it
+  check('streak broken by a real gap',
+    habitStreak(sLogs, 'h1', [...sDates, '2026-01-11', '2026-01-12'], 7),
+    { current: 0, record: 3 });
 
   return results;
 }
