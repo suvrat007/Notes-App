@@ -19,6 +19,13 @@ import {
   repsOn,
   repsInDates,
 } from './stars';
+import {
+  habitPaceToday,
+  suggestDailyTarget,
+  recentDailyAverage,
+  buildRoadmap,
+  projectedWeekFinish,
+} from './targets';
 import type { HabitLike, LogLike } from './types';
 
 const habit = (over: Partial<HabitLike> = {}): HabitLike => ({
@@ -121,6 +128,69 @@ export function runStarEngineTests(): TestResult[] {
   // 11 — rep counting drives the bad-habit allowance ladder
   check('repsOn counts same-day reps', repsOn(week, 'h1', '2026-01-05'), 1);
   check('repsInDates counts across the week', repsInDates(week, 'h1', dates), 2);
+
+  /* ---- targets (Phase 5) ---- */
+
+  // 12 — pace: 5/wk target, 4 done, 3 days left → 1 rep today → 10 stars
+  const gym = habit({ weeklyTarget: 5, starsPerRep: 10 });
+  check('pace: 4/5 done, 3 days left = 10★', habitPaceToday(gym, 4, 3), 10);
+  check('pace: 0/5 done, 5 days left = 10★', habitPaceToday(gym, 0, 5), 10);
+  check('pace: 0/5 done, 2 days left = 30★ (ceil 5/2 = 3 reps)', habitPaceToday(gym, 0, 2), 30);
+  check('pace: target already met = 0★', habitPaceToday(gym, 5, 3), 0);
+  check('pace: no weekly target = 0★', habitPaceToday(habit({ weeklyTarget: 0 }), 0, 3), 0);
+
+  // 13 — first-ever day (no history) uses the raw need, uncapped
+  check(
+    'suggest with no history = raw need (20 task + 10 pace)',
+    suggestDailyTarget({
+      tasksDueToday: 20,
+      activeGoodHabits: [{ habit: gym, repsThisWeek: 4 }],
+      recentDailyAvg: 0,
+      daysLeftInWeek: 3,
+    }),
+    30,
+  );
+
+  // 14 — GROWTH CAP: raw need of 200 against a 50 average is clamped to 55
+  check(
+    'suggest is capped at recentAvg * 1.10',
+    suggestDailyTarget({
+      tasksDueToday: 200,
+      activeGoodHabits: [],
+      recentDailyAvg: 50,
+      daysLeftInWeek: 3,
+    }),
+    55,
+  );
+
+  // 15 — a modest need blends 50/50 rather than hitting the cap
+  check(
+    'suggest blends 50/50 when under the cap (raw 40, avg 50 → 45)',
+    suggestDailyTarget({
+      tasksDueToday: 40,
+      activeGoodHabits: [],
+      recentDailyAvg: 50,
+      daysLeftInWeek: 3,
+    }),
+    45,
+  );
+
+  check('recentDailyAverage of [10,20,30] = 20', recentDailyAverage([10, 20, 30]), 20);
+  check('recentDailyAverage of [] = 0', recentDailyAverage([]), 0);
+
+  // 16 — roadmap node fill = reps this week / weekly target
+  const roadmap = buildRoadmap(
+    [{ ...gym, id: 'gym', name: 'Gym', icon: '🏋️' },
+     { ...habit({ id: 'x', weeklyTarget: 0 }), name: 'No target', icon: '⚡' }],
+    (id) => (id === 'gym' ? 4 : 0),
+  );
+  check('roadmap only includes habits with a weekly target', roadmap.length, 1);
+  check('roadmap node fill = 4/5 = 0.8', roadmap[0].fill, 0.8);
+  check('roadmap fill clamps at 1 when over target',
+    buildRoadmap([{ ...gym, id: 'gym', name: 'Gym', icon: '🏋️' }], () => 9)[0].fill, 1);
+
+  // 17 — straight-line projection of the week's finish
+  check('projection: 40★ over 2 days → 140 for the week', projectedWeekFinish(40, 2), 140);
 
   return results;
 }
