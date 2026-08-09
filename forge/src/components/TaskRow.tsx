@@ -1,4 +1,5 @@
 import { IconCheck } from './icons';
+import { HabitIcon } from './habitIcons';
 
 type Props = {
   id: string;
@@ -29,7 +30,7 @@ export default function TaskRow({
       </button>
 
       <span className="task__name">
-        {icon && <span className="task__icon" aria-hidden="true">{icon} </span>}
+        {icon && <span className="task__icon"><HabitIcon name={icon} size={16} /></span>}
         {name}
         {recurring && <span className="task__tag">habit</span>}
       </span>

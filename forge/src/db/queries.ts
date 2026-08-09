@@ -5,6 +5,7 @@
 import { db, migrateHabit, type Habit, type Task, type LogEntry, type Reward, type LogKind } from './schema';
 import { newId } from '../lib/id';
 import { todayStr } from '../lib/dates';
+import { DEFAULT_ICON } from '../lib/habitIconKeys';
 
 /**
  * Strictly-increasing timestamp. Two logs written in the same millisecond
@@ -27,7 +28,7 @@ export type NewHabit = Partial<Habit> & Pick<Habit, 'name' | 'polarity'>;
 export async function addHabit(input: NewHabit): Promise<Habit> {
   // `id` is set after the spread so a caller can never supply one.
   const habit: Habit = {
-    icon: '⚡',
+    icon: DEFAULT_ICON,
     starsPerRep: 10,
     dailyAllowance: 0,
     overagePenalty: 5,

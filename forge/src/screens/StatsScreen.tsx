@@ -12,6 +12,7 @@ import {
 import { weekDates, weekStartOf, todayStr, addDays, shortDayName } from '../lib/dates';
 import Heatmap from '../components/Heatmap';
 import { IconFlame } from '../components/icons';
+import { HabitIcon } from '../components/habitIcons';
 import { useIsDesktop } from '../lib/useMediaQuery';
 
 const GOOD = '#3ecf8e';
@@ -198,7 +199,7 @@ export default function StatsScreen() {
               <button key={h.id} data-testid={`heat-${h.id}`}
                       className={'chip' + (h.id === activeHeatHabit ? ' chip--on' : '')}
                       onClick={() => setHeatHabit(h.id)}>
-                {h.icon} {h.name}
+                <HabitIcon name={h.icon} size={15} /> {h.name}
               </button>
             ))}
           </div>
@@ -217,7 +218,9 @@ export default function StatsScreen() {
         <div className="card" data-testid="table-bestworst">
           {monthStats.map((s) => (
             <div className="card__row" key={s.refId}>
-              <span className="card__label">{s.habit!.icon} {s.habit!.name}</span>
+              <span className="card__label label--icon">
+                <HabitIcon name={s.habit!.icon} size={16} /> {s.habit!.name}
+              </span>
               <span className="card__val num"
                     style={{ color: s.net < 0 ? BAD : GOOD }}
                     data-testid={`net-${s.refId}`}>
@@ -238,7 +241,9 @@ export default function StatsScreen() {
         <div className="card" data-testid="table-streaks">
           {streaks.map((s) => (
             <div className="card__row" key={s.habit.id}>
-              <span className="card__label">{s.habit.icon} {s.habit.name}</span>
+              <span className="card__label label--icon">
+                <HabitIcon name={s.habit.icon} size={16} /> {s.habit.name}
+              </span>
               <span className="card__val num" data-testid={`streak-${s.habit.id}`}>
                 {s.current > 0 && (
                   <span className="streak__flame"><IconFlame /></span>

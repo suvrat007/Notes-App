@@ -1565,3 +1565,41 @@
 .node__pace--behind {
   color: var(--bad);
 }
+
+/* Habit icons are SVG now, so they need centring rather than font sizing. */
+.habit__icon,
+.task__icon,
+.node__icon {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.habit__icon {
+  color: var(--good);
+}
+
+.habit--bad .habit__icon {
+  color: var(--bad);
+}
+
+.task__icon {
+  vertical-align: -3px;
+  margin-right: 4px;
+  color: var(--text-dim);
+}
+
+.label--icon,
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.iconpick__opt {
+  color: var(--text-dim);
+}
+
+.iconpick__opt--on {
+  color: var(--accent);
+}

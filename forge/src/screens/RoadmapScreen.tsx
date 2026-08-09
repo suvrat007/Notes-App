@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useForge } from '../store/useForge';
 import { weeklyGoalStars } from '../engine/targets';
 import { IconFlag } from '../components/icons';
+import { HabitIcon } from '../components/habitIcons';
 
 export default function RoadmapScreen() {
   const { ready, habits, loadToday, roadmap, weekBalance, weekProjection } = useForge();
@@ -38,7 +39,7 @@ export default function RoadmapScreen() {
                   <div className="node__fill"
                        style={{ background:
                          `conic-gradient(var(--accent) ${n.fill * 360}deg, var(--steel) 0deg)` }} />
-                  <span className="node__icon" aria-hidden="true">{n.icon}</span>
+                  <span className="node__icon"><HabitIcon name={n.icon} /></span>
                 </div>
                 <span className="node__name">{n.name}</span>
                 <span className="node__reps num">

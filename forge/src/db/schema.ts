@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie';
+import { normalizeIconKey } from '../lib/habitIconKeys';
 
 export type Polarity = 'good' | 'bad';
 export type LogKind = 'habit' | 'task' | 'redeem' | 'missed-task';
@@ -86,6 +87,8 @@ export function migrateHabit(h: HabitV1 & Partial<Habit>): Habit {
   const { weeklyTarget, ...rest } = h;
   return {
     ...(rest as Habit),
+    // Habits used to store an emoji glyph; they now store an icon key.
+    icon: normalizeIconKey(h.icon),
     targetReps: h.targetReps ?? weeklyTarget ?? 0,
     targetPeriodWeeks: h.targetPeriodWeeks ?? 1,
   };

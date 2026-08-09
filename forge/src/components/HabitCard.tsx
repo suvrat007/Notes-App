@@ -3,6 +3,7 @@ import type React from 'react';
 import type { Habit } from '../db/schema';
 import { IconPlus } from './icons';
 import { periodShortLabel } from '../engine/period';
+import { HabitIcon } from './habitIcons';
 
 type Props = {
   habit: Habit;
@@ -49,7 +50,7 @@ export default function HabitCard({ habit, reps, onLog, onUndo }: Props) {
 
   return (
     <div className={'habit' + (isBad ? ' habit--bad' : '')} data-testid={`habit-${habit.id}`}>
-      <span className="habit__icon" aria-hidden="true">{habit.icon}</span>
+      <span className="habit__icon"><HabitIcon name={habit.icon} /></span>
 
       <div className="habit__meta">
         <span className="habit__name">{habit.name}</span>

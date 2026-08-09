@@ -3,9 +3,7 @@ import Modal from './Modal';
 import type { NewHabit } from '../db/queries';
 import type { Polarity } from '../db/schema';
 import { PERIOD_OPTIONS } from '../engine/period';
-
-const ICONS = ['🏋️', '📚', '🏃', '🧘', '💧', '🥗', '🛏️', '✍️', '🎸', '🧹',
-               '🚬', '🍺', '🍔', '📱', '🎮', '🛒', '😴', '☕'];
+import { HABIT_ICONS } from './habitIcons';
 
 type Props = {
   onClose: () => void;
@@ -14,7 +12,7 @@ type Props = {
 
 export default function NewHabitModal({ onClose, onSave }: Props) {
   const [name, setName] = useState('');
-  const [icon, setIcon] = useState('🏋️');
+  const [icon, setIcon] = useState('dumbbell');
   const [polarity, setPolarity] = useState<Polarity>('good');
   const [starsPerRep, setStarsPerRep] = useState(10);
   const [dailyAllowance, setDailyAllowance] = useState(0);
@@ -52,10 +50,13 @@ export default function NewHabitModal({ onClose, onSave }: Props) {
       <div className="field">
         <span className="field__label">Icon</span>
         <div className="iconpick">
-          {ICONS.map((i) => (
-            <button key={i} type="button"
-                    className={'iconpick__opt' + (i === icon ? ' iconpick__opt--on' : '')}
-                    onClick={() => setIcon(i)} aria-label={`Icon ${i}`}>{i}</button>
+          {HABIT_ICONS.map(({ key, label, Icon }) => (
+            <button key={key} type="button" title={label}
+                    className={'iconpick__opt' + (key === icon ? ' iconpick__opt--on' : '')}
+                    onClick={() => setIcon(key)} aria-label={label}
+                    data-testid={`icon-${key}`}>
+              <Icon size={20} />
+            </button>
           ))}
         </div>
       </div>
