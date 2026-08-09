@@ -9,6 +9,7 @@ import TargetBanner from '../components/TargetBanner';
 import RewardList from '../components/RewardList';
 import FloatingDelta, { type Delta } from '../components/FloatingDelta';
 import LevelUpFlash from '../components/LevelUpFlash';
+import VoiceModal from '../components/VoiceModal';
 import { rankFor, type RankInfo } from '../engine/rank';
 import { tapPulse, penaltyPulse, levelUpPulse } from '../lib/haptics';
 
@@ -22,6 +23,7 @@ export default function HomeScreen() {
   } = useForge();
   const [showNew, setShowNew] = useState(false);
   const [showNewTask, setShowNewTask] = useState(false);
+  const [showVoice, setShowVoice] = useState(false);
   const [deltas, setDeltas] = useState<Delta[]>([]);
   const [levelUp, setLevelUp] = useState<RankInfo | null>(null);
   const deltaId = useRef(0);
@@ -156,6 +158,8 @@ export default function HomeScreen() {
         </section>
       )}
 
+      <button className="btn btn--primary" onClick={() => setShowVoice(true)}
+              data-testid="open-voice">🎙 Speak your day</button>
       <button className="btn btn--ghost" onClick={() => setShowNewTask(true)}
               data-testid="new-task">+ New Task</button>
       <button className="btn btn--ghost" onClick={() => setShowNew(true)}
@@ -173,6 +177,8 @@ export default function HomeScreen() {
           onSave={async (t) => { await createTask(t); setShowNewTask(false); }}
         />
       )}
+      {showVoice && <VoiceModal onClose={() => setShowVoice(false)} />}
+
       <FloatingDelta deltas={deltas} />
       <LevelUpFlash rank={levelUp} onDone={() => setLevelUp(null)} />
     </div>

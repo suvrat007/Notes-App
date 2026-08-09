@@ -985,3 +985,76 @@
     animation: none !important;
   }
 }
+
+/* ---- Voice preview ---- */
+
+.voice__heard {
+  font-size: 14px;
+  color: var(--text-dim);
+  font-style: italic;
+  margin: 0 0 4px;
+}
+
+.voice__err {
+  font-size: 12px;
+  color: var(--bad);
+  margin: 10px 0 0;
+}
+
+.vrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.vrow__kind {
+  flex: 0 0 auto;
+  width: 96px;
+  min-height: 40px;
+  background: var(--bg);
+  border: 1px solid var(--steel);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 12px;
+  padding: 0 6px;
+}
+
+/* Colour the row by what it will do, matching the rest of the app. */
+.vrow[data-kind='habit'] .vrow__kind {
+  border-color: var(--good);
+  color: var(--good);
+}
+
+.vrow[data-kind='bad-habit'] .vrow__kind {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
+.vrow[data-kind='redeem'] .vrow__kind {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.vrow__text {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  background: var(--bg);
+  border: 1px solid var(--steel);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 0 10px;
+  font-size: 14px;
+}
+
+.vrow__text:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.vrow__due {
+  font-size: 10px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}

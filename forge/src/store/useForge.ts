@@ -26,6 +26,7 @@ import {
   type RewardView,
 } from '../engine/rewards';
 import { buildRecurringRows, type VirtualTaskRow } from '../engine/recurring';
+import type { ParsedItem } from '../engine/parseVoice';
 import {
   suggestDailyTarget,
   recentDailyAverage,
@@ -66,6 +67,8 @@ type ForgeState = {
   removeTask: (taskId: string) => Promise<void>;
 
   acceptDailyTarget: (value: number) => Promise<void>;
+
+  commitVoiceItems: (items: ParsedItem[]) => Promise<void>;
 
   createReward: (name: string, cost: number) => Promise<void>;
   removeReward: (id: string) => Promise<void>;
@@ -204,6 +207,25 @@ export const useForge = create<ForgeState>((set, get) => ({
 
   async archiveHabit(id) {
     await q.archiveHabit(id);
+    await get().loadToday();
+  },
+
+  /* ---------------- Voice ---------------- */
+
+  /**
+   * Commit a whole parsed batch at once. Called only after the user's explicit
+   * OK — nothing here runs during parsing or preview.
+   */
+  async commitVoiceItems(items) {
+    for (const it of items) {
+      if (it.kind === 'task') {
+        await q.addTask({ name: it.text, dueDate: it.dueDate ?? get().today });
+      } else if (it.kind === 'habit' || it.kind === 'bad-habit') {
+        if (it.refId) await get().logHabitRep(it.refId);
+      } else if (it.kind === 'redeem') {
+        if (it.refId) await get().redeemReward(it.refId);
+      }
+    }
     await get().loadToday();
   },
 
