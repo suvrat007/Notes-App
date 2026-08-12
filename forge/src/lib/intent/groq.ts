@@ -54,6 +54,7 @@ type RawItem = {
   targetPeriodWeeks?: number;
   dueTime?: string | null;
   syncTargets?: unknown;
+  horizon?: string;
 };
 
 const KINDS: IntentKind[] = ['habit', 'bad-habit', 'task', 'redeem', 'new-habit'];
@@ -129,6 +130,10 @@ export function coerceItems(raw: unknown, ctx: ParseContext): ParsedItem[] {
         .filter((t, idx, arr) => arr.indexOf(t) === idx)
       : [];
 
+    const horizon = ['daily', 'weekly', 'monthly'].includes(String(r.horizon))
+      ? (r.horizon as 'daily' | 'weekly' | 'monthly')
+      : ('once' as const);
+
     let dueDate: string | null = null;
     if (kind === 'task') {
       const raw = typeof r.dueDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.dueDate)
@@ -152,7 +157,7 @@ export function coerceItems(raw: unknown, ctx: ParseContext): ParsedItem[] {
       raw: text,
       count,
       avoided,
-      ...(kind === 'task' ? { dueTime, syncTargets } : {}),
+      ...(kind === 'task' ? { dueTime, syncTargets, horizon } : {}),
       ...(kind === 'new-habit'
         ? {
           polarity,

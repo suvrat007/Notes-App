@@ -4,7 +4,7 @@
  * Star maths is delegated entirely to `engine/`.
  */
 import { create } from 'zustand';
-import type { Habit, LogEntry, AppState, Task, Reward } from '../db/schema';
+import type { Habit, LogEntry, AppState, Task, Reward, TaskHorizon } from '../db/schema';
 import { db } from '../db/schema';
 import { ensureAppState } from '../db/init';
 import { sweepMissedTasks } from '../db/sweep';
@@ -85,6 +85,11 @@ type ForgeState = {
   /** Multi-unit tasks: tick one unit off / put one back. */
   advanceTask: (taskId: string) => Promise<void>;
   regressTask: (taskId: string) => Promise<void>;
+  setTaskHorizon: (taskId: string, horizon: TaskHorizon) => Promise<void>;
+  stopRepeating: (taskId: string) => Promise<number>;
+  duplicateAcrossWeek: (taskId: string) => Promise<number>;
+  convertTaskToHabit: (taskId: string) => Promise<void>;
+  convertHabitToTask: (habitId: string) => Promise<void>;
 
   acceptDailyTarget: (value: number) => Promise<void>;
 
@@ -131,6 +136,9 @@ export const useForge = create<ForgeState>((set, get) => ({
     await db.open();
     const appState = await ensureAppState();
     // Charge for anything missed while the app was closed, before we read logs.
+    // Top up repeating series before reading, so a weekly task never runs dry.
+    // Top up repeating series before reading, so a weekly task never runs dry.
+    await q.generateAllSeries();
     const missed = await sweepMissedTasks();
     if (missed > 0) {
       // Stars vanish here while the app was closed — say so, or it looks like a bug.
@@ -583,6 +591,62 @@ export const useForge = create<ForgeState>((set, get) => ({
       await get().uncompleteTask(taskId);
     }
     await q.updateTask(taskId, { doneCount: next });
+    await get().loadToday();
+  },
+
+  /** Move a task between the Daily / Weekly / Monthly / One-off buckets. */
+  async setTaskHorizon(taskId, horizon) {
+    await q.setTaskHorizon(taskId, horizon);
+    await get().loadToday();
+  },
+
+  /**
+   * "I'm done with this for good." Keeps every past and present occurrence —
+   * they carry the ledger entries that earned the stars — and drops only the
+   * unfinished future ones.
+   */
+  async stopRepeating(taskId) {
+    const task = get().upcomingTasks.find((t) => t.id === taskId)
+      ?? await q.getTaskById(taskId);
+    if (!task?.seriesId) return 0;
+
+    const removed = await q.deleteFutureOccurrences(task.seriesId, task.dueDate, true);
+    // Pull the future occurrences back out of Google too, or they linger there.
+    for (const id of removed) await syncTask(id, 'delete');
+    await q.updateTask(taskId, { horizon: 'once', seriesId: null });
+    await get().loadToday();
+    return removed.length;
+  },
+
+  /** Copy a task onto the rest of its week. */
+  async duplicateAcrossWeek(taskId) {
+    const day = get().appState?.settings.weekResetDay ?? 1;
+    const made = await q.duplicateAcrossWeek(taskId, day);
+    await get().loadToday();
+    return made;
+  },
+
+  /**
+   * Turn a task into a habit — the drag-onto-Habits gesture.
+   * The task row is removed; its ledger entries, if any, stay.
+   */
+  async convertTaskToHabit(taskId) {
+    const task = get().upcomingTasks.find((t) => t.id === taskId);
+    if (!task) return;
+    await q.addHabit({ name: task.name, polarity: 'good' });
+    if (task.seriesId) await q.deleteFutureOccurrences(task.seriesId, task.dueDate);
+    await syncTask(taskId, 'delete');
+    await q.deleteTask(taskId);
+    await get().loadToday();
+  },
+
+  /** Turn a habit into a task for today. Archives, never deletes: the habit's
+   *  history has to survive the reclassification. */
+  async convertHabitToTask(habitId) {
+    const habit = get().habits.find((h) => h.id === habitId);
+    if (!habit) return;
+    await q.addTask({ name: habit.name, dueDate: get().today });
+    await q.archiveHabit(habitId);
     await get().loadToday();
   },
 

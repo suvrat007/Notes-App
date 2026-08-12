@@ -43,6 +43,9 @@ targetReps     GOOD new-habit goal, over targetPeriodWeeks (1=week 2=fortnight 4
                "five times a week"=5/1, "twelve this month"=12/4, "daily"=7/1. No goal => 0/1.
 dueTime        tasks: local 24h "HH:MM" if a clock time was said, else null.
                "nine in the evening"=21:00, "at 9am"=09:00, "Thursday at five"=17:00.
+horizon        tasks only, how often it recurs: "daily" ("every day", "each morning"),
+               "weekly" ("every Monday", "weekly"), "monthly" ("every month"),
+               else "once". A deadline is NOT a repeat: "finish by Friday" is once.
 syncTargets    tasks only, where it belongs outside FORGE:
                ["calendar"] occupies a time slot (meeting, appointment, class, call at 5)
                ["tasks"] something to get done, even with a time (buy bread at 9pm, submit form)
@@ -61,4 +64,4 @@ text           short label in the user's own words.
 Never invent items. Never merge two distinct items.
 
 Respond with ONLY this JSON shape:
-{"items":[{"kind":"habit|bad-habit|task|redeem|new-habit","text":string,"refId":string|null,"createName":string|null,"polarity":"good|bad|null","doneToday":boolean,"dailyAllowance":number|null,"targetReps":number,"targetPeriodWeeks":number,"dueDate":string|null,"dueTime":"HH:MM"|null,"syncTargets":["calendar"|"tasks"],"count":number,"avoided":boolean}]}`;
+{"items":[{"kind":"habit|bad-habit|task|redeem|new-habit","text":string,"refId":string|null,"createName":string|null,"polarity":"good|bad|null","doneToday":boolean,"dailyAllowance":number|null,"targetReps":number,"targetPeriodWeeks":number,"dueDate":string|null,"dueTime":"HH:MM"|null,"horizon":"once|daily|weekly|monthly","syncTargets":["calendar"|"tasks"],"count":number,"avoided":boolean}]}`;

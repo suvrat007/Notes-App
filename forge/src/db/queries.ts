@@ -2,9 +2,13 @@
  * Pure CRUD over Dexie. NO star math lives here — deltas arrive
  * pre-computed by `engine/`. This layer only reads and writes rows.
  */
-import { db, migrateHabit, type Habit, type Task, type LogEntry, type Reward, type LogKind } from './schema';
+import {
+  db, migrateHabit,
+  type Habit, type Task, type LogEntry, type Reward, type LogKind, type TaskHorizon,
+} from './schema';
+import { occurrenceDates, missingDates, repeats } from '../engine/series';
 import { newId } from '../lib/id';
-import { todayStr } from '../lib/dates';
+import { todayStr, weekStartOf, weekDates } from '../lib/dates';
 import { DEFAULT_ICON } from '../lib/habitIconKeys';
 
 /**
@@ -93,6 +97,8 @@ export async function addTask(input: NewTask): Promise<Task> {
     stars: 10,
     targetCount: 1,
     doneCount: 0,
+    horizon: 'once',
+    seriesId: null,
     done: false,
     doneAt: null,
     linkedHabitId: null,
@@ -263,4 +269,133 @@ export async function setDailyTarget(date: string, value: number): Promise<void>
 
 export async function listDailyTargets() {
   return db.dailyTargets.toArray();
+}
+
+/* ---------------- Repeating task series ---------------- */
+
+/**
+ * Turn a task into a repeating series, or change how often it repeats.
+ *
+ * Switching to `once` stops future repeats but keeps this occurrence — the
+ * user is saying "not any more", not "that never happened".
+ */
+export async function setTaskHorizon(taskId: string, horizon: TaskHorizon): Promise<void> {
+  const task = await db.tasks.get(taskId);
+  if (!task) return;
+
+  if (!repeats(horizon)) {
+    await db.transaction('rw', db.tasks, async () => {
+      if (task.seriesId) await deleteFutureOccurrences(task.seriesId, task.dueDate, true);
+      await db.tasks.update(taskId, { horizon, seriesId: null });
+    });
+    return;
+  }
+
+  const seriesId = task.seriesId ?? newId();
+  await db.tasks.update(taskId, { horizon, seriesId });
+  await generateSeries(seriesId);
+}
+
+/**
+ * Materialise any missing future occurrences of a series.
+ *
+ * Idempotent and additive: existing rows are never touched, so completions,
+ * edits and sync links survive every top-up.
+ */
+export async function generateSeries(seriesId: string, from = todayStr()): Promise<number> {
+  const rows = await db.tasks.where('seriesId').equals(seriesId).toArray();
+  if (rows.length === 0) return 0;
+
+  // The earliest occurrence anchors the cadence, so the weekday stays put.
+  const anchor = rows.reduce((a, b) => (a.dueDate <= b.dueDate ? a : b));
+  if (!repeats(anchor.horizon)) return 0;
+
+  const wanted = occurrenceDates(anchor.dueDate, anchor.horizon, from);
+  const missing = missingDates(wanted, rows.map((r) => r.dueDate));
+  if (missing.length === 0) return 0;
+
+  const order = await db.tasks.count();
+  const created: Task[] = missing.map((dueDate, i) => ({
+    ...anchor,
+    id: newId(),
+    dueDate,
+    // A fresh occurrence starts untouched, whatever state the anchor is in.
+    done: false,
+    doneAt: null,
+    doneCount: 0,
+    missedHandled: false,
+    createdAt: nowIso(),
+    order: order + i,
+  }));
+
+  await db.tasks.bulkAdd(created);
+  return created.length;
+}
+
+/** Top up every active series. Called on load so a series never runs dry. */
+export async function generateAllSeries(from = todayStr()): Promise<number> {
+  /*
+   * This runs on every load, so it must cost nothing when there is nothing to
+   * do. An indexed lookup returns immediately for the common case of a user
+   * with no repeating tasks; the full table scan it replaces taxed every
+   * single startup for a feature most loads never touch.
+   */
+  const repeating = await db.tasks.where('seriesId').notEqual('').toArray();
+  if (repeating.length === 0) return 0;
+
+  const ids = [...new Set(repeating.map((t) => t.seriesId).filter((s): s is string => !!s))];
+  let made = 0;
+  for (const id of ids) made += await generateSeries(id, from);
+  return made;
+}
+
+/**
+ * Drop occurrences after a date — "I finished this early, stop reminding me".
+ *
+ * Past and present occurrences stay: they carry the ledger entries that earned
+ * the stars, and deleting them would rewrite history.
+ */
+export async function deleteFutureOccurrences(
+  seriesId: string,
+  after: string,
+  keepDate = false,
+): Promise<string[]> {
+  const rows = await db.tasks.where('seriesId').equals(seriesId).toArray();
+  const doomed = rows.filter((t) => (keepDate ? t.dueDate > after : t.dueDate >= after) && !t.done);
+  await db.tasks.bulkDelete(doomed.map((t) => t.id));
+  return doomed.map((t) => t.id);
+}
+
+/** Copy a task onto every remaining day of its week. */
+export async function duplicateAcrossWeek(taskId: string, weekStartDay = 1): Promise<number> {
+  const task = await db.tasks.get(taskId);
+  if (!task) return 0;
+
+  const start = weekStartOf(task.dueDate, weekStartDay);
+  const dates = weekDates(start).filter((d) => d > task.dueDate);
+  const existing = await db.tasks.where('dueDate').anyOf(dates).toArray();
+  const clash = new Set(existing.filter((t) => t.name === task.name).map((t) => t.dueDate));
+
+  const order = await db.tasks.count();
+  const rows: Task[] = dates
+    .filter((d) => !clash.has(d))
+    .map((dueDate, i) => ({
+      ...task,
+      id: newId(),
+      dueDate,
+      done: false,
+      doneAt: null,
+      doneCount: 0,
+      missedHandled: false,
+      createdAt: nowIso(),
+      order: order + i,
+    }));
+
+  if (rows.length > 0) await db.tasks.bulkAdd(rows);
+  return rows.length;
+}
+
+/** Single task by id, for callers that only have the id. */
+export async function getTaskById(id: string): Promise<Task | undefined> {
+  return db.tasks.get(id);
 }

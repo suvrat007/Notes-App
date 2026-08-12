@@ -46,6 +46,8 @@ function migrateTask(t: Task, i: number): Task {
     order: t.order ?? i,
     targetCount: t.targetCount ?? 1,
     doneCount: t.doneCount ?? (t.done ? (t.targetCount ?? 1) : 0),
+    horizon: t.horizon ?? 'once',
+    seriesId: t.seriesId ?? null,
   };
 }
 

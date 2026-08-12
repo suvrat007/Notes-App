@@ -53,6 +53,8 @@ export interface ParsedItem {
    * the user confirms in the preview — it is their account being written to.
    */
   syncTargets?: Array<'calendar' | 'tasks'>;
+  /** Tasks: which bucket it belongs to, and whether it repeats. */
+  horizon?: 'once' | 'daily' | 'weekly' | 'monthly';
 }
 
 export interface NamedRef {

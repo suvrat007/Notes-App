@@ -4,6 +4,11 @@ import { normalizeIconKey } from '../lib/habitIconKeys';
 export type Polarity = 'good' | 'bad';
 export type LogKind = 'habit' | 'task' | 'redeem' | 'missed-task';
 
+/** Which bucket a task lives in on the Manage screen, and how it repeats. */
+export type TaskHorizon = 'once' | 'daily' | 'weekly' | 'monthly';
+
+export const TASK_HORIZONS: TaskHorizon[] = ['daily', 'weekly', 'monthly', 'once'];
+
 export interface Habit {
   id: string;
   name: string;
@@ -52,6 +57,20 @@ export interface Task {
   targetCount: number;
   /** Units completed so far. */
   doneCount: number;
+  /**
+   * Which bucket this belongs in, and how often it repeats.
+   * `once` is a plain one-off; the others generate future occurrences.
+   */
+  horizon: TaskHorizon;
+  /**
+   * Groups the occurrences of a repeating task. `null` for a one-off.
+   *
+   * Occurrences are MATERIALISED as one row per date rather than computed from
+   * a rule: the missed-task sweep, per-day completion, the star ledger and
+   * Google sync are all already day-keyed, and a rule-based model would mean
+   * rewriting all four.
+   */
+  seriesId: string | null;
 }
 
 /** APPEND-ONLY LEDGER. Never edit/delete except via explicit undo. */
@@ -264,6 +283,27 @@ export class ForgeDB extends Dexie {
         await tx.table('tasks').toCollection().modify((t) => {
           t.targetCount = t.targetCount ?? 1;
           t.doneCount = t.doneCount ?? (t.done ? (t.targetCount ?? 1) : 0);
+        });
+      });
+
+    // v6: tasks live in a horizon bucket and may repeat as a series.
+    this.version(6)
+      .stores({
+        habits: 'id, name, polarity, archived, order',
+        tasks: 'id, dueDate, done, [dueDate+done], linkedHabitId, missedHandled, order, '
+          + 'horizon, seriesId, [seriesId+dueDate]',
+        logs: 'id, date, kind, refId, [date+kind], [refId+date]',
+        rewards: 'id, archived',
+        appState: 'id',
+        dailyTargets: 'date',
+        syncLinks: 'id, target, taskId',
+        syncQueue: 'id, target, taskId',
+      })
+      .upgrade(async (tx) => {
+        await tx.table('tasks').toCollection().modify((t) => {
+          // Everything that existed before was a single one-off occurrence.
+          t.horizon = t.horizon ?? 'once';
+          t.seriesId = t.seriesId ?? null;
         });
       });
   }
