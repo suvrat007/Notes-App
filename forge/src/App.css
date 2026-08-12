@@ -1476,6 +1476,20 @@
   .task:hover {
     border-color: var(--text-dim);
   }
+
+  /* No tab bar to clear on desktop — dock toasts to the corner instead. */
+  .toaster {
+    bottom: 24px;
+    right: 24px;
+    left: auto;
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .toast {
+    width: auto;
+    min-width: 320px;
+  }
 }
 
 /* Very wide screens: a third column rather than ever-wider cards. */
@@ -1602,4 +1616,142 @@
 
 .iconpick__opt--on {
   color: var(--accent);
+}
+
+/* ---- Voice: parse source + per-item detail ---- */
+
+.voice__thinking {
+  text-align: center;
+  color: var(--text-dim);
+  padding: 22px 0;
+  font-size: 14px;
+}
+
+.voice__srcrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.voice__src {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  border: 1px solid var(--steel);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.voice__src--ai {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.vrow__count {
+  font-size: 12px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.vrow__avoid {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bad);
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+
+.vrow__avoid--ok {
+  color: var(--good);
+}
+
+/* ---- Toasts ---- */
+
+.toaster {
+  position: fixed;
+  left: 0;
+  right: 0;
+  /* Sits above the tab bar, not over it. */
+  bottom: calc(var(--tap) + 12px + env(safe-area-inset-bottom));
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  /* The strip itself must never eat taps meant for the UI beneath. */
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px 10px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  border: 1px solid var(--steel);
+  border-left: 3px solid var(--text-dim);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  font-size: 13.5px;
+  line-height: 1.35;
+}
+
+.toast--success { border-left-color: var(--good); }
+.toast--error   { border-left-color: var(--bad); }
+.toast--info    { border-left-color: var(--accent); }
+
+.toast__icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--font-display);
+}
+
+.toast--success .toast__icon { color: var(--good); background: rgba(62, 207, 142, 0.14); }
+.toast--error   .toast__icon { color: var(--bad);  background: rgba(229, 72, 77, 0.14); }
+.toast--info    .toast__icon { color: var(--accent); background: rgba(var(--accent-rgb), 0.16); }
+
+.toast__msg {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast__action {
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid var(--steel);
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: border-color var(--fast) ease;
+}
+
+.toast__action:hover {
+  border-color: var(--accent);
+}
+
+.toast__x {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  color: var(--text-dim);
+  font-size: 13px;
+  display: grid;
+  place-items: center;
 }

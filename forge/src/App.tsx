@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import TabBar from './components/TabBar';
 import Sidebar from './components/Sidebar';
 import VoiceModal from './components/VoiceModal';
+import Toaster from './components/Toaster';
 import type { ScreenKey } from './screens/registry';
 import HomeScreen from './screens/HomeScreen';
 import RoadmapScreen from './screens/RoadmapScreen';
@@ -33,6 +34,8 @@ export default function App() {
       <TabBar active={screen} onChange={setScreen} />
 
       {voice && <VoiceModal onClose={() => setVoice(false)} />}
+
+      <Toaster />
     </div>
   );
 }
