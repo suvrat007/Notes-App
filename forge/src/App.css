@@ -1407,6 +1407,13 @@
 
   /* ---- Profile: rank + settings beside rewards ---- */
 
+  .manage-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 26px;
+    align-items: start;
+  }
+
   .profile-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1754,4 +1761,164 @@
   font-size: 13px;
   display: grid;
   place-items: center;
+}
+
+/* ---- Manage screen ---- */
+
+.manage__hint {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  margin: -6px 0 14px;
+}
+
+.mlist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.mrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface-raised);
+  border: 1px solid var(--steel);
+  border-radius: var(--radius);
+  padding: 8px 8px 8px 4px;
+  list-style: none;
+}
+
+.mrow__grip {
+  width: 34px;
+  min-height: 40px;
+  display: grid;
+  place-items: center;
+  color: var(--text-dim);
+  cursor: grab;
+  flex-shrink: 0;
+  /* The browser must not claim this gesture as a scroll before we do. */
+  touch-action: none;
+}
+
+.mrow__grip:active {
+  cursor: grabbing;
+  color: var(--accent);
+}
+
+.mrow__icon {
+  display: grid;
+  place-items: center;
+  color: var(--good);
+  flex-shrink: 0;
+}
+
+.mrow__icon--bad {
+  color: var(--bad);
+}
+
+.mrow__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.mrow__name {
+  font-size: 14.5px;
+  font-weight: 600;
+  text-align: left;
+  color: var(--text);
+  padding: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mrow__name--done {
+  color: var(--text-dim);
+  text-decoration: line-through;
+}
+
+.mrow__edit {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 14.5px;
+  font-weight: 600;
+  padding: 3px 6px;
+}
+
+.mrow__edit:focus {
+  outline: none;
+}
+
+.mrow__meta {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.mrow__del {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+  border-radius: 7px;
+}
+
+.mrow__del:hover {
+  color: var(--bad);
+}
+
+/* ---- Voice command preview rows ---- */
+
+.crow {
+  align-items: center;
+}
+
+.crow__kind {
+  flex-shrink: 0;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--steel);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.crow__label {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+}
+
+/* Recording state: a live pulse so it's obvious capture is running. */
+.btn--rec {
+  background: var(--bad);
+  color: var(--text);
+  animation: recpulse 1.4s ease-in-out infinite;
+}
+
+@keyframes recpulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.72; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn--rec { animation: none; }
+}
+
+.voice__note {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  text-align: center;
+  margin: 10px 0 0;
+  line-height: 1.4;
 }

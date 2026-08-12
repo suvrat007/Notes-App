@@ -8,6 +8,7 @@ import type { Habit, LogEntry, AppState, Task, Reward } from '../db/schema';
 import { db } from '../db/schema';
 import { ensureAppState } from '../db/init';
 import { sweepMissedTasks } from '../db/sweep';
+import { syncTask } from '../db/sync';
 import * as q from '../db/queries';
 import {
   goodHabitDelta,
@@ -27,6 +28,7 @@ import {
 } from '../engine/rewards';
 import { buildRecurringRows, type VirtualTaskRow } from '../engine/recurring';
 import type { ParsedItem } from '../engine/parseVoice';
+import { applyMove, type Command } from '../lib/intent/commands';
 import {
   suggestDailyTarget,
   recentDailyAverage,
@@ -69,6 +71,12 @@ type ForgeState = {
   undoHabitRep: (habitId: string) => Promise<void>;
   createHabit: (input: q.NewHabit) => Promise<void>;
   archiveHabit: (id: string) => Promise<void>;
+  reorderHabits: (idsInOrder: string[]) => Promise<void>;
+  reorderTasks: (idsInOrder: string[]) => Promise<void>;
+  renameHabit: (id: string, name: string) => Promise<void>;
+  updateHabitFields: (id: string, patch: Partial<Habit>) => Promise<void>;
+  /** All tasks due today or later — the Manage screen's working set. */
+  upcomingTasks: Task[];
 
   createTask: (input: q.NewTask) => Promise<void>;
   completeTask: (taskId: string) => Promise<void>;
@@ -78,6 +86,8 @@ type ForgeState = {
   acceptDailyTarget: (value: number) => Promise<void>;
 
   commitVoiceItems: (items: ParsedItem[]) => Promise<void>;
+  /** Execute confirmed voice COMMANDS. Returns a per-command result. */
+  applyCommands: (cmds: Command[]) => Promise<{ done: number; failed: number; navigateTo: string | null }>;
   updateSettings: (patch: Partial<AppState['settings']>) => Promise<void>;
 
   createReward: (name: string, cost: number) => Promise<void>;
@@ -111,6 +121,7 @@ export const useForge = create<ForgeState>((set, get) => ({
   suggestedTarget: 0,
   recentLogs: [],
   historyLogs: [],
+  upcomingTasks: [],
   rewards: [],
 
   async loadToday() {
@@ -130,10 +141,11 @@ export const useForge = create<ForgeState>((set, get) => ({
     const monday = weekStartOf(today, appState.settings.weekResetDay);
     // Goal periods can span months, so read one wide window and slice it
     // rather than issuing a query per horizon.
-    const [habits, historyLogs, todayTasks, targetRow, rewards] = await Promise.all([
+    const [habits, historyLogs, todayTasks, upcomingTasks, targetRow, rewards] = await Promise.all([
       q.listActiveHabits(),
       q.listLogsInRange(addDays(today, -HISTORY_DAYS), today),
       q.listTasksForDate(today),
+      q.listUpcomingTasks(today),
       q.getDailyTarget(today),
       q.listRewards(),
     ]);
@@ -186,7 +198,10 @@ export const useForge = create<ForgeState>((set, get) => ({
       habits,
       weekLogs,
       todayLogs: historyLogs.filter((l) => l.date === today),
-      todayTasks: todayTasks.sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+      // Already sorted by manual order in the query — re-sorting by createdAt
+      // here would silently undo every drag the user made.
+      todayTasks,
+      upcomingTasks,
       recentLogs,
       historyLogs,
       appState,
@@ -194,6 +209,75 @@ export const useForge = create<ForgeState>((set, get) => ({
       dailyTarget: targetRow?.value ?? null,
       suggestedTarget,
     });
+  },
+
+  /**
+   * Execute confirmed commands.
+   *
+   * Each one is applied against freshly-read state rather than a snapshot,
+   * because two moves in a single batch ("gym to the top, read to the bottom")
+   * must compose — the second has to see the order the first produced.
+   */
+  async applyCommands(cmds) {
+    let done = 0;
+    let failed = 0;
+    let navigateTo: string | null = null;
+
+    for (const c of cmds) {
+      try {
+        switch (c.kind) {
+          case 'navigate':
+            navigateTo = c.screen ?? null;
+            break;
+
+          case 'setting':
+            if (c.settingKey) {
+              await get().updateSettings({ [c.settingKey]: c.settingValue });
+            }
+            break;
+
+          case 'archive':
+            if (c.refId) await get().archiveHabit(c.refId);
+            break;
+
+          case 'delete':
+            if (c.refId) await get().removeTask(c.refId);
+            break;
+
+          case 'rename':
+            if (c.refId && c.newName) await get().renameHabit(c.refId, c.newName);
+            break;
+
+          case 'retarget':
+            if (c.refId) {
+              await get().updateHabitFields(c.refId, {
+                targetReps: c.targetReps ?? 0,
+                targetPeriodWeeks: c.targetPeriodWeeks ?? 1,
+              });
+            }
+            break;
+
+          case 'move': {
+            if (!c.refId) break;
+            const isHabit = get().habits.some((h) => h.id === c.refId);
+            const ids = isHabit
+              ? get().habits.map((h) => h.id)
+              : get().upcomingTasks.map((t) => t.id);
+            const next = applyMove(ids, c.refId, c.to, c.relativeToId);
+            if (isHabit) await get().reorderHabits(next);
+            else await get().reorderTasks(next);
+            break;
+          }
+        }
+        done++;
+      } catch (e) {
+        failed++;
+        console.error('[command] failed:', c.label, e);
+      }
+    }
+
+    await get().loadToday();
+    return { done, failed, navigateTo };
   },
 
   async updateSettings(patch) {
@@ -243,6 +327,35 @@ export const useForge = create<ForgeState>((set, get) => ({
 
   async createHabit(input) {
     await q.addHabit(input);
+    await get().loadToday();
+  },
+
+  /**
+   * Persist a manual habit order.
+   *
+   * The caller passes the FULL list it was showing, not just the moved row —
+   * the Manage screen splits habits into Build and Break sections, so an order
+   * derived from one section alone would renumber the other to zero.
+   */
+  async reorderHabits(idsInOrder) {
+    await q.reorderHabits(idsInOrder);
+    await get().loadToday();
+  },
+
+  async reorderTasks(idsInOrder) {
+    await q.reorderTasks(idsInOrder);
+    await get().loadToday();
+  },
+
+  async renameHabit(id, name) {
+    const clean = name.trim();
+    if (!clean) return;
+    await q.updateHabit(id, { name: clean });
+    await get().loadToday();
+  },
+
+  async updateHabitFields(id, patch) {
+    await q.updateHabit(id, patch);
     await get().loadToday();
   },
 
@@ -313,7 +426,8 @@ export const useForge = create<ForgeState>((set, get) => ({
   /* ---------------- Tasks ---------------- */
 
   async createTask(input) {
-    await q.addTask(input);
+    const task = await q.addTask(input);
+    await syncTask(task.id, 'upsert');
     await get().loadToday();
   },
 
@@ -330,6 +444,7 @@ export const useForge = create<ForgeState>((set, get) => ({
     // A task linked to a habit also counts as a rep of that habit.
     if (task.linkedHabitId) await get().logHabitRep(task.linkedHabitId);
 
+    await syncTask(taskId, 'upsert');
     await get().loadToday();
   },
 
@@ -344,10 +459,14 @@ export const useForge = create<ForgeState>((set, get) => ({
 
     if (task.linkedHabitId) await get().undoHabitRep(task.linkedHabitId);
 
+    await syncTask(taskId, 'upsert');
     await get().loadToday();
   },
 
   async removeTask(taskId) {
+    // Queue the delete BEFORE the row disappears: `enqueueTask` checks for an
+    // existing sync link, and the link lookup is keyed by task id.
+    await syncTask(taskId, 'delete');
     await q.deleteTask(taskId);
     await get().loadToday();
   },

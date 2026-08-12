@@ -21,13 +21,22 @@ const nowIso = () => {
   return new Date(t).toISOString();
 };
 
+/** Manual position first, creation order as the tiebreaker. */
+function byOrder<T extends { order?: number; createdAt: string }>(a: T, b: T): number {
+  const d = (a.order ?? 0) - (b.order ?? 0);
+  return d !== 0 ? d : a.createdAt.localeCompare(b.createdAt);
+}
+
 /* ---------------- Habits ---------------- */
 
 export type NewHabit = Partial<Habit> & Pick<Habit, 'name' | 'polarity'>;
 
 export async function addHabit(input: NewHabit): Promise<Habit> {
+  // A new habit belongs at the END of the manual order, never jumping the queue.
+  const order = await db.habits.count();
   // `id` is set after the spread so a caller can never supply one.
   const habit: Habit = {
+    order,
     icon: DEFAULT_ICON,
     starsPerRep: 10,
     dailyAllowance: 0,
@@ -62,7 +71,7 @@ export async function listActiveHabits(): Promise<Habit[]> {
   return all
     .filter((h) => !h.archived)
     .map(migrateHabit)
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    .sort(byOrder);
 }
 
 export async function getHabit(id: string): Promise<Habit | undefined> {
@@ -75,8 +84,12 @@ export async function getHabit(id: string): Promise<Habit | undefined> {
 export type NewTask = Partial<Task> & Pick<Task, 'name'>;
 
 export async function addTask(input: NewTask): Promise<Task> {
+  // New tasks join the end of the day's manual order.
+  const order = await db.tasks.count();
   const task: Task = {
+    order,
     dueDate: todayStr(),
+    dueTime: null,
     stars: 10,
     done: false,
     doneAt: null,
@@ -103,7 +116,32 @@ export async function deleteTask(id: string): Promise<void> {
 }
 
 export async function listTasksForDate(dateStr: string): Promise<Task[]> {
-  return db.tasks.where('dueDate').equals(dateStr).toArray();
+  const rows = await db.tasks.where('dueDate').equals(dateStr).toArray();
+  return rows.sort(byOrder);
+}
+
+/** Every task due today or later, for the Manage screen. */
+export async function listUpcomingTasks(fromDate: string): Promise<Task[]> {
+  const rows = await db.tasks.where('dueDate').aboveOrEqual(fromDate).toArray();
+  return rows.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || byOrder(a, b));
+}
+
+/**
+ * Persist a manual order.
+ *
+ * Positions are rewritten as a dense 0..n-1 sequence inside one transaction,
+ * so a half-applied reorder can never leave two rows claiming the same slot.
+ */
+export async function reorderHabits(idsInOrder: string[]): Promise<void> {
+  await db.transaction('rw', db.habits, async () => {
+    await Promise.all(idsInOrder.map((id, i) => db.habits.update(id, { order: i })));
+  });
+}
+
+export async function reorderTasks(idsInOrder: string[]): Promise<void> {
+  await db.transaction('rw', db.tasks, async () => {
+    await Promise.all(idsInOrder.map((id, i) => db.tasks.update(id, { order: i })));
+  });
 }
 
 /** Overdue, still-open tasks that the missed sweep has not yet penalised. */

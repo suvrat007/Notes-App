@@ -22,6 +22,8 @@ export interface Habit {
   color: string;
   archived: boolean;
   createdAt: string;
+  /** Manual sort position. Lower first; ties fall back to createdAt. */
+  order: number;
 }
 
 export interface Task {
@@ -41,6 +43,8 @@ export interface Task {
   /** Set once the missed-task sweep has penalised this task, so it never repeats. */
   missedHandled: boolean;
   createdAt: string;
+  /** Manual sort position within its day. */
+  order: number;
 }
 
 /** APPEND-ONLY LEDGER. Never edit/delete except via explicit undo. */
@@ -150,6 +154,7 @@ export function migrateHabit(h: HabitV1 & Partial<Habit>): Habit {
     icon: normalizeIconKey(h.icon),
     targetReps: h.targetReps ?? weeklyTarget ?? 0,
     targetPeriodWeeks: h.targetPeriodWeeks ?? 1,
+    order: h.order ?? 0,
   };
 }
 
@@ -210,6 +215,29 @@ export class ForgeDB extends Dexie {
           // Existing tasks stay all-day, which is what they effectively were.
           t.dueTime = t.dueTime ?? null;
         });
+      });
+
+    // v4: manual ordering. Positions are seeded from creation order so the
+    // first render of the Manage screen matches what the user already sees.
+    this.version(4)
+      .stores({
+        habits: 'id, name, polarity, archived, order',
+        tasks: 'id, dueDate, done, [dueDate+done], linkedHabitId, missedHandled, order',
+        logs: 'id, date, kind, refId, [date+kind], [refId+date]',
+        rewards: 'id, archived',
+        appState: 'id',
+        dailyTargets: 'date',
+        syncLinks: 'id, target, taskId',
+        syncQueue: 'id, target, taskId',
+      })
+      .upgrade(async (tx) => {
+        for (const table of ['habits', 'tasks']) {
+          const rows = await tx.table(table).toArray();
+          rows.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+          await Promise.all(
+            rows.map((r, i) => tx.table(table).update(r.id, { order: i })),
+          );
+        }
       });
   }
 }

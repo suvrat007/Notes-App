@@ -113,3 +113,14 @@ export function IconCheck({ size = 16, className }: IconProps) {
     </svg>
   );
 }
+
+/** Manage — stacked rows with a drag affordance. */
+export function IconManage({ size = 22, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className}>
+      <path d="M4 7h11M4 12h11M4 17h11" />
+      <path d="M19 5.5v13" />
+      <path d="m17 7.5 2-2 2 2M17 16.5l2 2 2-2" />
+    </svg>
+  );
+}
