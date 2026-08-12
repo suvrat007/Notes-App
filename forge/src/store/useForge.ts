@@ -82,6 +82,9 @@ type ForgeState = {
   completeTask: (taskId: string) => Promise<void>;
   uncompleteTask: (taskId: string) => Promise<void>;
   removeTask: (taskId: string) => Promise<void>;
+  /** Multi-unit tasks: tick one unit off / put one back. */
+  advanceTask: (taskId: string) => Promise<void>;
+  regressTask: (taskId: string) => Promise<void>;
 
   acceptDailyTarget: (value: number) => Promise<void>;
 
@@ -415,8 +418,30 @@ export const useForge = create<ForgeState>((set, get) => ({
     for (const it of items) {
       const reps = Math.max(1, it.count ?? 1);
 
-      if (it.kind === 'task') {
-        await q.addTask({ name: it.text, dueDate: it.dueDate ?? get().today });
+      if (it.kind === 'new-habit') {
+        // The habit did not exist, so create it. Only log a rep if they said
+        // they had already done it — declaring an intention is not a rep.
+        const created = await q.addHabit({
+          name: it.text,
+          polarity: it.polarity ?? 'good',
+        });
+        if (it.doneToday && it.polarity !== 'bad') {
+          await q.addLog({
+            date: get().today,
+            kind: 'habit',
+            refId: created.id,
+            count: 1,
+            starsDelta: goodHabitDelta(created),
+          });
+          await q.addLifetimeStars(goodHabitDelta(created));
+        }
+      } else if (it.kind === 'task') {
+        await q.addTask({
+          name: it.text,
+          dueDate: it.dueDate ?? get().today,
+          // "finish three videos" -> three units before it counts as done.
+          targetCount: Math.max(1, it.count ?? 1),
+        });
       } else if (it.kind === 'habit') {
         if (it.refId) {
           for (let i = 0; i < reps; i++) await get().logHabitRep(it.refId);
@@ -501,6 +526,48 @@ export const useForge = create<ForgeState>((set, get) => ({
     if (task.linkedHabitId) await get().undoHabitRep(task.linkedHabitId);
 
     await syncTask(taskId, 'upsert');
+    await get().loadToday();
+  },
+
+  /**
+   * Advance a multi-unit task by one unit ("1 of 3 videos done").
+   *
+   * Stars are awarded only on the FINAL unit — the task's reward is for
+   * finishing it, and paying out per unit would let a half-done task earn.
+   * Partial progress is recorded on the row, not in the ledger.
+   */
+  async advanceTask(taskId) {
+    const task = get().todayTasks.find((t) => t.id === taskId)
+      ?? get().upcomingTasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    const target = Math.max(1, task.targetCount ?? 1);
+    const next = Math.min(target, (task.doneCount ?? 0) + 1);
+
+    if (next >= target) {
+      await q.updateTask(taskId, { doneCount: next });
+      await get().completeTask(taskId);
+      return;
+    }
+    await q.updateTask(taskId, { doneCount: next });
+    await get().loadToday();
+  },
+
+  /** Step one unit back. Crossing down out of "done" reverses the payout. */
+  async regressTask(taskId) {
+    const task = get().todayTasks.find((t) => t.id === taskId)
+      ?? get().upcomingTasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    const target = Math.max(1, task.targetCount ?? 1);
+    const current = task.doneCount ?? 0;
+    const next = Math.max(0, current - 1);
+
+    if (task.done || current >= target) {
+      // uncompleteTask removes the ledger entry and the stars with it.
+      await get().uncompleteTask(taskId);
+    }
+    await q.updateTask(taskId, { doneCount: next });
     await get().loadToday();
   },
 

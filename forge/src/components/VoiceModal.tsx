@@ -31,6 +31,7 @@ const KIND_LABEL: Record<IntentKind, string> = {
   'bad-habit': 'Slip',
   task: 'Task',
   redeem: 'Redeem',
+  'new-habit': 'New habit',
 };
 
 export default function VoiceModal({ onClose, mode: initialMode = 'log', onNavigate }: Props) {
@@ -203,8 +204,22 @@ export default function VoiceModal({ onClose, mode: initialMode = 'log', onNavig
         const r = ctx.rewards.find((x) => it.raw.toLowerCase().includes(x.name.toLowerCase()));
         return { ...it, kind, refId: r?.id ?? null, dueDate: null };
       }
+      if (kind === 'new-habit') {
+        return { ...it, kind, refId: null, dueDate: null, polarity: it.polarity ?? 'good' };
+      }
       const h = ctx.habits.find((x) => it.raw.toLowerCase().includes(x.name.toLowerCase()));
-      return { ...it, kind, refId: h?.id ?? null, dueDate: null };
+      // Nothing existing matches, so asking for "Habit" means they want a NEW
+      // one — otherwise the row would be stuck permanently unresolvable.
+      if (!h) {
+        return {
+          ...it,
+          kind: 'new-habit',
+          refId: null,
+          dueDate: null,
+          polarity: kind === 'bad-habit' ? 'bad' : 'good',
+        };
+      }
+      return { ...it, kind, refId: h.id, dueDate: null };
     }));
   };
 
@@ -249,7 +264,8 @@ export default function VoiceModal({ onClose, mode: initialMode = 'log', onNavig
 
   /** An item that needs a ref but has none can't be committed. */
   const unresolved = items.filter(
-    (it) => it.kind !== 'task' && !it.refId,
+    // A new habit has no ref by definition — it does not exist yet.
+    (it) => it.kind !== 'task' && it.kind !== 'new-habit' && !it.refId,
   );
   const canCommit = mode === 'command'
     ? commands.length > 0
@@ -386,10 +402,23 @@ export default function VoiceModal({ onClose, mode: initialMode = 'log', onNavig
               {it.kind === 'task' && it.dueDate && (
                 <span className="vrow__due">{it.dueDate === ctx.today ? 'today' : 'tmrw'}</span>
               )}
-              {it.count > 1 && (
+              {it.count > 1 && it.kind !== 'new-habit' && (
                 <span className="vrow__count num" data-testid={`vcount-${it.id}`}>
                   ×{it.count}
                 </span>
+              )}
+              {it.kind === 'new-habit' && (
+                <button
+                  className={'vrow__pol' + (it.polarity === 'bad' ? ' vrow__pol--bad' : '')}
+                  data-testid={`vpol-${it.id}`}
+                  title="Switch between building this up and cutting it down"
+                  onClick={() => setItems((prev) => prev.map((x) => (
+                    x.id === it.id
+                      ? { ...x, polarity: x.polarity === 'bad' ? 'good' : 'bad' }
+                      : x)))}
+                >
+                  {it.polarity === 'bad' ? 'break' : 'build'}
+                </button>
               )}
               {it.kind === 'bad-habit' && (
                 <span className={'vrow__avoid' + (it.avoided ? ' vrow__avoid--ok' : '')}

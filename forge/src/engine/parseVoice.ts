@@ -4,7 +4,12 @@
  * the UI shows the preview and waits for an explicit OK.
  */
 
-export type IntentKind = 'habit' | 'bad-habit' | 'task' | 'redeem';
+export type IntentKind =
+  | 'habit'      // a rep of a habit that already exists
+  | 'bad-habit'  // a slip or an avoidance of an existing bad habit
+  | 'task'       // a one-off to-do
+  | 'redeem'     // spent stars on a reward
+  | 'new-habit'; // something ongoing that is NOT yet a habit -> create it
 
 export interface ParsedItem {
   /** Stable within one parse, so preview rows can be edited by id. */
@@ -25,6 +30,12 @@ export interface ParsedItem {
    * be logged; FALSE means they actually did it and a penalty applies.
    */
   avoided: boolean;
+  /** new-habit only: good earns stars, bad costs them. */
+  polarity?: 'good' | 'bad';
+  /** new-habit only: also surface it on the daily task list. */
+  isRecurringTask?: boolean;
+  /** new-habit only: they already did it today, so log a rep on creation. */
+  doneToday?: boolean;
 }
 
 export interface NamedRef {
