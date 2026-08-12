@@ -1985,3 +1985,92 @@
   border-radius: 999px;
   padding: 1px 6px;
 }
+
+/* Secondary, so it reads as the undo next to the primary + action. */
+.habit__undo {
+  width: 38px;
+  height: var(--tap);
+  flex-shrink: 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--steel);
+  color: var(--text-dim);
+  display: grid;
+  place-items: center;
+  transition: opacity var(--fast) ease, color var(--fast) ease;
+  touch-action: manipulation;
+}
+
+.habit__undo:disabled {
+  opacity: 0.28;
+}
+
+.habit__undo:not(:disabled):active {
+  transform: scale(0.92);
+  color: var(--text);
+}
+
+/* Asking for a bad habit's daily limit inside the preview row. */
+.vrow__limit {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.vrow__limitinput {
+  width: 44px;
+  min-height: 30px;
+  text-align: center;
+  background: var(--bg);
+  border: 1px solid var(--bad);
+  border-radius: 7px;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  padding: 0 2px;
+}
+
+.vrow__limitinput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.vrow__limitlabel {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.voice__ask {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--accent);
+  line-height: 1.4;
+}
+
+/* Per-item Google destination chips in the voice preview. */
+.vrow__dest {
+  display: inline-flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.vrow__destbtn {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  border: 1px solid var(--steel);
+  border-radius: 999px;
+  padding: 2px 7px;
+  transition: color var(--fast) ease, border-color var(--fast) ease;
+}
+
+.vrow__destbtn--on {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.12);
+}
+
+.vrow__time {
+  color: var(--accent);
+}

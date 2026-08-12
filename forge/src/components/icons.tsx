@@ -124,3 +124,12 @@ export function IconManage({ size = 22, className }: IconProps) {
     </svg>
   );
 }
+
+/** Minus — remove one rep. */
+export function IconMinus({ size = 20, className }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={2.25} className={className}>
+      <path d="M5 12h14" />
+    </svg>
+  );
+}

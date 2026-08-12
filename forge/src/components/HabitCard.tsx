@@ -1,8 +1,9 @@
 import { useRef } from 'react';
 import type React from 'react';
 import type { Habit } from '../db/schema';
-import { IconPlus } from './icons';
+import { IconPlus, IconMinus } from './icons';
 import { periodShortLabel } from '../engine/period';
+import { badHabitRepDelta } from '../engine/stars';
 import { HabitIcon } from './habitIcons';
 
 type Props = {
@@ -47,6 +48,9 @@ export default function HabitCard({ habit, reps, onLog, onUndo }: Props) {
 
   const isBad = habit.polarity === 'bad';
   const overAllowance = isBad && reps > habit.dailyAllowance;
+  // Ask the engine rather than restating the maths, so the card can never
+  // drift from what tapping actually does.
+  const nextCost = isBad ? badHabitRepDelta(habit, reps) : habit.starsPerRep;
 
   return (
     <div className={'habit' + (isBad ? ' habit--bad' : '')} data-testid={`habit-${habit.id}`}>
@@ -57,9 +61,12 @@ export default function HabitCard({ habit, reps, onLog, onUndo }: Props) {
         <span className="habit__sub">
           {isBad ? (
             <>
+              {/* Show what the NEXT tap actually costs. Quoting starsPerRep
+                  here was a lie once the allowance was used up: with an
+                  allowance of 0 every rep already carries the overage. */}
               {habit.dailyAllowance > 0
-                ? `${reps}/${habit.dailyAllowance} allowed today`
-                : `−${habit.starsPerRep}★ each`}
+                ? `${reps}/${habit.dailyAllowance} allowed · next ${nextCost}★`
+                : `no allowance · ${nextCost}★ each`}
               {overAllowance && <span className="habit__warn"> · over</span>}
             </>
           ) : (
@@ -73,6 +80,18 @@ export default function HabitCard({ habit, reps, onLog, onUndo }: Props) {
       </div>
 
       <span className="habit__count num" data-testid={`count-${habit.id}`}>{reps}</span>
+
+      {/* Long-press already undid a rep, but nothing advertised it. An
+          explicit minus is the only discoverable way back. */}
+      <button
+        className="habit__undo no-select"
+        data-testid={`undo-${habit.id}`}
+        aria-label={`Remove one ${habit.name}`}
+        disabled={reps === 0}
+        onClick={onUndo}
+      >
+        <IconMinus />
+      </button>
 
       <button
         className="habit__log no-select"
