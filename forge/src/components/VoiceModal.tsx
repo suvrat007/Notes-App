@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Modal from './Modal';
 import { IconMic } from './icons';
 import { useForge } from '../store/useForge';
@@ -7,10 +7,13 @@ import { type ParsedItem, type IntentKind } from '../engine/parseVoice';
 import { parseIntents, isGroqConfigured, type ParseSource } from '../lib/intent';
 import { parseCommands } from '../lib/intent/parseCommands';
 import type { Command } from '../lib/intent/commands';
-import { todayStr, addDays } from '../lib/dates';
+import { todayStr, addDays, weekStartOf } from '../lib/dates';
 import { toast } from '../store/useToast';
 import { navigateTo } from '../store/useNav';
-import { isGroqSttAvailable, startRecording, transcribe, type Recording } from '../lib/speech/groqStt';
+import {
+  isGroqSttAvailable, startRecording, transcribe,
+  MAX_RECORDING_MS, RECORDING_WARN_MS, type Recording,
+} from '../lib/speech/groqStt';
 
 export type VoiceMode = 'log' | 'command';
 
@@ -20,6 +23,8 @@ type Props = {
   /** Command mode can ask the app to change screens. */
   onNavigate?: (screen: string) => void;
 };
+
+const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
 const KIND_LABEL: Record<IntentKind, string> = {
   habit: 'Habit rep',
@@ -46,12 +51,36 @@ export default function VoiceModal({ onClose, mode: initialMode = 'log', onNavig
   // Groq transcription is preferred: Web Speech depends on reaching Google's
   // servers, which is the failure users actually hit.
   const useGroqStt = isGroqSttAvailable();
+  const [elapsed, setElapsed] = useState(0);
 
+  // Live elapsed readout while recording. Without it the hard cap arrives with
+  // no warning, and there is no way to tell capture is still running.
+  useEffect(() => {
+    if (!recording) { setElapsed(0); return; }
+    const tick = () => setElapsed(Date.now() - recording.startedAt);
+    tick();
+    const id = window.setInterval(tick, 250);
+    return () => clearInterval(id);
+  }, [recording]);
+
+  const remaining = Math.max(0, MAX_RECORDING_MS - elapsed);
+  const nearLimit = !!recording && remaining <= RECORDING_WARN_MS;
+  const clock = (ms: number) => {
+    const s = Math.floor(ms / 1000);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  };
+
+  const weekStartDay = appState?.settings.weekResetDay ?? 1;
   const ctx = {
     habits: habits.map((h) => ({ id: h.id, name: h.name, polarity: h.polarity })),
     rewards: rewards.map((r) => ({ id: r.id, name: r.name })),
     today: todayStr(),
     tomorrow: addDays(todayStr(), 1),
+    // Anchors so a deadline like "this week" resolves to a real date rather
+    // than collapsing to tomorrow.
+    todayName: dayNames[new Date().getDay()],
+    weekEnd: addDays(weekStartOf(todayStr(), weekStartDay), 6),
+    nextWeekEnd: addDays(weekStartOf(todayStr(), weekStartDay), 13),
   };
 
   /** Commands act on rows that exist, so they see tasks as well as habits. */
@@ -109,24 +138,37 @@ export default function VoiceModal({ onClose, mode: initialMode = 'log', onNavig
    * because Web Speech depends on reaching Google's own servers, which is the
    * failure users actually hit.
    */
+  /** Stop capture, upload the clip, and parse whatever came back. */
+  const finishRecording = async (rec: Recording) => {
+    setRecording(null);
+    setPhase('thinking');
+    try {
+      const clip = await rec.stop();
+      const text = await transcribe(clip);
+      await runParse(text);
+    } catch (e) {
+      failVoice(e);
+    }
+  };
+
   const toggleRecording = async () => {
     if (recording) {
-      const rec = recording;
-      setRecording(null);
-      setPhase('thinking');
-      try {
-        const clip = await rec.stop();
-        const text = await transcribe(clip);
-        await runParse(text);
-      } catch (e) {
-        failVoice(e);
-      }
+      await finishRecording(recording);
       return;
     }
 
     try {
       setPhase('listening');
-      setRecording(await startRecording());
+      const rec = await startRecording({
+        onAutoStop: () => {
+          toast.info(
+            `Recording stopped at the ${Math.round(MAX_RECORDING_MS / 1000)}s limit — `
+              + 'transcribing what was captured.',
+          );
+          void finishRecording(rec);
+        },
+      });
+      setRecording(rec);
     } catch (e) {
       failVoice(e);
     }
@@ -233,18 +275,42 @@ export default function VoiceModal({ onClose, mode: initialMode = 'log', onNavig
                     onClick={() => setMode('command')}>Command</button>
           </div>
 
+          {useGroqStt && phase !== 'listening' && (
+            <p className="voice__limit" data-testid="rec-limit">
+              You can speak for up to {Math.round(MAX_RECORDING_MS / 1000)} seconds.
+            </p>
+          )}
+
           {useGroqStt || supported ? (
             <button className={'btn btn--primary' + (phase === 'listening' ? ' btn--rec' : '')}
                     data-testid="voice-mic"
                     onClick={() => void (useGroqStt ? toggleRecording() : listen())}
                     disabled={!useGroqStt && phase === 'listening'}>
               {phase === 'listening'
-                ? (useGroqStt ? 'Stop & transcribe' : 'Listening…')
+                ? (useGroqStt
+                    ? (
+                      <>
+                        Stop &amp; transcribe
+                        {/* Counts DOWN: what matters is how long you have left,
+                            not how long you've been going. */}
+                        <span className={'btn__clock num' + (nearLimit ? ' btn__clock--low' : '')}
+                              data-testid="rec-clock">
+                          {clock(remaining)}
+                        </span>
+                      </>
+                    )
+                    : 'Listening…')
                 : <><IconMic size={18} /> Start speaking</>}
             </button>
           ) : (
             <p className="reward__note" data-testid="voice-unsupported">
               Speech recognition isn't available in this browser — type it instead.
+            </p>
+          )}
+
+          {nearLimit && (
+            <p className="voice__warn" data-testid="rec-warn">
+              {clock(remaining)} left — recording stops and transcribes automatically.
             </p>
           )}
 

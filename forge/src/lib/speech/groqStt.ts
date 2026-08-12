@@ -16,8 +16,17 @@ import { VoiceError } from '../voice';
 const ENDPOINT = 'https://api.groq.com/openai/v1/audio/transcriptions';
 export const STT_MODEL = 'whisper-large-v3-turbo';
 
-/** Stop capturing after this long, so a forgotten session can't run forever. */
-const MAX_RECORDING_MS = 60_000;
+/**
+ * Hard cap on one recording, so a forgotten session can't run forever.
+ *
+ * Not an API limit — Groq accepts 25MB (free tier), and a minute of Opus is a
+ * few hundred KB. This is a guard against a pocket-recording, and is shown to
+ * the user as a countdown so the stop is never a surprise.
+ */
+export const MAX_RECORDING_MS = 60_000;
+
+/** Warn this long before the cap, so the stop isn't a surprise. */
+export const RECORDING_WARN_MS = 15_000;
 
 export function isGroqSttAvailable(): boolean {
   return (
@@ -39,13 +48,24 @@ export interface Recording {
   stop: () => Promise<Blob>;
   /** Abandon the capture and release the microphone. */
   cancel: () => void;
+  /** Epoch ms when capture began, for a live elapsed readout. */
+  startedAt: number;
+}
+
+export interface RecordOptions {
+  /**
+   * Fired when the hard cap stops capture on its own. Without this the UI
+   * would keep inviting the user to speak into a recorder that had already
+   * stopped, and everything said after would be silently lost.
+   */
+  onAutoStop?: () => void;
 }
 
 /**
  * Begin capturing from the microphone. Resolves once recording has actually
  * started, so the UI never says "listening" before it is.
  */
-export async function startRecording(): Promise<Recording> {
+export async function startRecording(opts: RecordOptions = {}): Promise<Recording> {
   let stream: MediaStream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -79,11 +99,18 @@ export async function startRecording(): Promise<Recording> {
   });
 
   rec.start();
+  const startedAt = Date.now();
   const guard = window.setTimeout(() => {
-    if (rec.state === 'recording') rec.stop();
+    if (rec.state === 'recording') {
+      rec.stop();
+      // Tell the caller, so it can finish the flow rather than leaving the UI
+      // inviting speech into a recorder that has already stopped.
+      opts.onAutoStop?.();
+    }
   }, MAX_RECORDING_MS);
 
   return {
+    startedAt,
     stop: () => {
       clearTimeout(guard);
       if (rec.state === 'recording') rec.stop();
