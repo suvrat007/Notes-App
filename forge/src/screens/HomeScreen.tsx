@@ -19,6 +19,7 @@ export default function HomeScreen() {
     ready, habits, appState, loadToday, logHabitRep, undoHabitRep,
     createHabit, repsToday, weekBalance, todayNet,
     todayTasks, createTask, completeTask, uncompleteTask, removeTask, recurringRows,
+    advanceTask, regressTask,
     dailyTarget, suggestedTarget, acceptDailyTarget, effectiveTarget,
     rewardViews, redeemReward,
   } = useForge();
@@ -148,7 +149,10 @@ export default function HomeScreen() {
           {todayTasks.map((t) => (
             <TaskRow
               key={t.id} id={t.id} name={t.name} stars={t.stars} done={t.done}
+              targetCount={t.targetCount} doneCount={t.doneCount}
               onToggle={(next) => void (next ? completeTask(t.id) : uncompleteTask(t.id))}
+              onAdvance={() => void advanceTask(t.id)}
+              onRegress={() => void regressTask(t.id)}
               onDelete={() => void removeTask(t.id)}
             />
           ))}

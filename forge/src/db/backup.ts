@@ -40,7 +40,13 @@ function migrateTask(t: Task, i: number): Task {
   // Backups predating manual ordering carry no `order`. Falling back to the
   // array index preserves the order the export was written in, which is the
   // order the user last saw.
-  return { ...t, dueTime: t.dueTime ?? null, order: t.order ?? i };
+  return {
+    ...t,
+    dueTime: t.dueTime ?? null,
+    order: t.order ?? i,
+    targetCount: t.targetCount ?? 1,
+    doneCount: t.doneCount ?? (t.done ? (t.targetCount ?? 1) : 0),
+  };
 }
 
 export function backupToBlob(b: Backup): Blob {

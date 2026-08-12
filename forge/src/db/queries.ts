@@ -91,6 +91,8 @@ export async function addTask(input: NewTask): Promise<Task> {
     dueDate: todayStr(),
     dueTime: null,
     stars: 10,
+    targetCount: 1,
+    doneCount: 0,
     done: false,
     doneAt: null,
     linkedHabitId: null,

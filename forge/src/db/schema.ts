@@ -45,6 +45,13 @@ export interface Task {
   createdAt: string;
   /** Manual sort position within its day. */
   order: number;
+  /**
+   * How many units finish this task ("three videos" -> 3). 1 for an ordinary
+   * task. `done` is true only once `doneCount` reaches this.
+   */
+  targetCount: number;
+  /** Units completed so far. */
+  doneCount: number;
 }
 
 /** APPEND-ONLY LEDGER. Never edit/delete except via explicit undo. */
@@ -238,6 +245,26 @@ export class ForgeDB extends Dexie {
             rows.map((r, i) => tx.table(table).update(r.id, { order: i })),
           );
         }
+      });
+
+    // v5: multi-unit tasks ("finish three videos"). Existing tasks are
+    // single-unit, and an already-done one counts as its one unit complete.
+    this.version(5)
+      .stores({
+        habits: 'id, name, polarity, archived, order',
+        tasks: 'id, dueDate, done, [dueDate+done], linkedHabitId, missedHandled, order',
+        logs: 'id, date, kind, refId, [date+kind], [refId+date]',
+        rewards: 'id, archived',
+        appState: 'id',
+        dailyTargets: 'date',
+        syncLinks: 'id, target, taskId',
+        syncQueue: 'id, target, taskId',
+      })
+      .upgrade(async (tx) => {
+        await tx.table('tasks').toCollection().modify((t) => {
+          t.targetCount = t.targetCount ?? 1;
+          t.doneCount = t.doneCount ?? (t.done ? (t.targetCount ?? 1) : 0);
+        });
       });
   }
 }
