@@ -257,6 +257,47 @@ export const useForge = create<ForgeState>((set, get) => ({
             }
             break;
 
+          case 'create':
+            if (c.targetType === 'task') {
+              // Via the store action, not q.addTask: that is what queues the
+              // task for Google. A voice-created task must reach the calendar
+              // exactly like one typed into the modal.
+              await get().createTask({
+                name: c.createName!,
+                dueDate: c.dueDate ?? get().today,
+              });
+            } else {
+              await q.addHabit({
+                name: c.createName!,
+                polarity: c.polarity ?? 'good',
+                isRecurringTask: c.isRecurringTask ?? false,
+              });
+            }
+            break;
+
+          /*
+           * Convert reclassifies a row by creating its counterpart and retiring
+           * the original. Habits are ARCHIVED rather than deleted so their
+           * ledger history survives the change; tasks carry no such history.
+           */
+          case 'convert': {
+            if (!c.refId) break;
+            if (c.targetType === 'habit') {
+              const t = get().upcomingTasks.find((x) => x.id === c.refId);
+              if (!t) break;
+              await q.addHabit({ name: t.name, polarity: 'good' });
+              // Store action, so the task's Google event is deleted too —
+              // q.deleteTask would strand it on the calendar forever.
+              await get().removeTask(t.id);
+            } else {
+              const h = get().habits.find((x) => x.id === c.refId);
+              if (!h) break;
+              await get().createTask({ name: h.name, dueDate: c.dueDate ?? get().today });
+              await q.archiveHabit(h.id);
+            }
+            break;
+          }
+
           case 'move': {
             if (!c.refId) break;
             const isHabit = get().habits.some((h) => h.id === c.refId);

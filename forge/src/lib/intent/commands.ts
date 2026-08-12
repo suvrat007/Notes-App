@@ -20,7 +20,9 @@ export type CommandKind =
   | 'delete'    // tasks
   | 'retarget'  // change a habit's goal
   | 'navigate'
-  | 'setting';
+  | 'setting'
+  | 'create'   // make a new habit or task
+  | 'convert'; // turn a task into a habit, or a habit into a task
 
 export type MoveTo = 'top' | 'bottom' | 'up' | 'down';
 export type ScreenName = 'home' | 'roadmap' | 'stats' | 'profile' | 'manage';
@@ -46,6 +48,16 @@ export interface Command {
   /** setting */
   settingKey?: 'negativeFloor' | 'aiParsing';
   settingValue?: boolean;
+  /** create / convert: which kind of record to produce. */
+  targetType?: 'habit' | 'task';
+  /** create: name of the new record. */
+  createName?: string;
+  /** create: good earns stars, bad costs them. */
+  polarity?: 'good' | 'bad';
+  /** create (task) / convert to task: YYYY-MM-DD. */
+  dueDate?: string | null;
+  /** create (habit): also show it on the daily task list. */
+  isRecurringTask?: boolean;
   /** Human-readable summary shown in the confirm list. */
   label: string;
 }
@@ -55,9 +67,18 @@ export interface CommandContext {
   tasks: NamedRef[];
 }
 
-export const COMMAND_SYSTEM = `You turn a spoken instruction into COMMANDS that operate a habit-tracking app called FORGE. You are NOT logging what the user did today — a separate system does that. You only rearrange, rename, retire or navigate.
+export const COMMAND_SYSTEM = `You turn a spoken instruction into COMMANDS that operate a habit-tracking app called FORGE. You are NOT logging what the user did today — a separate system does that. You create, rearrange, rename, retire, reclassify and navigate.
+
+In FORGE a HABIT is something repeated (gym, reading, smoking) and a TASK is a one-off to-do with a due date (call the bank).
 
 Command kinds:
+- "create"   : add a NEW habit or task. Set targetType to habit|task and createName.
+               For a habit also set polarity: "good" for something to build (gym, reading),
+               "bad" for something to cut down (smoking, junk food). Set isRecurringTask true
+               if they want it on the daily task list too ("add it to my daily habits").
+               For a task set dueDate (YYYY-MM-DD) using the supplied date anchors.
+- "convert"  : reclassify an EXISTING row. Set refId and targetType.
+               targetType "habit" turns a task into a habit; "task" turns a habit into a task.
 - "move"     : reposition a habit or task. Set "to" to one of top|bottom|up|down, OR set relativeToId to place it directly after another row.
 - "rename"   : change a habit's name. Requires newName.
 - "archive"  : retire a HABIT (history is kept). Only for habits.
@@ -66,18 +87,25 @@ Command kinds:
 - "navigate" : open a screen. screen is one of home|roadmap|stats|profile|manage.
 - "setting"  : toggle a setting. settingKey is negativeFloor or aiParsing; settingValue is true/false.
 
+Distinguishing create from move: "add going to the gym to my habits" is CREATE (it does not
+exist yet). "move gym into my tasks" where Gym is a listed habit is CONVERT. Only use move for
+reordering within a list.
+
 Rules:
-- refId MUST come from the supplied habits/tasks lists. Never invent one.
+- For create, refId is null — the row does not exist yet.
+- For every other kind, refId MUST come from the supplied habits/tasks lists. Never invent one.
 - Use "archive" for habits and "delete" for tasks — never the other way round.
-- If the instruction does not clearly match a known row, omit it entirely rather than guessing.
-- label: a short plain-English description of the change, e.g. "Move Gym to the top".
+- One command per thing the user asked for. "Add the gym and running as habits" is TWO creates.
+- If the instruction does not clearly match, omit it rather than guessing.
+- label: a short plain-English description, e.g. "Move Gym to the top" or "Add Gym as a good habit".
 - Return an empty items array if nothing is actionable.
 
 Respond with ONLY this JSON shape:
-{"items":[{"kind","refId","to","relativeToId","newName","targetReps","targetPeriodWeeks","screen","settingKey","settingValue","label"}]}`;
+{"items":[{"kind","refId","targetType","createName","polarity","isRecurringTask","dueDate","to","relativeToId","newName","targetReps","targetPeriodWeeks","screen","settingKey","settingValue","label"}]}`;
 
 const KINDS: CommandKind[] = [
   'move', 'rename', 'archive', 'delete', 'retarget', 'navigate', 'setting',
+  'create', 'convert',
 ];
 const MOVES: MoveTo[] = ['top', 'bottom', 'up', 'down'];
 const SCREENS: ScreenName[] = ['home', 'roadmap', 'stats', 'profile', 'manage'];
@@ -160,6 +188,37 @@ export function coerceCommands(raw: unknown, ctx: CommandContext): Command[] {
           targetReps: Math.round(reps),
           targetPeriodWeeks: weeks,
         });
+        return;
+      }
+
+      case 'create': {
+        const name = typeof r.createName === 'string' ? r.createName.trim().slice(0, 60) : '';
+        const type = r.targetType === 'task' ? 'task' : 'habit';
+        if (!name) return;
+        out.push({
+          ...base,
+          refId: null,
+          refName: name,
+          targetType: type,
+          createName: name,
+          polarity: r.polarity === 'bad' ? 'bad' : 'good',
+          isRecurringTask: r.isRecurringTask === true,
+          dueDate: type === 'task' && typeof r.dueDate === 'string'
+            && /^\d{4}-\d{2}-\d{2}$/.test(r.dueDate)
+            ? r.dueDate
+            : null,
+        });
+        return;
+      }
+
+      case 'convert': {
+        // The row must exist, and must actually be changing type — converting
+        // a habit "to a habit" is a no-op the model sometimes emits.
+        if (!habit && !task) return;
+        const type = r.targetType === 'task' ? 'task' : 'habit';
+        if (habit && type === 'habit') return;
+        if (task && type === 'task') return;
+        out.push({ ...base, targetType: type });
         return;
       }
 
