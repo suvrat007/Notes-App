@@ -12,6 +12,7 @@
  * server route and delete the key from the client.
  */
 import type { ParsedItem, ParseContext, IntentKind } from '../../engine/parseVoice';
+import { addDays } from '../dates';
 
 const ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 export const GROQ_MODEL = 'llama-3.3-70b-versatile';
@@ -36,7 +37,17 @@ The user speaks freely about their day. Split what they said into discrete items
 Rules:
 - refId MUST be an id from the supplied lists, or null. Never invent ids.
 - If nothing matches, kind is "task" and refId is null.
-- dueDate applies to tasks only. "today" -> the given today, "tomorrow" -> the given tomorrow, otherwise null.
+- dueDate applies to tasks only, and MUST be an absolute YYYY-MM-DD date you work out from the anchors provided (today, todayName, tomorrow, weekEnd, nextWeekEnd).
+  Resolve deadlines to the LAST day the user has, not the first:
+    "today" / "tonight"            -> today
+    "tomorrow"                     -> tomorrow
+    "this week" / "by the weekend" -> weekEnd
+    "next week"                    -> nextWeekEnd
+    "in three days"                -> today + 3 days
+    "by Friday" / "on Monday"      -> the next such weekday on or after tomorrow
+    "next month"                   -> today + 30 days
+  Only when the user gives no timing at all, use tomorrow.
+  Never answer with a word like "this week" — always compute the date.
 - count = reps mentioned ("smoked twice" -> 2, "three coffees" -> 3). Default 1.
 - avoided = true ONLY when they say they did NOT do a bad habit ("no TV", "skipped the beer", "didn't smoke").
   If they actually did the bad habit, avoided is false.
@@ -98,10 +109,16 @@ export function coerceItems(raw: unknown, ctx: ParseContext): ParsedItem[] {
 
     let dueDate: string | null = null;
     if (kind === 'task') {
-      const d = typeof r.dueDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.dueDate)
+      const raw = typeof r.dueDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.dueDate)
         ? r.dueDate
         : null;
-      dueDate = d ?? ctx.tomorrow;
+      // Trust any well-formed date inside a sane window; a deadline the user
+      // actually said ("this week") must not be flattened back to tomorrow.
+      // Only a missing or absurd date falls back.
+      const plausible = raw
+        && raw >= addDays(ctx.today, -370)
+        && raw <= addDays(ctx.today, 730);
+      dueDate = plausible ? raw : ctx.tomorrow;
     }
 
     return { id, kind, text, refId, dueDate, raw: text, count, avoided };
@@ -173,7 +190,10 @@ export async function parseWithGroq(
 ): Promise<ParsedItem[]> {
   const json = await chatJSON(SYSTEM, {
     today: ctx.today,
+    todayName: ctx.todayName,
     tomorrow: ctx.tomorrow,
+    weekEnd: ctx.weekEnd,
+    nextWeekEnd: ctx.nextWeekEnd,
     goodHabits: ctx.habits.filter((h) => h.polarity !== 'bad')
       .map((h) => ({ id: h.id, name: h.name })),
     badHabits: ctx.habits.filter((h) => h.polarity === 'bad')

@@ -76,6 +76,12 @@ export interface ParseContext {
   rewards: NamedRef[];
   today: string;
   tomorrow: string;
+  /** Day name of , e.g. "Wednesday" — anchors relative phrasing. */
+  todayName?: string;
+  /** Last day of the current week, for "by the end of this week". */
+  weekEnd?: string;
+  /** Last day of next week. */
+  nextWeekEnd?: string;
 }
 
 /**
