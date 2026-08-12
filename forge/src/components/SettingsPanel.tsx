@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
 import { useForge } from '../store/useForge';
 import { exportBackup, backupToBlob, importBackup, InvalidBackupError } from '../db/backup';
+import { isGroqConfigured } from '../lib/intent';
+import { toast } from '../store/useToast';
 
 export default function SettingsPanel() {
   const { appState, updateSettings, loadToday } = useForge();
@@ -20,6 +22,7 @@ export default function SettingsPanel() {
     a.download = `forge-backup-${backup.exportedAt.slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    toast.success(`Exported ${backup.logs.length} log entries.`);
     setMsg(`Exported ${backup.logs.length} log entries.`);
   };
 
@@ -30,6 +33,7 @@ export default function SettingsPanel() {
       const parsed = JSON.parse(await file.text());
       await importBackup(parsed);
       await loadToday();
+      toast.success('Backup restored.');
       setMsg('Backup restored.');
     } catch (e) {
       setErr(
@@ -52,6 +56,22 @@ export default function SettingsPanel() {
           <input type="checkbox" data-testid="set-floor"
                  checked={settings.negativeFloor}
                  onChange={(e) => void updateSettings({ negativeFloor: e.target.checked })} />
+        </label>
+
+        <label className="card__row">
+          <span className="card__label">
+            Smarter voice parsing
+            <span className="setting__hint">
+              {isGroqConfigured()
+                ? 'Sends the transcript to Groq to sort it into habits and tasks. '
+                  + 'Needs a connection; falls back to on-device parsing offline.'
+                : 'No API key built in — using on-device parsing.'}
+            </span>
+          </span>
+          <input type="checkbox" data-testid="set-ai"
+                 disabled={!isGroqConfigured()}
+                 checked={(settings.aiParsing ?? true) && isGroqConfigured()}
+                 onChange={(e) => void updateSettings({ aiParsing: e.target.checked })} />
         </label>
 
         <label className="card__row">

@@ -28,6 +28,12 @@ export interface Task {
   id: string;
   name: string;
   dueDate: string; // YYYY-MM-DD
+  /**
+   * Local `HH:MM`, or null for "sometime that day".
+   * Only Google sync reads this: null becomes an all-day event, a time becomes
+   * a timed one. FORGE's own star maths is day-keyed and ignores it entirely.
+   */
+  dueTime: string | null;
   stars: number; // reward if done
   done: boolean;
   doneAt: string | null;
@@ -59,6 +65,59 @@ export interface Settings {
   weekResetDay: number; // 1 = Monday
   negativeFloor: boolean;
   dailyTargetAuto: boolean;
+  /** Use the AI parser for voice when a key is configured and we are online. */
+  aiParsing?: boolean;
+
+  /**
+   * The user has connected Google at least once. We cannot check this by
+   * reading a token — tokens live in memory only — so this flag is what tells
+   * startup it's worth attempting a silent re-auth.
+   */
+  googleConnected?: boolean;
+  /** Push tasks to Google Calendar as events. */
+  googleCalendar?: boolean;
+  /** Push tasks to Google Tasks (what "Google Reminders" became). */
+  googleTasks?: boolean;
+  /** Target calendar; 'primary' unless the user picks another. */
+  googleCalendarId?: string;
+  /** Target task list; '@default' unless the user picks another. */
+  googleTaskListId?: string;
+}
+
+/** Which Google product a sync row refers to. */
+export type SyncTarget = 'calendar' | 'tasks';
+
+/** 'delete' is used once the local task row is already gone. */
+export type SyncOp = 'upsert' | 'delete';
+
+/**
+ * A local task's counterpart in Google. Kept until the remote object is
+ * confirmed deleted, because it holds the only id we can delete by.
+ */
+export interface SyncLink {
+  /** `${target}:${taskId}` */
+  id: string;
+  target: SyncTarget;
+  taskId: string;
+  remoteId: string;
+  syncedAt: string;
+}
+
+/**
+ * Outbox entry. Exactly one pending op per (target, task) — the id is that
+ * pair, so re-queuing a task that already has work pending overwrites rather
+ * than stacking. Drain re-reads live task state, so a coalesced entry always
+ * pushes the newest version rather than replaying a stale intermediate one.
+ */
+export interface SyncQueueItem {
+  /** `${target}:${taskId}` */
+  id: string;
+  target: SyncTarget;
+  taskId: string;
+  op: SyncOp;
+  attempts: number;
+  lastError: string | null;
+  queuedAt: string;
 }
 
 export interface AppState {
@@ -101,6 +160,8 @@ export class ForgeDB extends Dexie {
   rewards!: Table<Reward, string>;
   appState!: Table<AppState, string>;
   dailyTargets!: Table<DailyTarget, string>;
+  syncLinks!: Table<SyncLink, string>;
+  syncQueue!: Table<SyncQueueItem, string>;
 
   constructor() {
     super('forge');
@@ -128,6 +189,26 @@ export class ForgeDB extends Dexie {
           h.targetReps = h.targetReps ?? h.weeklyTarget ?? 0;
           h.targetPeriodWeeks = h.targetPeriodWeeks ?? 1;
           delete h.weeklyTarget;
+        });
+      });
+
+    // v3: Google sync. Tasks gained an optional time-of-day, and two new
+    // tables carry the remote ids and the offline outbox.
+    this.version(3)
+      .stores({
+        habits: 'id, name, polarity, archived',
+        tasks: 'id, dueDate, done, [dueDate+done], linkedHabitId, missedHandled',
+        logs: 'id, date, kind, refId, [date+kind], [refId+date]',
+        rewards: 'id, archived',
+        appState: 'id',
+        dailyTargets: 'date',
+        syncLinks: 'id, target, taskId',
+        syncQueue: 'id, target, taskId',
+      })
+      .upgrade(async (tx) => {
+        await tx.table('tasks').toCollection().modify((t) => {
+          // Existing tasks stay all-day, which is what they effectively were.
+          t.dueTime = t.dueTime ?? null;
         });
       });
   }

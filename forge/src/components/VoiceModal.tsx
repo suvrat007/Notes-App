@@ -3,8 +3,10 @@ import Modal from './Modal';
 import { IconMic } from './icons';
 import { useForge } from '../store/useForge';
 import { startListening, stopListening, isVoiceSupported, VoiceError } from '../lib/voice';
-import { parseVoice, type ParsedItem, type IntentKind } from '../engine/parseVoice';
+import { type ParsedItem, type IntentKind } from '../engine/parseVoice';
+import { parseIntents, isGroqConfigured, type ParseSource } from '../lib/intent';
 import { todayStr, addDays } from '../lib/dates';
+import { toast } from '../store/useToast';
 
 type Props = { onClose: () => void };
 
@@ -16,10 +18,14 @@ const KIND_LABEL: Record<IntentKind, string> = {
 };
 
 export default function VoiceModal({ onClose }: Props) {
-  const { habits, rewards, commitVoiceItems } = useForge();
+  const { habits, rewards, commitVoiceItems, appState } = useForge();
   const supported = isVoiceSupported();
+  // AI parsing is opt-out via Settings, and only possible when a key is built in.
+  const useAi = (appState?.settings.aiParsing ?? true) && isGroqConfigured();
 
-  const [phase, setPhase] = useState<'idle' | 'listening' | 'preview'>('idle');
+  const [phase, setPhase] = useState<'idle' | 'listening' | 'thinking' | 'preview'>('idle');
+  const [source, setSource] = useState<ParseSource>('rules');
+  const [fallbackReason, setFallbackReason] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [items, setItems] = useState<ParsedItem[]>([]);
@@ -32,9 +38,17 @@ export default function VoiceModal({ onClose }: Props) {
     tomorrow: addDays(todayStr(), 1),
   };
 
-  const runParse = (text: string) => {
+  const runParse = async (text: string) => {
     setTranscript(text);
-    setItems(parseVoice(text, ctx));
+    // The AI pass is a network call; show it rather than appearing frozen.
+    setPhase(useAi && isGroqConfigured() ? 'thinking' : 'preview');
+    const out = await parseIntents(text, ctx, { useAi });
+    setItems(out.items);
+    setSource(out.source);
+    setFallbackReason(out.fallbackReason);
+    if (useAi && out.source === 'rules' && out.fallbackReason) {
+      toast.info('Smart parsing unavailable — sorted it on-device instead. Check the rows below.');
+    }
     setPhase('preview');
   };
 
@@ -48,11 +62,18 @@ export default function VoiceModal({ onClose }: Props) {
         setPhase('idle');
         return;
       }
-      runParse(text);
+      await runParse(text);
     } catch (e) {
       // VoiceError already carries human-readable text; anything else is a
       // surprise, so don't leak its raw message either.
-      setError(e instanceof VoiceError ? e.message : 'Voice failed. Type it below instead.');
+      const msg = e instanceof VoiceError
+        ? e.message
+        : 'Voice failed. Type it below instead.';
+      setError(msg);
+      toast.error(msg, {
+        label: 'Type it',
+        onClick: () => document.querySelector<HTMLInputElement>('[data-testid=voice-text]')?.focus(),
+      });
       if (!(e instanceof VoiceError)) console.error('voice:', e);
       setPhase('idle');
     }
@@ -80,8 +101,16 @@ export default function VoiceModal({ onClose }: Props) {
 
   const commit = async () => {
     setSaving(true);
-    await commitVoiceItems(items);
-    onClose();
+    const n = items.length;
+    try {
+      await commitVoiceItems(items);
+      toast.success(`Logged ${n} item${n === 1 ? '' : 's'}.`);
+      onClose();
+    } catch {
+      // Leave the preview open so the user can retry without re-dictating.
+      setSaving(false);
+      toast.error('Could not save those items. Nothing was committed — try again.');
+    }
   };
 
   /** An item that needs a ref but has none can't be committed. */
@@ -92,7 +121,11 @@ export default function VoiceModal({ onClose }: Props) {
 
   return (
     <Modal title="Voice" onClose={() => { stopListening(); onClose(); }} testId="voice-modal">
-      {phase !== 'preview' && (
+      {phase === 'thinking' && (
+        <p className="voice__thinking" data-testid="voice-thinking">Making sense of that…</p>
+      )}
+
+      {phase !== 'preview' && phase !== 'thinking' && (
         <>
           {supported ? (
             <button className="btn btn--primary" data-testid="voice-mic"
@@ -114,7 +147,7 @@ export default function VoiceModal({ onClose }: Props) {
                    onKeyDown={(e) => {
                      if (e.key === 'Enter') {
                        const v = (e.target as HTMLInputElement).value.trim();
-                       if (v) runParse(v);
+                       if (v) void runParse(v);
                      }
                    }} />
           </label>
@@ -122,7 +155,7 @@ export default function VoiceModal({ onClose }: Props) {
                   onClick={() => {
                     const el = document.querySelector<HTMLInputElement>('[data-testid=voice-text]');
                     const v = el?.value.trim();
-                    if (v) runParse(v);
+                    if (v) void runParse(v);
                   }}>Preview</button>
 
           {error && <p className="voice__err" data-testid="voice-error">{error}</p>}
@@ -132,7 +165,14 @@ export default function VoiceModal({ onClose }: Props) {
       {phase === 'preview' && (
         <>
           <p className="voice__heard" data-testid="voice-transcript">“{transcript}”</p>
-          <h3 className="sect">Is this correct?</h3>
+          <div className="voice__srcrow">
+            <h3 className="sect">Is this correct?</h3>
+            <span className={'voice__src' + (source === 'groq' ? ' voice__src--ai' : '')}
+                  data-testid="voice-source"
+                  title={fallbackReason ? 'AI unavailable: ' + fallbackReason : undefined}>
+              {source === 'groq' ? 'AI' : 'basic'}
+            </span>
+          </div>
 
           {items.map((it) => (
             <div className="vrow" key={it.id} data-testid={`vrow-${it.id}`}
@@ -149,6 +189,20 @@ export default function VoiceModal({ onClose }: Props) {
                      onChange={(e) => setText(it.id, e.target.value)} />
               {it.kind === 'task' && it.dueDate && (
                 <span className="vrow__due">{it.dueDate === ctx.today ? 'today' : 'tmrw'}</span>
+              )}
+              {it.count > 1 && (
+                <span className="vrow__count num" data-testid={`vcount-${it.id}`}>
+                  ×{it.count}
+                </span>
+              )}
+              {it.kind === 'bad-habit' && (
+                <span className={'vrow__avoid' + (it.avoided ? ' vrow__avoid--ok' : '')}
+                      data-testid={`vavoid-${it.id}`}
+                      title={it.avoided
+                        ? 'You avoided this — nothing will be logged'
+                        : 'You did this — a penalty will be logged'}>
+                  {it.avoided ? 'avoided' : 'slipped'}
+                </span>
               )}
               <button className="task__del" data-testid={`vdrop-${it.id}`}
                       aria-label="Remove" onClick={() => drop(it.id)}>✕</button>

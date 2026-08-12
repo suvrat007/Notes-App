@@ -18,6 +18,13 @@ export interface ParsedItem {
   dueDate: string | null;
   /** The raw fragment this came from, for editing. */
   raw: string;
+  /** Reps mentioned ("smoked twice" -> 2). Always >= 1. */
+  count: number;
+  /**
+   * Bad habits only: TRUE means they AVOIDED it ("no TV") and nothing should
+   * be logged; FALSE means they actually did it and a penalty applies.
+   */
+  avoided: boolean;
 }
 
 export interface NamedRef {
@@ -75,8 +82,8 @@ export interface ParseContext {
  * Parse a transcript into intents.
  *
  * - a clause naming a known GOOD habit        → habit rep
- * - a clause naming a known BAD habit         → bad-habit note
- * - negation ("no TV") + a known habit        → bad-habit note
+ * - a clause naming a known BAD habit         → bad-habit, actually done
+ * - negation ("no TV") + a known habit        → bad-habit, avoided (no penalty)
  * - a redeem cue + a known reward             → redeem
  * - anything else                             → task (default due tomorrow)
  */
@@ -94,7 +101,7 @@ export function parseVoice(transcript: string, ctx: ParseContext): ParsedItem[] 
       const reward = matchRef(clause, ctx.rewards);
       if (reward) {
         return { id, kind: 'redeem', text: reward.name, refId: reward.id,
-                 dueDate: null, raw };
+                 dueDate: null, raw, count: 1, avoided: false };
       }
     }
 
@@ -104,11 +111,14 @@ export function parseVoice(transcript: string, ctx: ParseContext): ParsedItem[] 
       // An explicitly-bad habit, or a negated mention of any habit, is a slip
       // note rather than an earn.
       const kind: IntentKind = habit.polarity === 'bad' || negated ? 'bad-habit' : 'habit';
-      return { id, kind, text: habit.name, refId: habit.id, dueDate: null, raw };
+      // A negated mention means it did NOT happen, so it must not be logged.
+      return { id, kind, text: habit.name, refId: habit.id, dueDate: null, raw,
+               count: 1, avoided: kind === 'bad-habit' && negated };
     }
 
     // Everything else becomes a task; default due date is tomorrow.
     const dueDate = cue === 'today' ? ctx.today : ctx.tomorrow;
-    return { id, kind: 'task', text: clause, refId: null, dueDate, raw };
+    return { id, kind: 'task', text: clause, refId: null, dueDate, raw,
+             count: 1, avoided: false };
   });
 }

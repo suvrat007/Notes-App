@@ -38,6 +38,7 @@ import {
   periodWindow, daysLeftInPeriod, periodElapsedFraction, periodDates,
   type PeriodWindow,
 } from '../engine/period';
+import { toast } from './useToast';
 import { todayStr, weekStartOf, weekDates, addDays, daysBetween, localDateOf } from '../lib/dates';
 
 /** How far back the adaptive target looks when averaging recent days. */
@@ -116,7 +117,13 @@ export const useForge = create<ForgeState>((set, get) => ({
     await db.open();
     const appState = await ensureAppState();
     // Charge for anything missed while the app was closed, before we read logs.
-    await sweepMissedTasks();
+    const missed = await sweepMissedTasks();
+    if (missed > 0) {
+      // Stars vanish here while the app was closed — say so, or it looks like a bug.
+      toast.error(
+        missed + ' overdue task' + (missed === 1 ? '' : 's') + ' expired since you were last here.',
+      );
+    }
 
     const today = todayStr();
     // The week window follows the user's configured reset day.
@@ -252,10 +259,20 @@ export const useForge = create<ForgeState>((set, get) => ({
    */
   async commitVoiceItems(items) {
     for (const it of items) {
+      const reps = Math.max(1, it.count ?? 1);
+
       if (it.kind === 'task') {
         await q.addTask({ name: it.text, dueDate: it.dueDate ?? get().today });
-      } else if (it.kind === 'habit' || it.kind === 'bad-habit') {
-        if (it.refId) await get().logHabitRep(it.refId);
+      } else if (it.kind === 'habit') {
+        if (it.refId) {
+          for (let i = 0; i < reps; i++) await get().logHabitRep(it.refId);
+        }
+      } else if (it.kind === 'bad-habit') {
+        // "No TV" means it did NOT happen. Logging a rep here would penalise
+        // the user for the very thing they successfully avoided.
+        if (it.refId && !it.avoided) {
+          for (let i = 0; i < reps; i++) await get().logHabitRep(it.refId);
+        }
       } else if (it.kind === 'redeem') {
         if (it.refId) await get().redeemReward(it.refId);
       }
@@ -290,6 +307,7 @@ export const useForge = create<ForgeState>((set, get) => ({
     });
     // Deliberately NO addLifetimeStars call — spending never moves rank.
     await get().loadToday();
+    toast.success(`Redeemed ${reward.name} for ${reward.cost} ★. Enjoy it.`);
   },
 
   /* ---------------- Tasks ---------------- */

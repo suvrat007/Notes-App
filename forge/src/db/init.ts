@@ -5,6 +5,7 @@ export const DEFAULT_SETTINGS = {
   weekResetDay: 1, // Monday
   negativeFloor: false,
   dailyTargetAuto: true,
+  aiParsing: true,
 };
 
 /**
