@@ -36,6 +36,23 @@ export interface ParsedItem {
   isRecurringTask?: boolean;
   /** new-habit only: they already did it today, so log a rep on creation. */
   doneToday?: boolean;
+  /**
+   * new-habit + bad only: reps allowed per day before the extra penalty.
+   * `null` means the user never stated one, so the UI must ask before commit.
+   */
+  dailyAllowance?: number | null;
+  /** new-habit + good: reps aimed for across `targetPeriodWeeks`. */
+  targetReps?: number;
+  /** new-habit + good: 1 = a week, 4 = a month, 12 = a quarter. */
+  targetPeriodWeeks?: number;
+  /** Tasks: local `HH:MM` when a time of day was spoken. */
+  dueTime?: string | null;
+  /**
+   * Tasks: where this belongs outside FORGE. A timed commitment with other
+   * people is a calendar event; an errand is a to-do. The model suggests,
+   * the user confirms in the preview — it is their account being written to.
+   */
+  syncTargets?: Array<'calendar' | 'tasks'>;
 }
 
 export interface NamedRef {
@@ -87,7 +104,7 @@ export interface ParseContext {
   rewards: NamedRef[];
   today: string;
   tomorrow: string;
-  /** Day name of , e.g. "Wednesday" — anchors relative phrasing. */
+  /** Day name of `today`, e.g. "Wednesday" — anchors relative phrasing. */
   todayName?: string;
   /** Last day of the current week, for "by the end of this week". */
   weekEnd?: string;

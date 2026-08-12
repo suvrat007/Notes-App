@@ -52,6 +52,8 @@ export default function VoiceModal({ onClose, mode: initialMode = 'log', onNavig
   // Groq transcription is preferred: Web Speech depends on reaching Google's
   // servers, which is the failure users actually hit.
   const useGroqStt = isGroqSttAvailable();
+  // Destination chips only make sense once Google is actually connected.
+  const googleReady = !!appState?.settings.googleConnected;
   const [elapsed, setElapsed] = useState(0);
 
   // Live elapsed readout while recording. Without it the hard cap arrives with
@@ -267,9 +269,20 @@ export default function VoiceModal({ onClose, mode: initialMode = 'log', onNavig
     // A new habit has no ref by definition — it does not exist yet.
     (it) => it.kind !== 'task' && it.kind !== 'new-habit' && !it.refId,
   );
+
+  /*
+   * A new BAD habit with no stated limit. Defaulting to 0 would silently make
+   * every single rep cost the overage penalty, which is a big hidden decision
+   * to take on someone's behalf — so ask instead of guessing.
+   */
+  const needsLimit = items.filter(
+    (it) => it.kind === 'new-habit'
+      && it.polarity === 'bad'
+      && (it.dailyAllowance === null || it.dailyAllowance === undefined),
+  );
   const canCommit = mode === 'command'
     ? commands.length > 0
-    : items.length > 0 && unresolved.length === 0;
+    : items.length > 0 && unresolved.length === 0 && needsLimit.length === 0;
 
   return (
     <Modal title="Voice" onClose={() => { stopListening(); onClose(); }} testId="voice-modal">
@@ -400,11 +413,76 @@ export default function VoiceModal({ onClose, mode: initialMode = 'log', onNavig
                      data-testid={`vtext-${it.id}`}
                      onChange={(e) => setText(it.id, e.target.value)} />
               {it.kind === 'task' && it.dueDate && (
-                <span className="vrow__due">{it.dueDate === ctx.today ? 'today' : 'tmrw'}</span>
+                <span className="vrow__due">
+                  {it.dueDate === ctx.today ? 'today'
+                    : it.dueDate === ctx.tomorrow ? 'tmrw'
+                    : it.dueDate.slice(5)}
+                  {it.dueTime && <span className="vrow__time"> {it.dueTime}</span>}
+                </span>
+              )}
+
+              {/* Where it goes in the user's Google account. Suggested by the
+                  model, but never written without them confirming here. */}
+              {it.kind === 'task' && googleReady && (
+                <span className="vrow__dest">
+                  {(['calendar', 'tasks'] as const).map((t) => {
+                    const on = (it.syncTargets ?? []).includes(t);
+                    return (
+                      <button
+                        key={t}
+                        className={'vrow__destbtn' + (on ? ' vrow__destbtn--on' : '')}
+                        data-testid={`vdest-${t}-${it.id}`}
+                        aria-pressed={on}
+                        title={t === 'calendar'
+                          ? 'Add to Google Calendar'
+                          : 'Add to Google Tasks'}
+                        onClick={() => setItems((prev) => prev.map((x) => {
+                          if (x.id !== it.id) return x;
+                          const cur = x.syncTargets ?? [];
+                          return {
+                            ...x,
+                            syncTargets: on
+                              ? cur.filter((v) => v !== t)
+                              : [...cur, t],
+                          };
+                        }))}
+                      >
+                        {t === 'calendar' ? 'Cal' : 'Tasks'}
+                      </button>
+                    );
+                  })}
+                </span>
               )}
               {it.count > 1 && it.kind !== 'new-habit' && (
                 <span className="vrow__count num" data-testid={`vcount-${it.id}`}>
                   ×{it.count}
+                </span>
+              )}
+              {it.kind === 'new-habit' && it.polarity === 'bad' && (
+                <span className="vrow__limit">
+                  <input
+                    className="vrow__limitinput"
+                    type="number"
+                    min={0}
+                    max={99}
+                    placeholder="?"
+                    value={it.dailyAllowance ?? ''}
+                    data-testid={`vlimit-${it.id}`}
+                    aria-label={`How many ${it.text} are allowed per day`}
+                    title="How many a day are allowed before it costs extra?"
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setItems((prev) => prev.map((x) => (x.id === it.id
+                        ? {
+                          ...x,
+                          dailyAllowance: raw === ''
+                            ? null
+                            : Math.max(0, Math.min(99, Number(raw))),
+                        }
+                        : x)));
+                    }}
+                  />
+                  <span className="vrow__limitlabel">/day</span>
                 </span>
               )}
               {it.kind === 'new-habit' && (
@@ -433,6 +511,13 @@ export default function VoiceModal({ onClose, mode: initialMode = 'log', onNavig
                       aria-label="Remove" onClick={() => drop(it.id)}>✕</button>
             </div>
           ))}
+
+          {needsLimit.length > 0 && (
+            <p className="voice__ask" data-testid="voice-needslimit">
+              How many a day is your limit for 
+              {needsLimit.map((x) => x.text).join(', ')}? Enter 0 to allow none.
+            </p>
+          )}
 
           {unresolved.length > 0 && (
             <p className="voice__err" data-testid="voice-unresolved">

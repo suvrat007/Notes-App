@@ -424,6 +424,12 @@ export const useForge = create<ForgeState>((set, get) => ({
         const created = await q.addHabit({
           name: it.text,
           polarity: it.polarity ?? 'good',
+          // The preview requires an answer for bad habits, so a null here can
+          // only come from a good one, where allowance is meaningless.
+          dailyAllowance: it.polarity === 'bad' ? (it.dailyAllowance ?? 0) : 0,
+          // "five runs a week" / "twelve this month" — captured as a real goal.
+          targetReps: it.polarity === 'bad' ? 0 : (it.targetReps ?? 0),
+          targetPeriodWeeks: it.targetPeriodWeeks ?? 1,
         });
         if (it.doneToday && it.polarity !== 'bad') {
           await q.addLog({
@@ -436,12 +442,21 @@ export const useForge = create<ForgeState>((set, get) => ({
           await q.addLifetimeStars(goodHabitDelta(created));
         }
       } else if (it.kind === 'task') {
-        await q.addTask({
+        const task = await q.addTask({
           name: it.text,
           dueDate: it.dueDate ?? get().today,
+          dueTime: it.dueTime ?? null,
           // "finish three videos" -> three units before it counts as done.
           targetCount: Math.max(1, it.count ?? 1),
         });
+        /*
+         * Push to exactly the Google destinations the user confirmed for THIS
+         * item, not the global toggles: a meeting belongs on the calendar and
+         * an errand on the task list, and one setting cannot say both.
+         */
+        if (it.syncTargets && it.syncTargets.length > 0) {
+          await syncTask(task.id, 'upsert', it.syncTargets);
+        }
       } else if (it.kind === 'habit') {
         if (it.refId) {
           for (let i = 0; i < reps; i++) await get().logHabitRep(it.refId);
