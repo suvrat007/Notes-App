@@ -108,12 +108,16 @@ export function coerceItems(raw: unknown, ctx: ParseContext): ParsedItem[] {
   });
 }
 
-/** Ask Groq to structure a transcript. Throws on any failure — caller falls back. */
-export async function parseWithGroq(
-  transcript: string,
-  ctx: ParseContext,
+/**
+ * Shared transport: one JSON-mode chat call. Both voice pipelines use this,
+ * so timeout, abort, key handling and error shape stay identical between them.
+ * Throws on any failure — every caller has a fallback.
+ */
+export async function chatJSON(
+  system: string,
+  payload: unknown,
   signal?: AbortSignal,
-): Promise<ParsedItem[]> {
+): Promise<unknown> {
   const key = groqKey();
   if (!key) throw new Error('no api key');
 
@@ -121,45 +125,61 @@ export async function parseWithGroq(
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   signal?.addEventListener('abort', () => controller.abort());
 
+  /*
+   * JSON mode is rejected with a 400 unless the word "json" appears somewhere
+   * in the messages. Enforcing it here rather than trusting each prompt to
+   * remember: the failure is silent (every caller falls back), so a prompt
+   * that forgets would quietly disable AI parsing with nothing to show for it.
+   */
+  const prompt = /json/i.test(system)
+    ? system
+    : `${system}\n\nRespond with JSON only.`;
+
   try {
     const res = await fetch(ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
       signal: controller.signal,
       body: JSON.stringify({
         model: GROQ_MODEL,
         temperature: 0,
         response_format: { type: 'json_object' },
         messages: [
-          { role: 'system', content: SYSTEM },
-          {
-            role: 'user',
-            content: JSON.stringify({
-              today: ctx.today,
-              tomorrow: ctx.tomorrow,
-              goodHabits: ctx.habits.filter((h) => h.polarity !== 'bad')
-                .map((h) => ({ id: h.id, name: h.name })),
-              badHabits: ctx.habits.filter((h) => h.polarity === 'bad')
-                .map((h) => ({ id: h.id, name: h.name })),
-              rewards: ctx.rewards.map((r) => ({ id: r.id, name: r.name })),
-              transcript,
-            }),
-          },
+          { role: 'system', content: prompt },
+          { role: 'user', content: JSON.stringify(payload) },
         ],
       }),
     });
 
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      throw new Error(`groq ${res.status}: ${body.slice(0, 120)}`);
+      throw new Error('groq ' + res.status + ': ' + body.slice(0, 120));
     }
 
     const json = await res.json();
     const content = json?.choices?.[0]?.message?.content;
     if (typeof content !== 'string') throw new Error('no content');
-
-    return coerceItems(JSON.parse(content), ctx);
+    return JSON.parse(content);
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Ask Groq to structure a transcript. Throws on any failure — caller falls back. */
+export async function parseWithGroq(
+  transcript: string,
+  ctx: ParseContext,
+  signal?: AbortSignal,
+): Promise<ParsedItem[]> {
+  const json = await chatJSON(SYSTEM, {
+    today: ctx.today,
+    tomorrow: ctx.tomorrow,
+    goodHabits: ctx.habits.filter((h) => h.polarity !== 'bad')
+      .map((h) => ({ id: h.id, name: h.name })),
+    badHabits: ctx.habits.filter((h) => h.polarity === 'bad')
+      .map((h) => ({ id: h.id, name: h.name })),
+    rewards: ctx.rewards.map((r) => ({ id: r.id, name: r.name })),
+    transcript,
+  }, signal);
+  return coerceItems(json, ctx);
 }

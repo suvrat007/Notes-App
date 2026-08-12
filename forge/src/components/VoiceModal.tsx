@@ -5,10 +5,21 @@ import { useForge } from '../store/useForge';
 import { startListening, stopListening, isVoiceSupported, VoiceError } from '../lib/voice';
 import { type ParsedItem, type IntentKind } from '../engine/parseVoice';
 import { parseIntents, isGroqConfigured, type ParseSource } from '../lib/intent';
+import { parseCommands } from '../lib/intent/parseCommands';
+import type { Command } from '../lib/intent/commands';
 import { todayStr, addDays } from '../lib/dates';
 import { toast } from '../store/useToast';
+import { navigateTo } from '../store/useNav';
+import { isGroqSttAvailable, startRecording, transcribe, type Recording } from '../lib/speech/groqStt';
 
-type Props = { onClose: () => void };
+export type VoiceMode = 'log' | 'command';
+
+type Props = {
+  onClose: () => void;
+  mode?: VoiceMode;
+  /** Command mode can ask the app to change screens. */
+  onNavigate?: (screen: string) => void;
+};
 
 const KIND_LABEL: Record<IntentKind, string> = {
   habit: 'Habit rep',
@@ -17,8 +28,10 @@ const KIND_LABEL: Record<IntentKind, string> = {
   redeem: 'Redeem',
 };
 
-export default function VoiceModal({ onClose }: Props) {
-  const { habits, rewards, commitVoiceItems, appState } = useForge();
+export default function VoiceModal({ onClose, mode: initialMode = 'log', onNavigate }: Props) {
+  const { habits, rewards, commitVoiceItems, appState, upcomingTasks, applyCommands } = useForge();
+  const [mode, setMode] = useState<VoiceMode>(initialMode);
+  const [commands, setCommands] = useState<Command[]>([]);
   const supported = isVoiceSupported();
   // AI parsing is opt-out via Settings, and only possible when a key is built in.
   const useAi = (appState?.settings.aiParsing ?? true) && isGroqConfigured();
@@ -29,7 +42,10 @@ export default function VoiceModal({ onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [items, setItems] = useState<ParsedItem[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [recording, setRecording] = useState<Recording | null>(null);
+  // Groq transcription is preferred: Web Speech depends on reaching Google's
+  // servers, which is the failure users actually hit.
+  const useGroqStt = isGroqSttAvailable();
 
   const ctx = {
     habits: habits.map((h) => ({ id: h.id, name: h.name, polarity: h.polarity })),
@@ -38,12 +54,35 @@ export default function VoiceModal({ onClose }: Props) {
     tomorrow: addDays(todayStr(), 1),
   };
 
+  /** Commands act on rows that exist, so they see tasks as well as habits. */
+  const cmdCtx = {
+    habits: habits.map((h) => ({ id: h.id, name: h.name, polarity: h.polarity })),
+    tasks: upcomingTasks.map((t) => ({ id: t.id, name: t.name })),
+  };
+
+  /** The two pipelines share this shell and nothing else — different prompt,
+      different validation, different commit path. */
   const runParse = async (text: string) => {
     setTranscript(text);
     // The AI pass is a network call; show it rather than appearing frozen.
-    setPhase(useAi && isGroqConfigured() ? 'thinking' : 'preview');
+    setPhase(useAi ? 'thinking' : 'preview');
+
+    if (mode === 'command') {
+      const out = await parseCommands(text, cmdCtx, { useAi });
+      setCommands(out.items);
+      setItems([]);
+      setSource(out.source);
+      setFallbackReason(out.fallbackReason);
+      if (out.items.length === 0) {
+        toast.info("Couldn't turn that into a change. Try “move gym to the top”.");
+      }
+      setPhase('preview');
+      return;
+    }
+
     const out = await parseIntents(text, ctx, { useAi });
     setItems(out.items);
+    setCommands([]);
     setSource(out.source);
     setFallbackReason(out.fallbackReason);
     if (useAi && out.source === 'rules' && out.fallbackReason) {
@@ -52,30 +91,64 @@ export default function VoiceModal({ onClose }: Props) {
     setPhase('preview');
   };
 
+  /** Errors surface as a toast only — showing the same text twice is noise. */
+  const failVoice = (e: unknown) => {
+    const msg = e instanceof VoiceError
+      ? e.message
+      : 'Voice failed. Type it below instead.';
+    toast.error(msg, {
+      label: 'Type it',
+      onClick: () => document.querySelector<HTMLInputElement>('[data-testid=voice-text]')?.focus(),
+    });
+    if (!(e instanceof VoiceError)) console.error('voice:', e);
+    setPhase('idle');
+  };
+
+  /**
+   * Groq path: record locally, then upload the clip. Preferred over Web Speech
+   * because Web Speech depends on reaching Google's own servers, which is the
+   * failure users actually hit.
+   */
+  const toggleRecording = async () => {
+    if (recording) {
+      const rec = recording;
+      setRecording(null);
+      setPhase('thinking');
+      try {
+        const clip = await rec.stop();
+        const text = await transcribe(clip);
+        await runParse(text);
+      } catch (e) {
+        failVoice(e);
+      }
+      return;
+    }
+
+    try {
+      setPhase('listening');
+      setRecording(await startRecording());
+    } catch (e) {
+      failVoice(e);
+    }
+  };
+
+  /** Web Speech path: one-shot, browser-managed. */
   const listen = async () => {
-    setError(null);
     setPhase('listening');
     try {
       const text = await startListening();
       if (!text.trim()) {
-        setError('Nothing heard. Try again, or type it below.');
+        toast.error("Didn't catch anything. Try again, or type it below.", {
+          label: 'Type it',
+          onClick: () =>
+            document.querySelector<HTMLInputElement>('[data-testid=voice-text]')?.focus(),
+        });
         setPhase('idle');
         return;
       }
       await runParse(text);
     } catch (e) {
-      // VoiceError already carries human-readable text; anything else is a
-      // surprise, so don't leak its raw message either.
-      const msg = e instanceof VoiceError
-        ? e.message
-        : 'Voice failed. Type it below instead.';
-      setError(msg);
-      toast.error(msg, {
-        label: 'Type it',
-        onClick: () => document.querySelector<HTMLInputElement>('[data-testid=voice-text]')?.focus(),
-      });
-      if (!(e instanceof VoiceError)) console.error('voice:', e);
-      setPhase('idle');
+      failVoice(e);
     }
   };
 
@@ -113,11 +186,32 @@ export default function VoiceModal({ onClose }: Props) {
     }
   };
 
+  const runCommands = async () => {
+    setSaving(true);
+    try {
+      const { done, failed, navigateTo: target } = await applyCommands(commands);
+      if (failed > 0) {
+        toast.error(`${done} change${done === 1 ? '' : 's'} applied, ${failed} failed.`);
+      } else {
+        toast.success(`${done} change${done === 1 ? '' : 's'} applied.`);
+      }
+      // Navigate through the store: this modal is mounted by whichever screen
+      // the user was on, which has no access to the app-level screen state.
+      if (target) { navigateTo(target); onNavigate?.(target); }
+      onClose();
+    } catch {
+      setSaving(false);
+      toast.error('Could not apply those changes. Nothing was altered — try again.');
+    }
+  };
+
   /** An item that needs a ref but has none can't be committed. */
   const unresolved = items.filter(
     (it) => it.kind !== 'task' && !it.refId,
   );
-  const canCommit = items.length > 0 && unresolved.length === 0;
+  const canCommit = mode === 'command'
+    ? commands.length > 0
+    : items.length > 0 && unresolved.length === 0;
 
   return (
     <Modal title="Voice" onClose={() => { stopListening(); onClose(); }} testId="voice-modal">
@@ -127,11 +221,25 @@ export default function VoiceModal({ onClose }: Props) {
 
       {phase !== 'preview' && phase !== 'thinking' && (
         <>
-          {supported ? (
-            <button className="btn btn--primary" data-testid="voice-mic"
-                    disabled={phase === 'listening'} onClick={() => void listen()}>
+          {/* Two pipelines, chosen explicitly. Auto-detecting would risk
+              reading "gym" (log a rep) as "move gym" (reorder), and a wrong
+              ledger entry is the one mistake FORGE must not make. */}
+          <div className="seg" style={{ marginBottom: 14 }}>
+            <button type="button" data-testid="vmode-log"
+                    className={'seg__opt' + (mode === 'log' ? ' seg__opt--on' : '')}
+                    onClick={() => setMode('log')}>Log my day</button>
+            <button type="button" data-testid="vmode-command"
+                    className={'seg__opt' + (mode === 'command' ? ' seg__opt--on' : '')}
+                    onClick={() => setMode('command')}>Command</button>
+          </div>
+
+          {useGroqStt || supported ? (
+            <button className={'btn btn--primary' + (phase === 'listening' ? ' btn--rec' : '')}
+                    data-testid="voice-mic"
+                    onClick={() => void (useGroqStt ? toggleRecording() : listen())}
+                    disabled={!useGroqStt && phase === 'listening'}>
               {phase === 'listening'
-                ? 'Listening…'
+                ? (useGroqStt ? 'Stop & transcribe' : 'Listening…')
                 : <><IconMic size={18} /> Start speaking</>}
             </button>
           ) : (
@@ -143,7 +251,9 @@ export default function VoiceModal({ onClose }: Props) {
           <label className="field" style={{ marginTop: 16 }}>
             <span className="field__label">Or type it</span>
             <input className="input" data-testid="voice-text"
-                   placeholder="tomorrow gym, read 20 pages, no TV"
+                   placeholder={mode === 'command'
+                     ? 'move gym to the top, archive TV'
+                     : 'tomorrow gym, read 20 pages, no TV'}
                    onKeyDown={(e) => {
                      if (e.key === 'Enter') {
                        const v = (e.target as HTMLInputElement).value.trim();
@@ -156,9 +266,11 @@ export default function VoiceModal({ onClose }: Props) {
                     const el = document.querySelector<HTMLInputElement>('[data-testid=voice-text]');
                     const v = el?.value.trim();
                     if (v) void runParse(v);
-                  }}>Preview</button>
+                  }}>{mode === 'command' ? 'Preview changes' : 'Preview items'}</button>
 
-          {error && <p className="voice__err" data-testid="voice-error">{error}</p>}
+          <p className="voice__note" data-testid="voice-note">
+            You will see exactly what will happen, and can edit it, before anything is saved.
+          </p>
         </>
       )}
 
@@ -173,6 +285,24 @@ export default function VoiceModal({ onClose }: Props) {
               {source === 'groq' ? 'AI' : 'basic'}
             </span>
           </div>
+
+          {mode === 'command' && commands.length === 0 && (
+            <p className="empty" data-testid="cmd-empty">
+              Nothing actionable in that. Try “move gym to the top”,
+              “archive TV” or “go to stats”.
+            </p>
+          )}
+
+          {mode === 'command' && commands.map((c) => (
+            <div className="vrow crow" key={c.id} data-testid={`crow-${c.id}`}
+                 data-kind={c.kind}>
+              <span className="crow__kind">{c.kind}</span>
+              <span className="crow__label" data-testid={`clabel-${c.id}`}>{c.label}</span>
+              <button className="task__del" aria-label="Remove"
+                      data-testid={`cdrop-${c.id}`}
+                      onClick={() => setCommands((p) => p.filter((x) => x.id !== c.id))}>✕</button>
+            </div>
+          ))}
 
           {items.map((it) => (
             <div className="vrow" key={it.id} data-testid={`vrow-${it.id}`}
@@ -217,8 +347,11 @@ export default function VoiceModal({ onClose }: Props) {
           )}
 
           <button className="btn btn--primary" disabled={!canCommit || saving}
-                  data-testid="voice-ok" onClick={() => void commit()}>
-            OK — commit {items.length} item{items.length === 1 ? '' : 's'}
+                  data-testid="voice-ok"
+                  onClick={() => void (mode === 'command' ? runCommands() : commit())}>
+            {mode === 'command'
+              ? `OK — apply ${commands.length} change${commands.length === 1 ? '' : 's'}`
+              : `OK — commit ${items.length} item${items.length === 1 ? '' : 's'}`}
           </button>
           <button className="btn btn--ghost" data-testid="voice-back"
                   onClick={() => setPhase('idle')}>Start over</button>
