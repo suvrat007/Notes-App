@@ -20,9 +20,9 @@ function ToastRow({ t }: { t: Toast }) {
       // Errors interrupt; the rest are announced without stealing focus.
       role={t.kind === 'error' ? 'alert' : 'status'}
       aria-live={t.kind === 'error' ? 'assertive' : 'polite'}
-      initial={{ opacity: 0, y: 16, scale: 0.97 }}
+      initial={{ opacity: 0, y: -14, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 8, scale: 0.97 }}
+      exit={{ opacity: 0, y: -8, scale: 0.97 }}
       transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
     >
       <span className="toast__icon" aria-hidden="true">

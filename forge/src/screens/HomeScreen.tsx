@@ -6,6 +6,7 @@ import NewHabitModal from '../components/NewHabitModal';
 import NewTaskModal from '../components/NewTaskModal';
 import TaskRow from '../components/TaskRow';
 import TargetBanner from '../components/TargetBanner';
+import DayPicker from '../components/DayPicker';
 import RewardList from '../components/RewardList';
 import FloatingDelta, { type Delta } from '../components/FloatingDelta';
 import LevelUpFlash from '../components/LevelUpFlash';
@@ -17,6 +18,7 @@ import { tapPulse, penaltyPulse, levelUpPulse } from '../lib/haptics';
 export default function HomeScreen() {
   const {
     ready, habits, appState, loadToday, logHabitRep, undoHabitRep,
+    today, activeDate, setActiveDate,
     createHabit, repsToday, weekBalance, todayNet,
     todayTasks, createTask, completeTask, uncompleteTask, removeTask, recurringRows,
     advanceTask, regressTask,
@@ -96,7 +98,10 @@ export default function HomeScreen() {
         <TodayRing value={todayNet()} target={effectiveTarget()} />
       </header>
 
-      {dailyTarget === null && (
+      <DayPicker today={today} activeDate={activeDate}
+                 onPick={(d) => void setActiveDate(d)} />
+
+      {dailyTarget === null && activeDate === today && (
         <TargetBanner suggested={suggestedTarget}
                       onAccept={(v) => void acceptDailyTarget(v)} />
       )}

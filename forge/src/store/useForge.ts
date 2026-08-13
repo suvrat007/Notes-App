@@ -48,9 +48,18 @@ const LOOKBACK_DAYS = 14;
 /** Log window loaded on startup — must cover the longest goal period. */
 const HISTORY_DAYS = 380;
 
+/** How many days back the user may fill in. */
+export const MAX_BACKFILL_DAYS = 2;
+
 type ForgeState = {
   ready: boolean;
   today: string;
+  /**
+   * The day being logged INTO. Normally today, but the user may step back up
+   * to MAX_BACKFILL_DAYS to fill in a day they missed. Everything that writes
+   * a rep uses this rather than the wall-clock date.
+   */
+  activeDate: string;
   habits: Habit[];
   todayLogs: LogEntry[];
   weekLogs: LogEntry[];
@@ -67,6 +76,8 @@ type ForgeState = {
   rewards: Reward[];
 
   loadToday: () => Promise<void>;
+  /** Move the logging day. Clamped to the backfill window. */
+  setActiveDate: (date: string) => Promise<void>;
   logHabitRep: (habitId: string) => Promise<number | null>;
   undoHabitRep: (habitId: string) => Promise<void>;
   createHabit: (input: q.NewHabit) => Promise<void>;
@@ -120,6 +131,7 @@ type ForgeState = {
 export const useForge = create<ForgeState>((set, get) => ({
   ready: false,
   today: todayStr(),
+  activeDate: todayStr(),
   habits: [],
   todayLogs: [],
   weekLogs: [],
@@ -155,7 +167,7 @@ export const useForge = create<ForgeState>((set, get) => ({
     const [habits, historyLogs, todayTasks, upcomingTasks, targetRow, rewards] = await Promise.all([
       q.listActiveHabits(),
       q.listLogsInRange(addDays(today, -HISTORY_DAYS), today),
-      q.listTasksForDate(today),
+      q.listTasksForDate(get().activeDate),
       q.listUpcomingTasks(today),
       q.getDailyTarget(today),
       q.listRewards(),
@@ -208,7 +220,7 @@ export const useForge = create<ForgeState>((set, get) => ({
       today,
       habits,
       weekLogs,
-      todayLogs: historyLogs.filter((l) => l.date === today),
+      todayLogs: historyLogs.filter((l) => l.date === get().activeDate),
       // Already sorted by manual order in the query — re-sorting by createdAt
       // here would silently undo every drag the user made.
       todayTasks,
@@ -341,6 +353,21 @@ export const useForge = create<ForgeState>((set, get) => ({
     await get().loadToday();
   },
 
+  /**
+   * Move the day being logged into.
+   *
+   * Clamped to [today - MAX_BACKFILL_DAYS, today]: filling in yesterday is
+   * normal life, but retro-dating a month of reps would make the streak and
+   * pace figures meaningless, and there is no way to verify it happened.
+   */
+  async setActiveDate(date) {
+    const today = todayStr();
+    const earliest = addDays(today, -MAX_BACKFILL_DAYS);
+    const clamped = date > today ? today : date < earliest ? earliest : date;
+    set({ activeDate: clamped });
+    await get().loadToday();
+  },
+
   async acceptDailyTarget(value) {
     const { today } = get();
     await q.setDailyTarget(today, Math.max(0, Math.round(value)));
@@ -349,7 +376,7 @@ export const useForge = create<ForgeState>((set, get) => ({
 
   /** Log one rep. Returns the delta applied, or null if the habit is gone. */
   async logHabitRep(habitId) {
-    const { habits, today, weekLogs } = get();
+    const { habits, activeDate, weekLogs } = get();
     const habit = habits.find((h) => h.id === habitId);
     if (!habit) return null;
 
@@ -358,11 +385,11 @@ export const useForge = create<ForgeState>((set, get) => ({
       delta = goodHabitDelta(habit);
     } else {
       // The rep index decides where on the allowance ladder this rep lands.
-      const already = repsOn(weekLogs, habitId, today);
+      const already = repsOn(weekLogs, habitId, activeDate);
       delta = badHabitRepDelta(habit, already);
     }
 
-    await q.addLog({ date: today, kind: 'habit', refId: habitId, count: 1, starsDelta: delta });
+    await q.addLog({ date: activeDate, kind: 'habit', refId: habitId, count: 1, starsDelta: delta });
     if (delta > 0) await q.addLifetimeStars(delta);
 
     await get().loadToday();
@@ -370,8 +397,10 @@ export const useForge = create<ForgeState>((set, get) => ({
   },
 
   async undoHabitRep(habitId) {
-    const { today } = get();
-    const removed = await q.undoLastLogFor(habitId, today);
+    // Undo has to target the SAME day the rep was added to, or backfilling
+    // yesterday then undoing would silently remove today's rep instead.
+    const { activeDate } = get();
+    const removed = await q.undoLastLogFor(habitId, activeDate);
     // Reversing an earn must also walk lifetime back, or rank inflates.
     if (removed && removed.starsDelta > 0) await q.subtractLifetimeStars(removed.starsDelta);
     await get().loadToday();
@@ -670,8 +699,9 @@ export const useForge = create<ForgeState>((set, get) => ({
   },
 
   repsToday(habitId) {
-    const { todayLogs, today } = get();
-    return repsOn(todayLogs, habitId, today);
+    // Reflects the ACTIVE day, so stepping back shows what that day holds.
+    const { todayLogs, activeDate } = get();
+    return repsOn(todayLogs, habitId, activeDate);
   },
 
   weekBalance() {
@@ -683,8 +713,8 @@ export const useForge = create<ForgeState>((set, get) => ({
   },
 
   todayNet() {
-    const { todayLogs, today, appState } = get();
-    return dayNet(todayLogs, today, { floor: appState?.settings.negativeFloor });
+    const { todayLogs, activeDate, appState } = get();
+    return dayNet(todayLogs, activeDate, { floor: appState?.settings.negativeFloor });
   },
 
   repsThisWeek(habitId) {

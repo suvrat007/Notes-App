@@ -1484,12 +1484,11 @@
     border-color: var(--text-dim);
   }
 
-  /* No tab bar to clear on desktop — dock toasts to the corner instead. */
+  /* Same corner, just inset further from the edges on a large screen. */
   .toaster {
-    bottom: 24px;
+    top: 24px;
     right: 24px;
     left: auto;
-    align-items: flex-end;
     padding: 0;
   }
 
@@ -1681,14 +1680,15 @@
 
 .toaster {
   position: fixed;
+  /* Top-right. Clears the notch, and leaves the bottom free for the tab bar
+     and the floating actions. */
+  top: calc(10px + env(safe-area-inset-top));
   left: 0;
   right: 0;
-  /* Sits above the tab bar, not over it. */
-  bottom: calc(var(--tap) + 12px + env(safe-area-inset-bottom));
   z-index: 80;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
   gap: 8px;
   padding: 0 12px;
   /* The strip itself must never eat taps meant for the UI beneath. */
@@ -2156,4 +2156,44 @@
   color: var(--accent);
   border-color: var(--accent);
   background: rgba(var(--accent-rgb), 0.12);
+}
+
+/* ---- Backfill day picker ---- */
+
+.daypick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -6px 0 14px;
+  flex-wrap: wrap;
+}
+
+.daypick__opt {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  border: 1px solid var(--steel);
+  border-radius: 999px;
+  padding: 4px 10px;
+  min-height: 30px;
+  transition: color var(--fast) ease, border-color var(--fast) ease;
+}
+
+.daypick__opt--on {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.12);
+}
+
+/* A clear signal that reps are NOT landing on today. */
+.daypick--back .daypick__opt--on {
+  color: var(--bad);
+  border-color: var(--bad);
+  background: rgba(229, 72, 77, 0.12);
+}
+
+.daypick__note {
+  font-size: 11px;
+  color: var(--bad);
 }
