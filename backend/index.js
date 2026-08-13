@@ -14,6 +14,9 @@ const Task = require('./models/task.model.js');
 const Log = require('./models/log.model.js');
 const BreakDay = require('./models/breakday.model.js');
 const { authenticateToken, COOKIE_NAME, cookieOptions } = require('./utilities.js');
+const { OAuth2Client } = require('google-auth-library');
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 app.use(express.json());
 app.use(cookieParser());
@@ -78,6 +81,66 @@ app.post("/login", async(req, res) => {
     }
 });
 
+/**
+ * Sign in with Google.
+ *
+ * The browser sends the ID token Google issued it; the server VERIFIES that
+ * token against Google's public keys before trusting a word of it. That check
+ * is the whole point of doing this server-side — a client can claim to be
+ * anyone, so an unverified token is worth nothing.
+ *
+ * The outcome is the same httpOnly cookie the password flow issues, so every
+ * route downstream is identical and neither way in is privileged.
+ */
+app.post("/auth/google", async (req, res) => {
+    const { credential } = req.body;
+    if (!credential) return res.status(400).json({ error: true, message: "No Google credential" });
+    if (!process.env.GOOGLE_CLIENT_ID) {
+        return res.status(500).json({ error: true, message: "Google sign-in is not configured on the server" });
+    }
+
+    try {
+        const ticket = await googleClient.verifyIdToken({
+            idToken: credential,
+            // Rejects a token minted for some OTHER application, which is how a
+            // token stolen from an unrelated site would otherwise be replayed.
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+        const payload = ticket.getPayload();
+        if (!payload || !payload.email_verified) {
+            return res.status(401).json({ error: true, message: "That Google account has no verified email" });
+        }
+
+        const email = payload.email.toLowerCase();
+        let user = await User.findOne({ $or: [{ googleId: payload.sub }, { email }] });
+
+        if (!user) {
+            user = new User({
+                fullName: payload.name || email.split('@')[0],
+                email,
+                googleId: payload.sub,
+                avatarUrl: payload.picture || '',
+            });
+            await user.save();
+        } else if (!user.googleId) {
+            /*
+             * An account already exists for this email under a password. Google
+             * has verified the address belongs to whoever is signing in, so
+             * linking is safe and beats telling someone their own email is
+             * taken. The password is untouched — both ways in keep working.
+             */
+            user.googleId = payload.sub;
+            if (!user.avatarUrl && payload.picture) user.avatarUrl = payload.picture;
+            await user.save();
+        }
+
+        res.cookie(COOKIE_NAME, issueToken(user._id), cookieOptions);
+        return res.json({ error: false, message: "Login Successful", email: user.email });
+    } catch (e) {
+        return res.status(401).json({ error: true, message: "Google rejected that sign-in. Try again." });
+    }
+});
+
 app.post("/logout", (req, res) => {
     res.clearCookie(COOKIE_NAME, cookieOptions);
     return res.json({ error: false, message: "Logged out" });
@@ -87,7 +150,12 @@ app.get("/get-user", authenticateToken, async(req, res) => {
     const isUser = await User.findById(req.userId);
     if(!isUser) return res.status(404).json({error:true, message:"User not found"});
     return res.json({
-        user: { fullName: isUser.fullName, email: isUser.email, _id: isUser._id, totalStars: isUser.totalStars },
+        user: {
+            fullName: isUser.fullName, email: isUser.email, _id: isUser._id,
+            totalStars: isUser.totalStars, avatarUrl: isUser.avatarUrl,
+            // Lets the UI offer "set a password" to a Google-only account.
+            hasPassword: !!isUser.password,
+        },
         message: ""
     });
 });
