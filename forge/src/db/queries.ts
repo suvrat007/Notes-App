@@ -8,7 +8,7 @@ import {
 } from './schema';
 import { occurrenceDates, missingDates, repeats } from '../engine/series';
 import { newId } from '../lib/id';
-import { todayStr, weekStartOf, weekDates } from '../lib/dates';
+import { todayStr, weekStartOf, weekDates, addDays } from '../lib/dates';
 import { DEFAULT_ICON } from '../lib/habitIconKeys';
 
 /**
@@ -46,6 +46,7 @@ export async function addHabit(input: NewHabit): Promise<Habit> {
     dailyAllowance: 0,
     overagePenalty: 5,
     freeWithinAllowance: false,
+    dailyTarget: 0,
     targetReps: 0,
     targetPeriodWeeks: 1,
     isRecurringTask: false,
@@ -150,6 +151,33 @@ export async function reorderTasks(idsInOrder: string[]): Promise<void> {
   await db.transaction('rw', db.tasks, async () => {
     await Promise.all(idsInOrder.map((id, i) => db.tasks.update(id, { order: i })));
   });
+}
+
+/**
+ * How far back an unfinished task keeps following you. Without a limit a task
+ * abandoned in March would still be on the list in June, which trains people
+ * to ignore the list; two weeks is long enough to be a real nag and short
+ * enough that the list stays about now.
+ */
+export const CARRY_OVER_DAYS = 14;
+
+/**
+ * Unfinished work from earlier days, to be shown alongside `dateStr`'s own.
+ *
+ * "Finish 2 PDFs" with one done does not stop existing at midnight — the
+ * remaining one is still owed, and burying it on a past date is the same as
+ * deleting it. Repeating tasks are excluded on purpose: a daily task already
+ * has a fresh row waiting for today, so carrying yesterday's would show the
+ * same thing twice.
+ */
+export async function listCarriedOverTasks(dateStr: string): Promise<Task[]> {
+  const floor = addDays(dateStr, -CARRY_OVER_DAYS);
+  const rows = await db.tasks
+    .where('dueDate').between(floor, dateStr, true, false)
+    .toArray();
+  return rows
+    .filter((t) => !t.done && !t.seriesId)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate) || byOrder(a, b));
 }
 
 /** Overdue, still-open tasks that the missed sweep has not yet penalised. */

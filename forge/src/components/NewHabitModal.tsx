@@ -18,6 +18,7 @@ export default function NewHabitModal({ onClose, onSave }: Props) {
   const [dailyAllowance, setDailyAllowance] = useState(0);
   const [overagePenalty, setOveragePenalty] = useState(5);
   const [freeWithinAllowance, setFree] = useState(false);
+  const [dailyTarget, setDailyTarget] = useState(0);
   const [targetReps, setTargetReps] = useState(0);
   const [targetPeriodWeeks, setTargetPeriodWeeks] = useState(1);
   const [isRecurringTask, setRecurring] = useState(false);
@@ -32,6 +33,7 @@ export default function NewHabitModal({ onClose, onSave }: Props) {
       dailyAllowance: isBad ? dailyAllowance : 0,
       overagePenalty: isBad ? overagePenalty : 0,
       freeWithinAllowance: isBad ? freeWithinAllowance : false,
+      dailyTarget: isBad ? 0 : dailyTarget,
       targetReps: isBad ? 0 : targetReps,
       targetPeriodWeeks: isBad ? 1 : targetPeriodWeeks,
       isRecurringTask: isBad ? false : isRecurringTask,
@@ -105,6 +107,18 @@ export default function NewHabitModal({ onClose, onSave }: Props) {
         </>
       ) : (
         <>
+          <label className="field">
+            <span className="field__label">Reps per day (0 = just tick it off)</span>
+            <input className="input" type="number" min={0} value={dailyTarget}
+                   data-testid="habit-daily-target"
+                   onChange={(e) => setDailyTarget(Number(e.target.value))} />
+            <span className="goalrow__hint">
+              {dailyTarget > 0
+                ? `Counts ${dailyTarget} a day and only reads as done at ${dailyTarget}.`
+                : 'One tap a day marks it done — no counter.'}
+            </span>
+          </label>
+
           <div className="field">
             <span className="field__label">Goal (0 = no goal)</span>
             <div className="goalrow">

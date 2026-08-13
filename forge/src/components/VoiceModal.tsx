@@ -42,7 +42,10 @@ const KIND_LABEL: Record<IntentKind, string> = {
 export default function VoiceModal({
   onClose, mode: initialMode = 'log', onNavigate, autoStart,
 }: Props) {
-  const { habits, rewards, commitVoiceItems, appState, upcomingTasks, applyCommands } = useForge();
+  const {
+    habits, rewards, commitVoiceItems, appState,
+    todayTasks, carriedTasks, upcomingTasks, applyCommands,
+  } = useForge();
   const [mode, setMode] = useState<VoiceMode>(initialMode);
   const [commands, setCommands] = useState<Command[]>([]);
   const supported = isVoiceSupported();
@@ -62,6 +65,8 @@ export default function VoiceModal({
   // Destination chips only make sense once Google is actually connected.
   const googleReady = !!appState?.settings.googleConnected;
   const [elapsed, setElapsed] = useState(0);
+  // Hidden when the user explicitly chose to speak; shown otherwise.
+  const [showTyping, setShowTyping] = useState(autoStart !== 'speak');
 
   // Live elapsed readout while recording. Without it the hard cap arrives with
   // no warning, and there is no way to tell capture is still running.
@@ -114,7 +119,11 @@ export default function VoiceModal({
   /** Commands act on rows that exist, so they see tasks as well as habits. */
   const cmdCtx = {
     habits: habits.map((h) => ({ id: h.id, name: h.name, polarity: h.polarity })),
-    tasks: upcomingTasks.map((t) => ({ id: t.id, name: t.name })),
+    // Today's, tomorrow's AND anything still owed from earlier days — a
+    // command to tick something off must reach the overdue rows too.
+    tasks: [...todayTasks, ...carriedTasks, ...upcomingTasks]
+      .filter((t, i, all) => all.findIndex((x) => x.id === t.id) === i)
+      .map((t) => ({ id: t.id, name: t.name })),
   };
 
   /** The two pipelines share this shell and nothing else — different prompt,
@@ -158,6 +167,8 @@ export default function VoiceModal({
       onClick: () => document.querySelector<HTMLInputElement>('[data-testid=voice-text]')?.focus(),
     });
     if (!(e instanceof VoiceError)) console.error('voice:', e);
+    // The keyboard is the way out of a failed mic, so surface it now.
+    setShowTyping(true);
     setPhase('idle');
   };
 
@@ -226,7 +237,7 @@ export default function VoiceModal({
     setItems((prev) => prev.map((it) => {
       if (it.id !== id) return it;
       // Re-resolve the ref when switching between kinds.
-      if (kind === 'task') return { ...it, kind, refId: null, dueDate: it.dueDate ?? ctx.tomorrow };
+      if (kind === 'task') return { ...it, kind, refId: null, dueDate: it.dueDate ?? ctx.today };
       if (kind === 'redeem') {
         const r = ctx.rewards.find((x) => it.raw.toLowerCase().includes(x.name.toLowerCase()));
         return { ...it, kind, refId: r?.id ?? null, dueDate: null };
@@ -368,6 +379,11 @@ export default function VoiceModal({
             </p>
           )}
 
+          {/* The user already chose to speak. Offering a text box beside the
+              mic just re-asks the question they answered, so it stays out of
+              the way until the mic actually fails them. */}
+          {showTyping && (
+          <>
           <label className="field" style={{ marginTop: 16 }}>
             <span className="field__label">Or type it</span>
             <input className="input" data-testid="voice-text"
@@ -387,6 +403,8 @@ export default function VoiceModal({
                     const v = el?.value.trim();
                     if (v) void runParse(v);
                   }}>{mode === 'command' ? 'Preview changes' : 'Preview items'}</button>
+          </>
+          )}
 
           <p className="voice__note" data-testid="voice-note">
             You will see exactly what will happen, and can edit it, before anything is saved.

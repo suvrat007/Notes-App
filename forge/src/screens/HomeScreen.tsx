@@ -2,32 +2,26 @@ import { useEffect, useRef, useState } from 'react';
 import { useForge } from '../store/useForge';
 import HabitCard from '../components/HabitCard';
 import TodayRing from '../components/TodayRing';
-import NewHabitModal from '../components/NewHabitModal';
-import NewTaskModal from '../components/NewTaskModal';
 import TaskRow from '../components/TaskRow';
 import TargetBanner from '../components/TargetBanner';
 import DayPicker from '../components/DayPicker';
 import RewardList from '../components/RewardList';
 import FloatingDelta, { type Delta } from '../components/FloatingDelta';
 import LevelUpFlash from '../components/LevelUpFlash';
-import VoiceModal from '../components/VoiceModal';
-import { IconMic } from '../components/icons';
 import { rankFor, type RankInfo } from '../engine/rank';
+import { daysBetween } from '../lib/dates';
 import { tapPulse, penaltyPulse, levelUpPulse } from '../lib/haptics';
 
 export default function HomeScreen() {
   const {
     ready, habits, appState, loadToday, logHabitRep, undoHabitRep,
     today, activeDate, setActiveDate,
-    createHabit, repsToday, weekBalance, todayNet,
-    todayTasks, createTask, completeTask, uncompleteTask, removeTask, recurringRows,
+    repsToday, repsThisPeriod, weekBalance, todayNet,
+    todayTasks, carriedTasks, completeTask, uncompleteTask, removeTask, recurringRows,
     advanceTask, regressTask,
     dailyTarget, suggestedTarget, acceptDailyTarget, effectiveTarget,
     rewardViews, redeemReward,
   } = useForge();
-  const [showNew, setShowNew] = useState(false);
-  const [showNewTask, setShowNewTask] = useState(false);
-  const [showVoice, setShowVoice] = useState(false);
   const [deltas, setDeltas] = useState<Delta[]>([]);
   const [levelUp, setLevelUp] = useState<RankInfo | null>(null);
   const deltaId = useRef(0);
@@ -68,7 +62,7 @@ export default function HomeScreen() {
   const bad = habits.filter((h) => h.polarity === 'bad');
   const balance = weekBalance();
   const recurring = recurringRows();
-  const hasTasks = todayTasks.length > 0 || recurring.length > 0;
+  const hasTasks = todayTasks.length > 0 || recurring.length > 0 || carriedTasks.length > 0;
   const affordable = rewardViews().filter((v) => v.affordable);
 
   return (
@@ -118,7 +112,7 @@ export default function HomeScreen() {
         <section>
           <h2 className="sect">Build</h2>
           {good.map((h) => (
-            <HabitCard key={h.id} habit={h} reps={repsToday(h.id)}
+            <HabitCard key={h.id} habit={h} reps={repsToday(h.id)} periodReps={repsThisPeriod(h.id)}
                        onLog={(e) => void logWithFeedback(h.id, e)}
                        onUndo={() => void undoHabitRep(h.id)} />
           ))}
@@ -129,7 +123,7 @@ export default function HomeScreen() {
         <section>
           <h2 className="sect">Break</h2>
           {bad.map((h) => (
-            <HabitCard key={h.id} habit={h} reps={repsToday(h.id)}
+            <HabitCard key={h.id} habit={h} reps={repsToday(h.id)} periodReps={repsThisPeriod(h.id)}
                        onLog={(e) => void logWithFeedback(h.id, e)}
                        onUndo={() => void undoHabitRep(h.id)} />
           ))}
@@ -161,6 +155,20 @@ export default function HomeScreen() {
               onDelete={() => void removeTask(t.id)}
             />
           ))}
+
+          {/* Yesterday's unfinished work, still owed. Kept in the same list so
+              it is something to do today, not a separate wall of shame. */}
+          {carriedTasks.map((t) => (
+            <TaskRow
+              key={t.id} id={t.id} name={t.name} stars={t.stars} done={t.done}
+              targetCount={t.targetCount} doneCount={t.doneCount}
+              lateBy={daysBetween(t.dueDate, activeDate)}
+              onToggle={(next) => void (next ? completeTask(t.id) : uncompleteTask(t.id))}
+              onAdvance={() => void advanceTask(t.id)}
+              onRegress={() => void regressTask(t.id)}
+              onDelete={() => void removeTask(t.id)}
+            />
+          ))}
         </section>
       )}
 
@@ -175,30 +183,8 @@ export default function HomeScreen() {
       </div>
       </div>
 
-      <div className="actions">
-        <button className="btn btn--primary btn--voice" onClick={() => setShowVoice(true)}
-                data-testid="open-voice">
-          <IconMic size={18} /> Speak your day
-        </button>
-        <button className="btn btn--ghost" onClick={() => setShowNewTask(true)}
-                data-testid="new-task">+ New Task</button>
-        <button className="btn btn--ghost" onClick={() => setShowNew(true)}
-                data-testid="new-habit">+ New Habit</button>
-      </div>
-
-      {showNew && (
-        <NewHabitModal
-          onClose={() => setShowNew(false)}
-          onSave={async (h) => { await createHabit(h); setShowNew(false); }}
-        />
-      )}
-      {showNewTask && (
-        <NewTaskModal
-          onClose={() => setShowNewTask(false)}
-          onSave={async (t) => { await createTask(t); setShowNewTask(false); }}
-        />
-      )}
-      {showVoice && <VoiceModal onClose={() => setShowVoice(false)} />}
+      {/* Adding anything now lives in the floating + button, so it is reachable
+          from every screen instead of only from the bottom of this one. */}
 
       <FloatingDelta deltas={deltas} />
       <LevelUpFlash rank={levelUp} onDone={() => setLevelUp(null)} />

@@ -22,7 +22,8 @@ export type CommandKind =
   | 'navigate'
   | 'setting'
   | 'create'   // make a new habit or task
-  | 'convert'; // turn a task into a habit, or a habit into a task
+  | 'convert'  // turn a task into a habit, or a habit into a task
+  | 'mark';    // tick an existing row off, or take it back
 
 export type MoveTo = 'top' | 'bottom' | 'up' | 'down';
 export type ScreenName = 'home' | 'roadmap' | 'stats' | 'profile' | 'manage';
@@ -58,6 +59,8 @@ export interface Command {
   dueDate?: string | null;
   /** create (habit): also show it on the daily task list. */
   isRecurringTask?: boolean;
+  /** mark: true = it was done, false = it was not (take the tick back). */
+  done?: boolean;
   /** Human-readable summary shown in the confirm list. */
   label: string;
 }
@@ -86,6 +89,12 @@ Command kinds:
 - "retarget" : change a habit's goal. Set targetReps and targetPeriodWeeks (1=week, 2=fortnight, 4=month, 8=2 months, 12=quarter).
 - "navigate" : open a screen. screen is one of home|roadmap|stats|profile|manage.
 - "setting"  : toggle a setting. settingKey is negativeFloor or aiParsing; settingValue is true/false.
+- "mark"     : record that an existing row was or was not done. Set refId and done.
+               done true for "mark X as done", "I finished X", "I did X".
+               done false for "mark X as undone", "I didn't really do X", "undo X".
+               Works for both habits and tasks. This is the ONE command that
+               touches the ledger, so only use it when the user plainly says
+               something was or was not done.
 
 Distinguishing create from move: "add going to the gym to my habits" is CREATE (it does not
 exist yet). "move gym into my tasks" where Gym is a listed habit is CONVERT. Only use move for
@@ -101,11 +110,11 @@ Rules:
 - Return an empty items array if nothing is actionable.
 
 Respond with ONLY this JSON shape:
-{"items":[{"kind","refId","targetType","createName","polarity","isRecurringTask","dueDate","to","relativeToId","newName","targetReps","targetPeriodWeeks","screen","settingKey","settingValue","label"}]}`;
+{"items":[{"kind","refId","targetType","createName","polarity","isRecurringTask","dueDate","done","to","relativeToId","newName","targetReps","targetPeriodWeeks","screen","settingKey","settingValue","label"}]}`;
 
 const KINDS: CommandKind[] = [
   'move', 'rename', 'archive', 'delete', 'retarget', 'navigate', 'setting',
-  'create', 'convert',
+  'create', 'convert', 'mark',
 ];
 const MOVES: MoveTo[] = ['top', 'bottom', 'up', 'down'];
 const SCREENS: ScreenName[] = ['home', 'roadmap', 'stats', 'profile', 'manage'];
@@ -167,6 +176,15 @@ export function coerceCommands(raw: unknown, ctx: CommandContext): Command[] {
       case 'delete': {
         if (!task) return;
         out.push(base);
+        return;
+      }
+
+      case 'mark': {
+        // Either kind of row can be marked, but it must be one we know about,
+        // and "done or not" has to have been stated rather than assumed.
+        if (!habit && !task) return;
+        if (typeof r.done !== 'boolean') return;
+        out.push({ ...base, done: r.done });
         return;
       }
 

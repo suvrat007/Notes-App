@@ -64,6 +64,11 @@ type ForgeState = {
   todayLogs: LogEntry[];
   weekLogs: LogEntry[];
   todayTasks: Task[];
+  /**
+   * Unfinished work from earlier days, shown under the active day. Owed work
+   * does not stop being owed at midnight.
+   */
+  carriedTasks: Task[];
   appState: AppState | null;
   /** Accepted target for today, or null until the user confirms the banner. */
   dailyTarget: number | null;
@@ -86,6 +91,8 @@ type ForgeState = {
   reorderTasks: (idsInOrder: string[]) => Promise<void>;
   renameHabit: (id: string, name: string) => Promise<void>;
   updateHabitFields: (id: string, patch: Partial<Habit>) => Promise<void>;
+  /** Change a task's own terms: name, due date, how many units finish it. */
+  updateTaskFields: (id: string, patch: Partial<Task>) => Promise<void>;
   /** All tasks due today or later — the Manage screen's working set. */
   upcomingTasks: Task[];
 
@@ -128,6 +135,19 @@ type ForgeState = {
   rewardViews: () => RewardView[];
 };
 
+/**
+ * Find a task in whichever slice happens to hold it.
+ *
+ * A row can be today's, carried over from an earlier day, or a future one
+ * being acted on from Manage. Every action needs all three, and looking in
+ * only one slice is how "tick the carried-over task" silently did nothing.
+ */
+function findTask(s: ForgeState, id: string): Task | undefined {
+  return s.todayTasks.find((t) => t.id === id)
+    ?? s.carriedTasks.find((t) => t.id === id)
+    ?? s.upcomingTasks.find((t) => t.id === id);
+}
+
 export const useForge = create<ForgeState>((set, get) => ({
   ready: false,
   today: todayStr(),
@@ -136,6 +156,7 @@ export const useForge = create<ForgeState>((set, get) => ({
   todayLogs: [],
   weekLogs: [],
   todayTasks: [],
+  carriedTasks: [],
   appState: null,
   dailyTarget: null,
   suggestedTarget: 0,
@@ -164,14 +185,16 @@ export const useForge = create<ForgeState>((set, get) => ({
     const monday = weekStartOf(today, appState.settings.weekResetDay);
     // Goal periods can span months, so read one wide window and slice it
     // rather than issuing a query per horizon.
-    const [habits, historyLogs, todayTasks, upcomingTasks, targetRow, rewards] = await Promise.all([
-      q.listActiveHabits(),
-      q.listLogsInRange(addDays(today, -HISTORY_DAYS), today),
-      q.listTasksForDate(get().activeDate),
-      q.listUpcomingTasks(today),
-      q.getDailyTarget(today),
-      q.listRewards(),
-    ]);
+    const [habits, historyLogs, todayTasks, carriedTasks, upcomingTasks, targetRow, rewards] =
+      await Promise.all([
+        q.listActiveHabits(),
+        q.listLogsInRange(addDays(today, -HISTORY_DAYS), today),
+        q.listTasksForDate(get().activeDate),
+        q.listCarriedOverTasks(get().activeDate),
+        q.listUpcomingTasks(today),
+        q.getDailyTarget(today),
+        q.listRewards(),
+      ]);
 
     const weekEnd = weekDates(monday)[6];
     const weekLogs = historyLogs.filter((l) => l.date >= monday && l.date <= weekEnd);
@@ -224,6 +247,7 @@ export const useForge = create<ForgeState>((set, get) => ({
       // Already sorted by manual order in the query — re-sorting by createdAt
       // here would silently undo every drag the user made.
       todayTasks,
+      carriedTasks,
       upcomingTasks,
       recentLogs,
       historyLogs,
@@ -266,6 +290,26 @@ export const useForge = create<ForgeState>((set, get) => ({
           case 'delete':
             if (c.refId) await get().removeTask(c.refId);
             break;
+
+          /*
+           * The only command that touches the ledger. A habit is marked by
+           * logging or unlogging a rep for the active day; a task by its own
+           * done flag. Both routes are the same ones the buttons use, so the
+           * star maths cannot drift between voice and tapping.
+           */
+          case 'mark': {
+            if (!c.refId) break;
+            const isHabit = get().habits.some((h) => h.id === c.refId);
+            if (isHabit) {
+              if (c.done) await get().logHabitRep(c.refId);
+              else await get().undoHabitRep(c.refId);
+            } else if (c.done) {
+              await get().completeTask(c.refId);
+            } else {
+              await get().uncompleteTask(c.refId);
+            }
+            break;
+          }
 
           case 'rename':
             if (c.refId && c.newName) await get().renameHabit(c.refId, c.newName);
@@ -435,6 +479,13 @@ export const useForge = create<ForgeState>((set, get) => ({
     await get().loadToday();
   },
 
+  async updateTaskFields(id, patch) {
+    await q.updateTask(id, patch);
+    // Google holds a copy of the name and date, so it has to hear about it.
+    await syncTask(id, 'upsert');
+    await get().loadToday();
+  },
+
   async updateHabitFields(id, patch) {
     await q.updateHabit(id, patch);
     await get().loadToday();
@@ -561,9 +612,12 @@ export const useForge = create<ForgeState>((set, get) => ({
   },
 
   async completeTask(taskId) {
-    const { todayTasks, today } = get();
-    const task = todayTasks.find((t) => t.id === taskId);
+    const { activeDate } = get();
+    const task = findTask(get(), taskId);
     if (!task || task.done) return; // already earned; never pay twice
+    // The reward belongs to the day it was actually finished, not to the day
+    // it was originally due — that day has already been settled by the sweep.
+    const today = activeDate;
 
     const delta = taskDelta(task);
     await q.toggleTaskDone(taskId, true);
@@ -578,8 +632,8 @@ export const useForge = create<ForgeState>((set, get) => ({
   },
 
   async uncompleteTask(taskId) {
-    const { todayTasks, today } = get();
-    const task = todayTasks.find((t) => t.id === taskId);
+    const { activeDate: today } = get();
+    const task = findTask(get(), taskId);
     if (!task || !task.done) return;
 
     await q.toggleTaskDone(taskId, false);
@@ -600,8 +654,7 @@ export const useForge = create<ForgeState>((set, get) => ({
    * Partial progress is recorded on the row, not in the ledger.
    */
   async advanceTask(taskId) {
-    const task = get().todayTasks.find((t) => t.id === taskId)
-      ?? get().upcomingTasks.find((t) => t.id === taskId);
+    const task = findTask(get(), taskId);
     if (!task) return;
 
     const target = Math.max(1, task.targetCount ?? 1);
@@ -618,8 +671,7 @@ export const useForge = create<ForgeState>((set, get) => ({
 
   /** Step one unit back. Crossing down out of "done" reverses the payout. */
   async regressTask(taskId) {
-    const task = get().todayTasks.find((t) => t.id === taskId)
-      ?? get().upcomingTasks.find((t) => t.id === taskId);
+    const task = findTask(get(), taskId);
     if (!task) return;
 
     const target = Math.max(1, task.targetCount ?? 1);

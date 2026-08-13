@@ -19,6 +19,15 @@ export interface Habit {
   overagePenalty: number; // bad habits only; extra stars lost per rep over allowance
   /** Bad habits: if true, reps within allowance are free (0) and only overage costs. */
   freeWithinAllowance: boolean;
+  /**
+   * Reps wanted EVERY DAY; 0 = no daily quota (the default).
+   *
+   * Deliberately separate from `targetReps`: "5 gym sessions a week" is one
+   * tick on five different days, and turning that into a counter on the card
+   * says nothing useful. "20 pushups a day" is a counter, and only reads as
+   * done at 20. The two answer different questions and cannot share a field.
+   */
+  dailyTarget: number;
   /** Good habits: reps wanted across one goal period; 0 = no goal. */
   targetReps: number;
   /** Length of that goal period in weeks. 1 = weekly (the original behaviour). */
@@ -180,6 +189,7 @@ export function migrateHabit(h: HabitV1 & Partial<Habit>): Habit {
     icon: normalizeIconKey(h.icon),
     targetReps: h.targetReps ?? weeklyTarget ?? 0,
     targetPeriodWeeks: h.targetPeriodWeeks ?? 1,
+    dailyTarget: h.dailyTarget ?? 0,
     order: h.order ?? 0,
   };
 }
@@ -304,6 +314,26 @@ export class ForgeDB extends Dexie {
           // Everything that existed before was a single one-off occurrence.
           t.horizon = t.horizon ?? 'once';
           t.seriesId = t.seriesId ?? null;
+        });
+      });
+
+    // v7: habits can carry a per-day rep quota.
+    this.version(7)
+      .stores({
+        habits: 'id, name, polarity, archived, order',
+        tasks: 'id, dueDate, done, [dueDate+done], linkedHabitId, missedHandled, order, '
+          + 'horizon, seriesId, [seriesId+dueDate]',
+        logs: 'id, date, kind, refId, [date+kind], [refId+date]',
+        rewards: 'id, archived',
+        appState: 'id',
+        dailyTargets: 'date',
+        syncLinks: 'id, target, taskId',
+        syncQueue: 'id, target, taskId',
+      })
+      .upgrade(async (tx) => {
+        await tx.table('habits').toCollection().modify((h) => {
+          // No existing habit had a daily quota, so none gains one here.
+          h.dailyTarget = h.dailyTarget ?? 0;
         });
       });
   }

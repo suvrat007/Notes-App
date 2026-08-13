@@ -123,14 +123,22 @@ export interface ParseContext {
  * - a clause naming a known BAD habit         → bad-habit, actually done
  * - negation ("no TV") + a known habit        → bad-habit, avoided (no penalty)
  * - a redeem cue + a known reward             → redeem
- * - anything else                             → task (default due tomorrow)
+ * - anything else                             → task (default due today)
  */
 export function parseVoice(transcript: string, ctx: ParseContext): ParsedItem[] {
   const clauses = splitClauses(transcript);
 
+  /*
+   * A day said once governs everything after it: "tomorrow gym, read 20
+   * pages" puts both on tomorrow. Only a new day cue changes it.
+   */
+  let carried: 'today' | 'tomorrow' | null = null;
+
   return clauses.map((raw, i) => {
     const id = `p${i}`;
-    const { cue, rest } = extractDayCue(raw);
+    const { cue: stated, rest } = extractDayCue(raw);
+    if (stated) carried = stated;
+    const cue = carried;
     const clause = rest || raw;
 
     // Redemption first — "I ate the cheesecake" must not become a task.
@@ -154,8 +162,12 @@ export function parseVoice(transcript: string, ctx: ParseContext): ParsedItem[] 
                count: 1, avoided: kind === 'bad-habit' && negated };
     }
 
-    // Everything else becomes a task; default due date is tomorrow.
-    const dueDate = cue === 'today' ? ctx.today : ctx.tomorrow;
+    /*
+     * Everything else becomes a task. An unstated day means TODAY: someone
+     * speaking into a daily tracker is talking about the day they are in, and
+     * filing it under tomorrow made spoken tasks vanish from the dashboard.
+     */
+    const dueDate = cue === 'tomorrow' ? ctx.tomorrow : ctx.today;
     return { id, kind: 'task', text: clause, refId: null, dueDate, raw,
              count: 1, avoided: false };
   });

@@ -58,6 +58,26 @@ export function parseCommandsRules(text: string, ctx: CommandContext): Command[]
     const ref = habit ?? task;
     if (!ref) return;
 
+    /*
+     * mark — "mark the modelling part as done", "I didn't really go to the
+     * gym so mark it as undone".
+     *
+     * Checked before `move`, because "mark X as done" contains no move verb
+     * but "put X down as done" does, and the marking reading is the right one.
+     * Negation wins over the word "done": "didn't do X" is an undo.
+     */
+    if (/\b(mark|tick|check)\b|\b(finished|completed)\b/.test(lower)
+        || /\bdid\s*n[o']?t\b|\bdidnt\b/.test(lower)) {
+      const undone = /\bun-?done\b|\bnot done\b|\bdid\s*n[o']?t\b|\bdidnt\b/.test(lower)
+        || /\bundo\b|\bincomplete\b|\bunfinished\b/.test(lower);
+      const doneWord = /\bdone\b|\bfinished\b|\bcompleted?\b|\bcomplete\b/.test(lower);
+      if (undone || doneWord) {
+        out.push({ id, kind: 'mark', refId: ref.id, refName: ref.name, done: !undone,
+                   label: `Mark ${ref.name} as ${undone ? 'not done' : 'done'}` });
+        return;
+      }
+    }
+
     // move — "move gym to the top", "push read down"
     if (/\b(move|put|push|shift|send)\b/.test(lower)) {
       let to: MoveTo | null = null;

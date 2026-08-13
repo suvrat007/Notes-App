@@ -14,6 +14,11 @@ type Props = {
   targetCount?: number;
   /** Units done so far. */
   doneCount?: number;
+  /**
+   * How many days ago this was due, when it is being carried forward. 0 for
+   * a task that belongs to the day being shown.
+   */
+  lateBy?: number;
   onToggle: (next: boolean) => void;
   /** Multi-unit tasks tick one unit at a time instead of toggling. */
   onAdvance?: () => void;
@@ -25,7 +30,7 @@ const LONG_PRESS_MS = 500;
 
 export default function TaskRow({
   id, name, stars, done, icon, recurring,
-  targetCount = 1, doneCount = 0,
+  targetCount = 1, doneCount = 0, lateBy = 0,
   onToggle, onAdvance, onRegress, onDelete,
 }: Props) {
   const timer = useRef<number | null>(null);
@@ -57,7 +62,8 @@ export default function TaskRow({
   };
 
   return (
-    <div className={'task' + (done ? ' task--done' : '')} data-testid={`task-${id}`}>
+    <div className={'task' + (done ? ' task--done' : '') + (lateBy > 0 ? ' task--late' : '')}
+         data-testid={`task-${id}`}>
       <button
         className={'task__check' + (multi && !done ? ' task__check--partial' : '')}
         role="checkbox"
@@ -83,6 +89,14 @@ export default function TaskRow({
         {multi && (
           <span className="task__progress num" data-testid={`prog-${id}`}>
             {progress}/{targetCount}
+          </span>
+        )}
+        {/* Says what is still owed and since when, in one glance: a partly
+            finished job reads as "1 left", not as a fresh start. */}
+        {lateBy > 0 && (
+          <span className="task__late" data-testid={`late-${id}`}>
+            {multi && progress > 0 ? `${targetCount - progress} left · ` : ''}
+            {lateBy === 1 ? 'since yesterday' : `${lateBy} days late`}
           </span>
         )}
       </span>

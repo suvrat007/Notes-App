@@ -23,6 +23,12 @@ HABIT vs TASK
 - Else: never-finished (eat healthy, sleep early, gym, quit smoking) => habit.
   Has an end state (finish 3 videos, read 2 PDFs, call the bank) => task.
 - A count of deliverables ("three videos") means TASK.
+- A count spread over a PERIOD with no single deliverable ("ten workouts this week",
+  "meditate 20 times this month", "run 5 times a week") => new-habit with
+  targetReps/targetPeriodWeeks, NOT a task with count. The user may do several
+  in one day and none the next; only a period goal can express that.
+  Contrast: "finish 10 practice sets by Sunday" is ONE job => task, count 10,
+  dueDate = that Sunday.
 - Matches an existing habit => habit/bad-habit with its refId. Otherwise new-habit.
 - Drop filler ("I'll let you know", "so", "thanks").
 
@@ -57,7 +63,8 @@ dueDate        tasks only, absolute YYYY-MM-DD computed from the anchors supplie
                "next month"=today+30.
                A stated day CARRIES FORWARD to every later item until a different one appears:
                "Today I have to gym, do one video, and finish three more" => all three today.
-               Only if no timing was stated anywhere, use tomorrow.
+               Only if no timing was stated anywhere, use today — someone
+               speaking into a daily tracker means now, not tomorrow.
                Never output a word like "this week" — always a date.
 text           short label in the user's own words.
 

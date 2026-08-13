@@ -4,6 +4,8 @@ import Sidebar from './components/Sidebar';
 import VoiceModal from './components/VoiceModal';
 import Toaster from './components/Toaster';
 import VoiceFab, { type FabAction } from './components/VoiceFab';
+import NewHabitModal from './components/NewHabitModal';
+import NewTaskModal from './components/NewTaskModal';
 import type { ScreenKey } from './screens/registry';
 import HomeScreen from './screens/HomeScreen';
 import RoadmapScreen from './screens/RoadmapScreen';
@@ -19,8 +21,10 @@ import './App.css';
 export default function App() {
   const screen = useNav((s) => s.screen);
   const setScreen = useNav((s) => s.setScreen);
-  const [voice, setVoice] = useState<FabAction | null>(null);
+  const [adding, setAdding] = useState<FabAction | null>(null);
   const loadToday = useForge((s) => s.loadToday);
+  const createHabit = useForge((s) => s.createHabit);
+  const createTask = useForge((s) => s.createTask);
 
   // The sidebar reads store state, so the store must be warm before any
   // screen mounts — otherwise the rail flashes empty on a desktop load.
@@ -44,7 +48,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <Sidebar active={screen} onChange={setScreen} onVoice={() => setVoice('speak')} />
+      <Sidebar active={screen} onChange={setScreen} onVoice={() => setAdding('speak')} />
 
       <main className="app__body">
         {screen === 'home' && <HomeScreen />}
@@ -56,19 +60,31 @@ export default function App() {
 
       <TabBar active={screen} onChange={setScreen} />
 
-      {/* The FAB already asked speak-or-type, so the sheet opens straight
-          into that mode rather than asking a second time. On Manage the
-          voice flow means operating the app, so it opens in command mode. */}
-      {voice && (
+      {/* The FAB already asked how the user wants to say it, so the sheet
+          opens straight into speaking rather than asking a second time. On
+          Manage the voice flow means operating the app, not logging it. */}
+      {adding === 'speak' && (
         <VoiceModal
-          autoStart={voice}
+          autoStart="speak"
           mode={screen === 'manage' ? 'command' : 'log'}
-          onClose={() => setVoice(null)}
+          onClose={() => setAdding(null)}
           onNavigate={(s) => setScreen(s as ScreenKey)}
         />
       )}
+      {adding === 'habit' && (
+        <NewHabitModal
+          onClose={() => setAdding(null)}
+          onSave={async (h) => { await createHabit(h); setAdding(null); }}
+        />
+      )}
+      {adding === 'task' && (
+        <NewTaskModal
+          onClose={() => setAdding(null)}
+          onSave={async (t) => { await createTask(t); setAdding(null); }}
+        />
+      )}
 
-      <VoiceFab onPick={(a) => setVoice(a)} />
+      <VoiceFab onPick={(a) => setAdding(a)} />
 
       <Toaster />
     </div>

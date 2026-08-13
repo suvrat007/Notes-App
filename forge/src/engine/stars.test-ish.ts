@@ -330,8 +330,10 @@ export function runStarEngineTests(): TestResult[] {
   // 30 — day cues
   check('"today" cue puts the task on today',
     parseVoice('today call the bank', vctx)[0].dueDate, '2026-01-05');
-  check('unqualified tasks default to tomorrow',
-    parseVoice('call the bank', vctx)[0].dueDate, '2026-01-06');
+  // Said into a daily tracker with no day attached, it belongs to today —
+  // filing it under tomorrow made spoken tasks miss the dashboard entirely.
+  check('unqualified tasks default to today',
+    parseVoice('call the bank', vctx)[0].dueDate, '2026-01-05');
 
   // 31 — redemption by voice
   const red = parseVoice('I ate the cheesecake', vctx);

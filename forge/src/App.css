@@ -247,6 +247,16 @@
   color: var(--text-dim);
 }
 
+/* Quota met for today — the one moment the number is worth looking at. */
+.habit__count--met {
+  color: var(--good);
+  font-weight: 700;
+}
+
+.habit--bad .habit__count--met {
+  color: var(--bad);
+}
+
 .habit__log {
   width: var(--tap);
   height: var(--tap);
@@ -526,6 +536,23 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Carried-over work: present, but never louder than today's own list. */
+.task--late {
+  border-left: 2px solid var(--bad);
+}
+
+.task__late {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--bad);
+  border: 1px solid var(--bad);
+  border-radius: 999px;
+  padding: 1px 6px;
 }
 
 .task__tag {
@@ -2317,4 +2344,21 @@
 
 @media (prefers-reduced-motion: reduce) {
   .fab__btn { transition: none; }
+}
+
+/* FAB: step back from "what am I adding" to "how do I want to say it". */
+.fab__back {
+  align-self: flex-end;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 4px 8px;
+}
+
+/* Inline weekly-goal entry on a Manage habit row. */
+.mrow__goal {
+  width: 64px;
+  flex-shrink: 0;
+  text-align: center;
 }
