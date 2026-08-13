@@ -6,12 +6,15 @@ import Avatar from '../components/Avatar';
 import { rankFor, MAX_LEVEL } from '../engine/rank';
 import { DAMAGE_TIERS, rewardCost, suggestDamage, type DamageTier } from '../engine/rewards';
 import SettingsPanel from '../components/SettingsPanel';
+import { useAuth } from '../store/useAuth';
 
 export default function ProfileScreen() {
   const {
     ready, loadToday, appState, weekBalance,
     rewardViews, createReward, removeReward, redeemReward,
   } = useForge();
+  const account = useAuth((s) => s.account);
+  const signOut = useAuth((s) => s.signOut);
 
   const [name, setName] = useState('');
   /*
@@ -73,6 +76,22 @@ export default function ProfileScreen() {
           <span className="card__val num" data-testid="p-balance">{weekBalance()} ★</span>
         </div>
       </div>
+
+      {/* Whose tracker this is, and the way out. */}
+      {account && (
+        <div className="account" data-testid="account-row">
+          {account.picture
+            ? <img className="account__pic" src={account.picture} alt="" referrerPolicy="no-referrer" />
+            : <span className="account__pic account__pic--blank" aria-hidden="true" />}
+          <span className="account__who">
+            <span className="account__name" data-testid="account-name">{account.name}</span>
+            <span className="account__email">{account.email}</span>
+          </span>
+          <button className="mrow__chip" data-testid="sign-out"
+                  title="Your habits stay on this device"
+                  onClick={() => void signOut()}>Sign out</button>
+        </div>
+      )}
 
       <SettingsPanel />
       </div>

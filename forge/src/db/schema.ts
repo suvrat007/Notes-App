@@ -167,6 +167,22 @@ export interface SyncQueueItem {
   queuedAt: string;
 }
 
+/**
+ * The signed-in account, and the account this device's data belongs to.
+ *
+ * Persisted so the app opens offline: the access token is gone a minute after
+ * launch, but a habit tracker that refuses to open on a plane is useless. The
+ * row holds no token and no secret — only who the data is for.
+ */
+export interface Session {
+  id: 'singleton';
+  sub: string;
+  email: string;
+  name: string;
+  picture: string;
+  signedInAt: string;
+}
+
 export interface AppState {
   id: 'singleton';
   lifetimeStars: number; // sum of POSITIVE earns only; never decreases
@@ -211,6 +227,7 @@ export class ForgeDB extends Dexie {
   dailyTargets!: Table<DailyTarget, string>;
   syncLinks!: Table<SyncLink, string>;
   syncQueue!: Table<SyncQueueItem, string>;
+  session!: Table<Session, string>;
 
   constructor() {
     super('forge');
@@ -365,6 +382,23 @@ export class ForgeDB extends Dexie {
           r.damagePct = r.damagePct ?? 20;
         });
       });
+
+    // v9: the app remembers who is signed in, so it opens offline.
+    this.version(9)
+      .stores({
+        habits: 'id, name, polarity, archived, order',
+        tasks: 'id, dueDate, done, [dueDate+done], linkedHabitId, missedHandled, order, '
+          + 'horizon, seriesId, [seriesId+dueDate]',
+        logs: 'id, date, kind, refId, [date+kind], [refId+date]',
+        rewards: 'id, archived',
+        appState: 'id',
+        dailyTargets: 'date',
+        syncLinks: 'id, target, taskId',
+        syncQueue: 'id, target, taskId',
+        session: 'id',
+      });
+    // No upgrade body: an existing install simply has no session row yet, and
+    // the sign-in screen is the right thing to show it.
   }
 }
 

@@ -12,13 +12,38 @@ import RoadmapScreen from './screens/RoadmapScreen';
 import StatsScreen from './screens/StatsScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import ManageScreen from './screens/ManageScreen';
+import LoginScreen from './screens/LoginScreen';
 import { useForge } from './store/useForge';
+import { useAuth } from './store/useAuth';
 import { useNav } from './store/useNav';
 import { trySilentAuth } from './lib/google/auth';
 import { drainQueue } from './db/sync';
 import './App.css';
 
 export default function App() {
+  const authStatus = useAuth((s) => s.status);
+  const loadAuth = useAuth((s) => s.load);
+
+  useEffect(() => { void loadAuth(); }, [loadAuth]);
+
+  /*
+   * Nothing renders until we know whose tracker this is. Rendering the app
+   * first and swapping in the gate a beat later would flash one person's
+   * habits at whoever is holding the phone.
+   */
+  if (authStatus === 'loading') {
+    return <div className="login" data-testid="auth-loading" />;
+  }
+  if (authStatus !== 'ready') return <LoginScreen />;
+
+  return <ForgeApp />;
+}
+
+/**
+ * The tracker itself. A separate component so its hooks — and the store load
+ * they trigger — only ever run for a signed-in account.
+ */
+function ForgeApp() {
   const screen = useNav((s) => s.screen);
   const setScreen = useNav((s) => s.setScreen);
   const [adding, setAdding] = useState<FabAction | null>(null);
