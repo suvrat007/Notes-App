@@ -1,0 +1,8 @@
+# Secrets. Every key this project uses is per-developer and per-deployment;
+# none of them belong in the repo. Vercel gets them from its dashboard.
+.env
+.env.*
+!.env.example
+
+node_modules/
+dist/
