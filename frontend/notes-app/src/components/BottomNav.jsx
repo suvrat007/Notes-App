@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { TABS } from './navConfig';
 
 const BottomNav = ({ active, onChange }) => (
-  <nav className="md:hidden fixed left-1/2 bottom-4 -translate-x-1/2 w-[calc(100%-24px)] max-w-[420px] h-16 bg-[#121214] border border-white/5 rounded-2xl shadow-xl flex items-center justify-between px-2 z-[100]">
+  <nav className="md:hidden fixed left-1/2 bottom-4 -translate-x-1/2 w-[calc(100%-24px)] max-w-[420px] h-16 bg-[#16191e] border border-white/5 rounded-2xl shadow-xl flex items-center justify-between px-2 z-[100]">
     {TABS.map(({ key, label, icon: Icon }) => {
       const isActive = active === key;
       return (

@@ -30,7 +30,7 @@ const More = ({ user, theme, toggleTheme, showToast }) => {
       </div>
 
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-        <Card className="bg-[#121214] border-white/5 rounded-xl p-6 flex flex-col items-center text-center">
+        <Card className="bg-[#16191e] border-white/5 rounded-xl p-6 flex flex-col items-center text-center">
           <div className="relative mb-4">
             <div className="w-20 h-20 rounded-full border border-white/10 bg-black/40 overflow-hidden flex items-center justify-center">
               <span className="text-2xl text-white/40 font-bold">{user?.fullName?.charAt(0) || 'A'}</span>
@@ -47,8 +47,8 @@ const More = ({ user, theme, toggleTheme, showToast }) => {
           <h2 className="text-lg font-bold text-white mb-1">{user?.fullName || 'Operator'}</h2>
           <p className="text-sm text-focus-teal mb-4">{user?.email || 'operator@focus.io'}</p>
           
-          <div className="bg-[#1e2a24] text-[#a3c4b6] px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2">
-            <div className="bg-[#a3c4b6] text-black w-4 h-4 rounded-full flex items-center justify-center">
+          <div className="bg-[#1e2a24] text-[#c0b3a5] px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2">
+            <div className="bg-[#c0b3a5] text-black w-4 h-4 rounded-full flex items-center justify-center">
               <Star size={10} fill="currentColor" />
             </div>
             {user?.totalStars?.toLocaleString() || '0'} Total Stars
@@ -59,12 +59,12 @@ const More = ({ user, theme, toggleTheme, showToast }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Appearance */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <Card className="bg-[#121214] border-white/5 rounded-xl p-5">
+          <Card className="bg-[#16191e] border-white/5 rounded-xl p-5">
             <div className="flex justify-between items-start mb-4">
               <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center text-white/40">
                 <Moon size={16} />
               </div>
-              <Switch checked={isDark} onCheckedChange={toggleTheme} className="data-[state=checked]:bg-[#a3c4b6]" />
+              <Switch checked={isDark} onCheckedChange={toggleTheme} className="data-[state=checked]:bg-[#c0b3a5]" />
             </div>
             <h3 className="text-base font-bold text-white mb-1">Appearance</h3>
             <p className="text-xs text-white/60">Currently set to <span className="text-white font-bold">{isDark ? 'Dark' : 'Light'}</span></p>
@@ -73,7 +73,7 @@ const More = ({ user, theme, toggleTheme, showToast }) => {
 
         {/* Security */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card className="bg-[#121214] border-white/5 rounded-xl p-5 opacity-60 cursor-not-allowed relative">
+          <Card className="bg-[#16191e] border-white/5 rounded-xl p-5 opacity-60 cursor-not-allowed relative">
             <span className="absolute top-3 right-3 text-[9px] font-bold tracking-widest text-white/30 uppercase">Soon</span>
             <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center text-white/40 mb-4">
               <Shield size={16} />
@@ -86,7 +86,7 @@ const More = ({ user, theme, toggleTheme, showToast }) => {
 
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
         <h3 className="text-[10px] font-bold tracking-widest text-white/40 uppercase mb-4 mt-6">Settings</h3>
-        <Card className="bg-[#121214] border-white/5 rounded-xl overflow-hidden divide-y divide-white/5">
+        <Card className="bg-[#16191e] border-white/5 rounded-xl overflow-hidden divide-y divide-white/5">
           {[
             { icon: Bell, label: 'Notifications' },
             { icon: Globe, label: 'Language', value: 'English' },

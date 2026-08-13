@@ -39,7 +39,7 @@ const TaskModal = ({ onClose, refreshData, showToast }) => {
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ ease: 'easeOut' }}
-        className="bg-[#121214] border border-white/10 rounded-2xl p-7 w-full max-w-[420px] relative"
+        className="bg-[#16191e] border border-white/10 rounded-2xl p-7 w-full max-w-[420px] relative"
       >
         <button
           onClick={onClose}
@@ -56,7 +56,7 @@ const TaskModal = ({ onClose, refreshData, showToast }) => {
             <Label className="text-[10px] font-bold text-white/60 tracking-widest uppercase">Task Name</Label>
             <Input 
               type="text" 
-              className="bg-[#0a0a0c] border-white/10 text-white placeholder:text-white/30 h-11"
+              className="bg-[#0d0f12] border-white/10 text-white placeholder:text-white/30 h-11"
               value={title} 
               onChange={(e) => setTitle(e.target.value)} 
               required 
@@ -67,7 +67,7 @@ const TaskModal = ({ onClose, refreshData, showToast }) => {
           <div className="space-y-2">
             <Label className="text-[10px] font-bold text-white/60 tracking-widest uppercase">Task Type</Label>
             <select 
-              className="w-full bg-[#0a0a0c] border border-white/10 text-white h-11 rounded-md px-3 text-sm focus:outline-none focus:border-focus-green"
+              className="w-full bg-[#0d0f12] border border-white/10 text-white h-11 rounded-md px-3 text-sm focus:outline-none focus:border-focus-green"
               value={type} 
               onChange={(e) => setType(e.target.value)}
             >
@@ -83,7 +83,7 @@ const TaskModal = ({ onClose, refreshData, showToast }) => {
               <Label className="text-[10px] font-bold text-white/60 tracking-widest uppercase">Scheduled Date</Label>
               <Input 
                 type="date" 
-                className="bg-[#0a0a0c] border-white/10 text-white h-11"
+                className="bg-[#0d0f12] border-white/10 text-white h-11"
                 value={targetDate} 
                 onChange={(e) => setTargetDate(e.target.value)} 
                 required 
@@ -97,7 +97,7 @@ const TaskModal = ({ onClose, refreshData, showToast }) => {
                 <Label className="text-[10px] font-bold text-white/60 tracking-widest uppercase">Target Count</Label>
                 <Input 
                   type="number" 
-                  className="bg-[#0a0a0c] border-white/10 text-white h-11" 
+                  className="bg-[#0d0f12] border-white/10 text-white h-11" 
                   min="1" 
                   value={targetCount} 
                   onChange={(e) => setTargetCount(parseInt(e.target.value) || 1)} 
@@ -110,7 +110,7 @@ const TaskModal = ({ onClose, refreshData, showToast }) => {
                   <Label className="text-[10px] font-bold text-white/60 tracking-widest uppercase">Stars Reward</Label>
                   <Input 
                     type="number" 
-                    className="bg-[#0a0a0c] border-white/10 text-white h-11" 
+                    className="bg-[#0d0f12] border-white/10 text-white h-11" 
                     min="1" 
                     value={baseReward} 
                     onChange={(e) => setBaseReward(parseInt(e.target.value) || 1)} 
@@ -122,7 +122,7 @@ const TaskModal = ({ onClose, refreshData, showToast }) => {
                   <Label className="text-[10px] font-bold text-focus-red tracking-widest uppercase">Penalty / slip</Label>
                   <Input 
                     type="number" 
-                    className="bg-[#0a0a0c] border-white/10 text-white h-11 focus:border-focus-red" 
+                    className="bg-[#0d0f12] border-white/10 text-white h-11 focus:border-focus-red" 
                     min="1" 
                     value={penaltyIntensity} 
                     onChange={(e) => setPenaltyIntensity(parseInt(e.target.value) || 1)} 

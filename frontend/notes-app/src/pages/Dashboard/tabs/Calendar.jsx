@@ -85,14 +85,14 @@ const Calendar = ({ tasks, logs, refreshData, showToast }) => {
 
       {/* Mobile only header */}
       <div className="md:hidden pt-2">
-        <h1 className="text-xl font-bold font-heading text-[#5bc0be]">Calendar</h1>
+        <h1 className="text-xl font-bold font-heading text-[#c0b3a5]">Calendar</h1>
         <p className="text-xs text-white/40 mt-1">Plan and track any day</p>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 md:gap-8 items-start w-full">
         {/* Left Calendar Grid */}
         <motion.div 
-          className="w-full lg:w-[55%] xl:w-[65%] shrink-0 bg-[#121214] border border-white/5 rounded-3xl p-5 md:p-6"
+          className="w-full lg:w-[55%] xl:w-[65%] shrink-0 bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6"
           initial={{ opacity: 0, y: 16 }} 
           animate={{ opacity: 1, y: 0 }}
         >
@@ -131,14 +131,14 @@ const Calendar = ({ tasks, logs, refreshData, showToast }) => {
                     aspect-[4/5] rounded-none flex flex-col items-center justify-start pt-2 relative transition-all duration-200 border border-transparent
                     ${!isCurrentMonth ? 'opacity-30' : 'bg-[#1a1a1c]'}
                     ${isSelected ? 'bg-white text-black font-bold outline outline-2 outline-offset-[-2px] outline-white z-10' : 'text-white/80 hover:bg-white/[0.06]'}
-                    ${isBreak && !isSelected ? 'text-[#a3c4b6]' : ''}
+                    ${isBreak && !isSelected ? 'text-[#c0b3a5]' : ''}
                   `}
                   onClick={() => setSelected(key)}
                 >
                   <span className="text-xs md:text-sm font-medium z-10">{day.getDate()}</span>
                   <div className="flex gap-1 mt-1 z-10">
                     {hasActivity && <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-black' : 'bg-white/60'}`} />}
-                    {isBreak && !isSelected && <Moon size={8} className="text-[#a3c4b6] absolute bottom-2" />}
+                    {isBreak && !isSelected && <Moon size={8} className="text-[#c0b3a5] absolute bottom-2" />}
                   </div>
                 </button>
               );
@@ -148,7 +148,7 @@ const Calendar = ({ tasks, logs, refreshData, showToast }) => {
 
         {/* Right Day Panel */}
         <motion.div 
-          className="w-full lg:flex-1 bg-[#121214] border border-white/5 rounded-3xl p-5 md:p-6"
+          className="w-full lg:flex-1 bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6"
           initial={{ opacity: 0, y: 16 }} 
           animate={{ opacity: 1, y: 0 }} 
           transition={{ delay: 0.1 }}
@@ -168,7 +168,7 @@ const Calendar = ({ tasks, logs, refreshData, showToast }) => {
             <span className="text-sm font-bold text-white/80 flex items-center gap-2">
               <Moon size={16} className="text-white/40" /> Mark Break Day
             </span>
-            <Switch checked={isSelectedBreakDay} onCheckedChange={toggleBreakDay} className="data-[state=checked]:bg-[#a3c4b6]" />
+            <Switch checked={isSelectedBreakDay} onCheckedChange={toggleBreakDay} className="data-[state=checked]:bg-[#c0b3a5]" />
           </div>
 
           {/* Schedule Timeline */}
@@ -187,7 +187,7 @@ const Calendar = ({ tasks, logs, refreshData, showToast }) => {
 
                 return (
                   <div key={task._id} className="relative z-10 flex items-start gap-4">
-                    <div className={`absolute -left-[14px] top-1.5 w-2 h-2 rounded-full ${status ? 'bg-[#a3c4b6]' : 'bg-white/40'}`}></div>
+                    <div className={`absolute -left-[14px] top-1.5 w-2 h-2 rounded-full ${status ? 'bg-[#c0b3a5]' : 'bg-white/40'}`}></div>
 
                     <div className="flex-1">
                       <h4 className="text-sm font-bold text-white mb-0.5">{task.title}</h4>
@@ -205,7 +205,7 @@ const Calendar = ({ tasks, logs, refreshData, showToast }) => {
                             onChange={(e) => setCount(parseInt(e.target.value) || 0)}
                             className="w-16 bg-black/60 border border-white/10 rounded-lg text-white text-xs px-2 py-1.5"
                           />
-                          <button onClick={() => submitLog(task._id, count)} className="px-3 py-1.5 bg-[#a3c4b6] text-black rounded-lg text-[10px] font-bold flex items-center gap-1">
+                          <button onClick={() => submitLog(task._id, count)} className="px-3 py-1.5 bg-[#c0b3a5] text-black rounded-lg text-[10px] font-bold flex items-center gap-1">
                             <Check size={12} />
                           </button>
                           <button onClick={() => setLoggingTaskId(null)} className="px-3 py-1.5 bg-transparent border border-white/10 text-white/60 rounded-lg text-[10px] font-bold flex items-center gap-1">
@@ -223,7 +223,7 @@ const Calendar = ({ tasks, logs, refreshData, showToast }) => {
                         </button>
                       ) : (
                         <button
-                          className={`px-3 py-1 rounded-md text-[10px] font-bold ${status === 'done' ? 'bg-[#a3c4b6]/20 text-[#a3c4b6]' : 'bg-transparent border border-white/10 text-white/60 hover:border-white/30 hover:text-white'}`}
+                          className={`px-3 py-1 rounded-md text-[10px] font-bold ${status === 'done' ? 'bg-[#c0b3a5]/20 text-[#c0b3a5]' : 'bg-transparent border border-white/10 text-white/60 hover:border-white/30 hover:text-white'}`}
                           onClick={() => { setLoggingTaskId(task._id); setCount(log?.completedCount || task.targetCount); }}
                         >
                           {status === 'done' ? 'Logged' : 'Log'}
@@ -248,7 +248,7 @@ const Calendar = ({ tasks, logs, refreshData, showToast }) => {
                 <Plus size={14} /> Add a new task
               </button>
               <button 
-                className="w-12 h-12 rounded-xl bg-[#a3c4b6] flex items-center justify-center text-black hover:bg-[#8eb3a4] transition-colors"
+                className="w-12 h-12 rounded-xl bg-[#c0b3a5] flex items-center justify-center text-black hover:bg-[#8eb3a4] transition-colors"
                 onClick={() => setIsModalOpen(true)}
               >
                 <CalendarPlus size={18} />

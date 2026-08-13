@@ -153,7 +153,7 @@ const VoiceModal = ({ habits = [], onClose, refreshData, showToast }) => {
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-[#121214] border border-white/10 rounded-2xl p-7 w-full max-w-[460px] relative max-h-[88vh] overflow-y-auto"
+        className="bg-[#16191e] border border-white/10 rounded-2xl p-7 w-full max-w-[460px] relative max-h-[88vh] overflow-y-auto"
         data-testid="voice-modal"
       >
         <button
@@ -185,7 +185,7 @@ const VoiceModal = ({ habits = [], onClose, refreshData, showToast }) => {
                   className={`w-full h-14 rounded-xl font-bold tracking-widest text-xs ${
                     recording
                       ? 'bg-focus-red hover:bg-focus-red text-white'
-                      : 'bg-[#a3c4b6] hover:bg-[#b5d3c6] text-black'
+                      : 'bg-[#c0b3a5] hover:bg-[#cfc4b8] text-black'
                   }`}
                 >
                   {phase === 'thinking' ? (
@@ -220,7 +220,7 @@ const VoiceModal = ({ habits = [], onClose, refreshData, showToast }) => {
                   type="text"
                   placeholder="went to the gym twice, read 20 pages"
                   data-testid="voice-text"
-                  className="bg-[#0a0a0c] border-white/10 text-white placeholder:text-white/30 h-11 flex-1"
+                  className="bg-[#0d0f12] border-white/10 text-white placeholder:text-white/30 h-11 flex-1"
                   value={typed}
                   onChange={(e) => setTyped(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && typed.trim()) runParse(typed.trim()); }}
@@ -251,7 +251,7 @@ const VoiceModal = ({ habits = [], onClose, refreshData, showToast }) => {
                      className="bg-black/40 border border-white/5 rounded-xl p-3"
                      data-testid={`vrow-${it.id}`} data-kind={it.kind}>
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[9px] font-black tracking-widest uppercase text-[#a3c4b6] shrink-0">
+                    <span className="text-[9px] font-black tracking-widest uppercase text-[#c0b3a5] shrink-0">
                       {KIND_LABEL[it.kind]}
                     </span>
                     <input
@@ -274,7 +274,7 @@ const VoiceModal = ({ habits = [], onClose, refreshData, showToast }) => {
                     {it.count > 1 && <span>×{it.count}</span>}
                     {it.kind === 'task' && <span>due {it.dueDate}</span>}
                     {it.kind === 'new-habit' && (
-                      <span className={it.polarity === 'bad' ? 'text-focus-red' : 'text-[#a3c4b6]'}>
+                      <span className={it.polarity === 'bad' ? 'text-focus-red' : 'text-[#c0b3a5]'}>
                         {it.polarity === 'bad' ? 'break' : 'build'}
                       </span>
                     )}
@@ -296,7 +296,7 @@ const VoiceModal = ({ habits = [], onClose, refreshData, showToast }) => {
                           onChange={(e) => setItem(it.id, {
                             dailyAllowance: e.target.value === '' ? null : Number(e.target.value),
                           })}
-                          className="w-12 bg-[#0a0a0c] border border-white/10 rounded px-1.5 py-0.5 text-white text-[10px]"
+                          className="w-12 bg-[#0d0f12] border border-white/10 rounded px-1.5 py-0.5 text-white text-[10px]"
                         />
                       </span>
                     )}
@@ -316,7 +316,7 @@ const VoiceModal = ({ habits = [], onClose, refreshData, showToast }) => {
               disabled={items.length === 0 || needsLimit || phase === 'saving'}
               onClick={commit}
               data-testid="voice-ok"
-              className="w-full h-12 mt-6 bg-[#a3c4b6] hover:bg-[#b5d3c6] text-black font-bold tracking-widest text-xs rounded-xl disabled:opacity-40"
+              className="w-full h-12 mt-6 bg-[#c0b3a5] hover:bg-[#cfc4b8] text-black font-bold tracking-widest text-xs rounded-xl disabled:opacity-40"
             >
               {phase === 'saving' ? 'SAVING...' : `OK — APPLY ${items.length} ITEM${items.length === 1 ? '' : 'S'}`}
             </Button>

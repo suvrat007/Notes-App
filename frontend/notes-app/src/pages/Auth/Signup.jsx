@@ -59,7 +59,7 @@ const Signup = () => {
       <motion.div 
         initial={{ opacity: 0, y: 20 }} 
         animate={{ opacity: 1, y: 0 }} 
-        className="w-full max-w-[420px] bg-[#121214] border border-white/5 rounded-3xl overflow-hidden py-10 px-10 relative"
+        className="w-full max-w-[420px] bg-[#16191e] border border-white/5 rounded-3xl overflow-hidden py-10 px-10 relative"
       >
         <h2 className="font-heading text-center text-xl font-medium tracking-widest text-white/80 mb-10">
           FOCUS

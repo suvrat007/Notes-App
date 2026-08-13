@@ -236,6 +236,7 @@ app.get("/get-user", authenticateToken, async(req, res) => {
 app.use('/habits', require('./routes/habits.js'));
 app.use('/rewards', require('./routes/rewards.js'));
 app.use('/state', require('./routes/state.js'));
+app.use('/stats', require('./routes/stats.js'));
 
 // --- Tasks Routes ---
 app.post('/tasks', authenticateToken, async (req, res) => {

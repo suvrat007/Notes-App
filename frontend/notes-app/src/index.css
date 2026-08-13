@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap');
+/* Oswald is the condensed display face; tabular numerals in a narrow
+   grotesque are what let a wall of stats scan as a column of numbers. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Oswald:wght@400;500;600;700&display=swap');
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
@@ -9,7 +11,7 @@
 
 @layer base {
   .theme {
-    --font-heading: 'Outfit', sans-serif;
+    --font-heading: 'Oswald', 'Roboto Condensed', sans-serif;
     --font-sans: 'Inter', sans-serif;
   }
   :root {

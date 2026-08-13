@@ -90,7 +90,7 @@ const RewardPanel = ({ rewards = [], lifetime = 0, refreshData, showToast }) => 
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.25 }}
-      className="bg-[#121214] border border-white/5 rounded-3xl p-5 md:p-6"
+      className="bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6"
       data-testid="rewards-panel"
     >
       <div className="flex items-center justify-between mb-5">
@@ -107,7 +107,7 @@ const RewardPanel = ({ rewards = [], lifetime = 0, refreshData, showToast }) => 
             className="flex items-center gap-3 bg-black/40 border border-white/5 rounded-2xl px-4 py-3"
             data-testid={`reward-${r._id}`}
           >
-            <div className="w-10 h-10 rounded-xl bg-[#1f1b26] flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-[#1e232b] flex items-center justify-center shrink-0">
               <Gift size={17} className="text-purple-400" />
             </div>
             <div className="flex-1 min-w-0">
@@ -125,7 +125,7 @@ const RewardPanel = ({ rewards = [], lifetime = 0, refreshData, showToast }) => 
               disabled={busy}
               onClick={() => setConfirming(r)}
               data-testid={`redeem-${r._id}`}
-              className="px-4 py-1.5 bg-[#a3c4b6] text-black rounded-lg text-[10px] font-bold hover:scale-105 transition-transform disabled:opacity-40"
+              className="px-4 py-1.5 bg-[#c0b3a5] text-black rounded-lg text-[10px] font-bold hover:scale-105 transition-transform disabled:opacity-40"
             >
               Redeem
             </button>
@@ -154,7 +154,7 @@ const RewardPanel = ({ rewards = [], lifetime = 0, refreshData, showToast }) => 
             type="text"
             placeholder="Cheesecake"
             data-testid="reward-name"
-            className="bg-[#0a0a0c] border-white/10 text-white placeholder:text-white/30 h-11 flex-1"
+            className="bg-[#0d0f12] border-white/10 text-white placeholder:text-white/30 h-11 flex-1"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
@@ -181,7 +181,7 @@ const RewardPanel = ({ rewards = [], lifetime = 0, refreshData, showToast }) => 
               aria-pressed={damage === t.pct}
               className={`flex-1 py-2 rounded-xl border text-center transition-colors ${
                 damage === t.pct
-                  ? 'border-[#a3c4b6] text-[#a3c4b6]'
+                  ? 'border-[#c0b3a5] text-[#c0b3a5]'
                   : 'border-white/10 text-white/40'
               }`}
             >
@@ -207,7 +207,7 @@ const RewardPanel = ({ rewards = [], lifetime = 0, refreshData, showToast }) => 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             onClick={(e) => e.stopPropagation()}
-            className="bg-[#121214] border border-white/10 rounded-2xl p-7 w-full max-w-[380px]"
+            className="bg-[#16191e] border border-white/10 rounded-2xl p-7 w-full max-w-[380px]"
           >
             <h3 className="font-heading font-bold text-lg text-white mb-3">
               Redeem {confirming.name}?
@@ -222,7 +222,7 @@ const RewardPanel = ({ rewards = [], lifetime = 0, refreshData, showToast }) => 
               disabled={busy}
               onClick={() => redeem(confirming)}
               data-testid="redeem-yes"
-              className="w-full h-12 bg-[#a3c4b6] hover:bg-[#b5d3c6] text-black font-bold tracking-widest text-xs rounded-xl"
+              className="w-full h-12 bg-[#c0b3a5] hover:bg-[#cfc4b8] text-black font-bold tracking-widest text-xs rounded-xl"
             >
               REDEEM
             </Button>

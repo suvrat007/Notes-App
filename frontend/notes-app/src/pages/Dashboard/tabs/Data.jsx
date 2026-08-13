@@ -6,7 +6,7 @@ import { Terminal, Star, Download, Info } from 'lucide-react';
 import { format } from 'date-fns';
 
 const TYPE_LABEL = { daily: 'Daily', occasional: 'Occasional', avoid: 'Avoid', break_day: 'Break Day' };
-const TYPE_COLOR = { daily: '#ffffff', occasional: '#5bc0be', avoid: '#e87070', break_day: '#a3c4b6' };
+const TYPE_COLOR = { daily: '#ffffff', occasional: '#c0b3a5', avoid: '#e87070', break_day: '#c0b3a5' };
 
 const SystemAnalytics = ({ logs, breakdown }) => {
   const efficiencyData = useMemo(() => {
@@ -43,7 +43,7 @@ const SystemAnalytics = ({ logs, breakdown }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <motion.div className="md:col-span-2" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <Card className="bg-[#121214] border-white/5 h-full">
+          <Card className="bg-[#16191e] border-white/5 h-full">
             <CardHeader className="pb-2">
               <CardTitle className="text-[10px] font-bold text-white/40 tracking-widest uppercase">Star Trend (recent days)</CardTitle>
             </CardHeader>
@@ -54,13 +54,13 @@ const SystemAnalytics = ({ logs, breakdown }) => {
                     <AreaChart data={efficiencyData}>
                       <defs>
                         <linearGradient id="effFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#5bc0be" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#5bc0be" stopOpacity={0} />
+                          <stop offset="5%" stopColor="#c0b3a5" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#c0b3a5" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <XAxis dataKey="time" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <RechartsTooltip contentStyle={{ backgroundColor: '#121214', border: '1px solid rgba(255,255,255,0.1)' }} itemStyle={{ color: '#5bc0be' }} />
-                      <Area type="monotone" dataKey="value" stroke="#5bc0be" fill="url(#effFill)" strokeWidth={2} />
+                      <RechartsTooltip contentStyle={{ backgroundColor: '#16191e', border: '1px solid rgba(255,255,255,0.1)' }} itemStyle={{ color: '#c0b3a5' }} />
+                      <Area type="monotone" dataKey="value" stroke="#c0b3a5" fill="url(#effFill)" strokeWidth={2} />
                     </AreaChart>
                   </ResponsiveContainer>
                 ) : (
@@ -72,7 +72,7 @@ const SystemAnalytics = ({ logs, breakdown }) => {
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card className="bg-[#121214] border-white/5 h-full flex flex-col">
+          <Card className="bg-[#16191e] border-white/5 h-full flex flex-col">
             <CardHeader className="pb-0">
               <CardTitle className="text-[10px] font-bold text-white/40 tracking-widest uppercase">Category Mix</CardTitle>
             </CardHeader>
@@ -102,7 +102,7 @@ const SystemAnalytics = ({ logs, breakdown }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <Card className="bg-[#0a0a0c] border-white/10 h-full overflow-hidden">
+          <Card className="bg-[#0d0f12] border-white/10 h-full overflow-hidden">
             <CardHeader className="bg-white/5 py-3 border-b border-white/5 flex flex-row items-center gap-2">
               <Terminal size={14} className="text-white/40" />
               <CardTitle className="text-[10px] font-mono text-white/60 tracking-widest">RECENT_ACTIVITY_LOG</CardTitle>
@@ -140,7 +140,7 @@ const DataBreakdown = ({ totalEarned, totalLost, breakdown, onDownload }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="bg-[#121214] border-white/5 rounded-3xl p-6">
+          <Card className="bg-[#16191e] border-white/5 rounded-3xl p-6">
             <div className="flex justify-between items-start mb-6">
               <span className="text-[11px] font-bold tracking-widest text-white/60 uppercase">Stars Earned</span>
               <Star size={16} className="text-white/80" fill="currentColor" />
@@ -152,7 +152,7 @@ const DataBreakdown = ({ totalEarned, totalLost, breakdown, onDownload }) => {
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <Card className="bg-[#121214] border-white/5 rounded-3xl p-6">
+          <Card className="bg-[#16191e] border-white/5 rounded-3xl p-6">
             <div className="flex justify-between items-start mb-6">
               <span className="text-[11px] font-bold tracking-widest text-white/60 uppercase">Stars Lost</span>
               <Star size={16} className="text-white/20" />
@@ -164,14 +164,14 @@ const DataBreakdown = ({ totalEarned, totalLost, breakdown, onDownload }) => {
         </motion.div>
 
         <motion.div className="md:col-span-2" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card className="bg-[#121214] border-white/5 rounded-2xl p-4">
+          <Card className="bg-[#16191e] border-white/5 rounded-2xl p-4">
             <span className="text-[10px] font-bold tracking-widest text-white/60 uppercase block mb-1">Completion Rate</span>
             <span className="text-lg font-mono text-white/80">{total > 0 ? Math.round((totalEarned / total) * 100) : 0}%</span>
           </Card>
         </motion.div>
 
         <motion.div className="md:col-span-2" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <Card className="bg-[#121214] border-white/5 rounded-3xl p-6 pt-5">
+          <Card className="bg-[#16191e] border-white/5 rounded-3xl p-6 pt-5">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-sm font-medium text-white/80">Star Activity Breakdown</h3>
               <Info size={16} className="text-white/40" />
@@ -274,7 +274,7 @@ const Data = ({ logs }) => {
 
   return (
     <div>
-      <div className="flex bg-[#121214] border border-white/5 p-1 rounded-xl w-full mb-6">
+      <div className="flex bg-[#16191e] border border-white/5 p-1 rounded-xl w-full mb-6">
         <button
           className={`flex-1 px-4 py-2 text-[11px] font-bold tracking-wide uppercase rounded-lg transition-colors ${view === 'breakdown' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white'}`}
           onClick={() => setView('breakdown')}

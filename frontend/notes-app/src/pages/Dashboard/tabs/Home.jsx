@@ -97,11 +97,11 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
 
   const getTaskVisuals = (type) => {
     switch (type) {
-      case 'daily': return { icon: Sun, color: 'text-focus-teal', bg: 'bg-[#1a2522]', border: 'border-l-focus-teal' };
-      case 'occasional': return { icon: Calendar, color: 'text-purple-400', bg: 'bg-[#1f1b26]', border: 'border-l-purple-400' };
-      case 'avoid': return { icon: Ban, color: 'text-focus-red', bg: 'bg-[#291818]', border: 'border-l-focus-red' };
+      case 'daily': return { icon: Sun, color: 'text-focus-teal', bg: 'bg-[#241f19]', border: 'border-l-focus-teal' };
+      case 'occasional': return { icon: Calendar, color: 'text-purple-400', bg: 'bg-[#1e232b]', border: 'border-l-purple-400' };
+      case 'avoid': return { icon: Ban, color: 'text-focus-red', bg: 'bg-[#2a1a1a]', border: 'border-l-focus-red' };
       case 'break_day': return { icon: Coffee, color: 'text-white/60', bg: 'bg-white/5', border: 'border-l-white/20' };
-      default: return { icon: Sun, color: 'text-focus-teal', bg: 'bg-[#1a2522]', border: 'border-l-focus-teal' };
+      default: return { icon: Sun, color: 'text-focus-teal', bg: 'bg-[#241f19]', border: 'border-l-focus-teal' };
     }
   };
 
@@ -125,7 +125,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <Card className="bg-[#121214] border-white/5 h-full rounded-2xl md:rounded-xl">
+          <Card className="bg-[#16191e] border-white/5 h-full rounded-2xl md:rounded-xl">
             <CardHeader className="pb-2 px-5 pt-5">
               <CardTitle className="text-[11px] font-bold text-white/60 tracking-wide">Today's Progress</CardTitle>
             </CardHeader>
@@ -135,7 +135,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
                   <circle cx="50" cy="50" r="40" stroke="rgba(255,255,255,0.05)" strokeWidth="8" fill="none" />
                   <circle
                     cx="50" cy="50" r="40"
-                    stroke="#a3c4b6"
+                    stroke="#c0b3a5"
                     strokeWidth="8"
                     fill="none"
                     strokeDasharray={`${progressPercent * 2.51} 251.2`}
@@ -157,7 +157,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card className="bg-[#121214] border-white/5 h-full flex flex-col justify-between rounded-2xl md:rounded-xl p-5">
+          <Card className="bg-[#16191e] border-white/5 h-full flex flex-col justify-between rounded-2xl md:rounded-xl p-5">
             <CardTitle className="text-[11px] font-bold text-white/60 tracking-wide mb-3">Total Stars</CardTitle>
             <div>
               <div className="flex items-end gap-3 mb-2">
@@ -166,7 +166,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
                 <span className="text-4xl font-heading font-black text-white leading-none" data-testid="lifetime">
                   {(stars?.lifetime ?? user?.totalStars ?? 0).toLocaleString()}
                 </span>
-                <span className="bg-[#1a2522] text-[#a3c4b6] px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 mb-1">
+                <span className="bg-[#241f19] text-[#c0b3a5] px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 mb-1">
                   {(stars?.dayNet ?? netToday) >= 0 ? '+' : ''}{stars?.dayNet ?? netToday} <Star size={8} fill="currentColor" />
                 </span>
               </div>
@@ -199,7 +199,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
                 {starsByDay.map((v, i) => (
                   <div
                     key={i}
-                    className={`flex-1 rounded-sm ${i === 6 ? 'bg-[#a3c4b6]' : 'bg-white/10'}`}
+                    className={`flex-1 rounded-sm ${i === 6 ? 'bg-[#c0b3a5]' : 'bg-white/10'}`}
                     style={{ height: `${Math.max(8, Math.round((Math.max(v, 0) / maxBar) * 100))}%` }}
                   />
                 ))}
@@ -209,14 +209,14 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <Card className="bg-[#121214] border-white/5 h-full flex flex-col justify-between rounded-2xl md:rounded-xl p-5">
+          <Card className="bg-[#16191e] border-white/5 h-full flex flex-col justify-between rounded-2xl md:rounded-xl p-5">
             <CardTitle className="text-[11px] font-bold text-white/60 tracking-wide mb-3">Tasks Done Today</CardTitle>
             <div>
               <div className="flex items-baseline gap-2 mb-4">
                 <span className="text-4xl font-heading font-black text-white leading-none">{tasksDoneToday}</span>
                 <span className="text-xl text-white/40 font-heading font-bold">/ {totalTasks}</span>
               </div>
-              <Progress value={tasksDonePercent} className="h-2 bg-white/5 [&>div]:bg-[#a3c4b6] rounded-full" />
+              <Progress value={tasksDonePercent} className="h-2 bg-white/5 [&>div]:bg-[#c0b3a5] rounded-full" />
               <p className="text-[10px] font-bold text-white/40 mt-3">
                 {tasksDonePercent >= 100 ? 'All tasks done today!' : `${totalTasks - tasksDoneToday} task(s) left today`}
               </p>
@@ -228,7 +228,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
       {/* ---- Habits: the things you repeat, as opposed to finish ---- */}
       <motion.div
         initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
-        className="bg-[#121214] border border-white/5 rounded-3xl p-5 md:p-6"
+        className="bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6"
         data-testid="habits-section"
       >
         <div className="flex items-center justify-between mb-6">
@@ -260,7 +260,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
         </div>
       </motion.div>
 
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-[#121214] border border-white/5 rounded-3xl p-5 md:p-6 pb-8">
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6 pb-8">
         {/* Work that did not stop being owed at midnight. Shown with the day's
             own list, so it is something to do today rather than a wall of
             shame parked somewhere else. */}
@@ -334,7 +334,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
                           onChange={(e) => setCount(parseInt(e.target.value) || 0)}
                           className="w-16 bg-black/60 border border-white/10 rounded-lg text-white text-xs px-2 py-1.5"
                         />
-                        <button onClick={() => submitLog(task._id, count)} className="px-3 py-1.5 bg-[#a3c4b6] text-black rounded-lg text-[10px] font-bold flex items-center gap-1">
+                        <button onClick={() => submitLog(task._id, count)} className="px-3 py-1.5 bg-[#c0b3a5] text-black rounded-lg text-[10px] font-bold flex items-center gap-1">
                           <Check size={12} /> Confirm
                         </button>
                         <button onClick={() => setLoggingTaskId(null)} className="px-3 py-1.5 bg-transparent border border-white/10 text-white/60 rounded-lg text-[10px] font-bold flex items-center gap-1">
@@ -344,7 +344,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
                     ) : task.type === 'avoid' ? (
                       <div className="flex gap-2">
                         <button
-                          className="px-5 py-1.5 bg-[#a3c4b6] text-black rounded-lg text-[10px] font-bold transition-transform hover:scale-105"
+                          className="px-5 py-1.5 bg-[#c0b3a5] text-black rounded-lg text-[10px] font-bold transition-transform hover:scale-105"
                           onClick={() => showToast?.('Marked safe for today')}
                         >
                           Still Safe
@@ -361,7 +361,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
                     ) : (
                       <div className="flex gap-2">
                         <button
-                          className="px-6 py-1.5 bg-[#a3c4b6] text-black rounded-lg text-[10px] font-bold transition-transform hover:scale-105"
+                          className="px-6 py-1.5 bg-[#c0b3a5] text-black rounded-lg text-[10px] font-bold transition-transform hover:scale-105"
                           onClick={() => { setLoggingTaskId(task._id); setCount(todayLog?.completedCount || task.targetCount); }}
                         >
                           Log

@@ -30,9 +30,9 @@ const HabitCard = ({ habit, onLog, onUndo, busy }) => {
     : goalOnly ? `${period}/${habit.targetReps}` : String(reps);
 
   const Icon = isBad ? Ban : Flame;
-  const accent = isBad ? 'text-focus-red' : 'text-[#a3c4b6]';
-  const tileBg = isBad ? 'bg-[#291818]' : 'bg-[#1a2522]';
-  const edge = isBad ? 'border-l-focus-red' : 'border-l-[#a3c4b6]';
+  const accent = isBad ? 'text-focus-red' : 'text-[#c0b3a5]';
+  const tileBg = isBad ? 'bg-[#2a1a1a]' : 'bg-[#241f19]';
+  const edge = isBad ? 'border-l-focus-red' : 'border-l-[#c0b3a5]';
 
   return (
     <div

@@ -76,7 +76,7 @@ const HabitModal = ({ habit, onClose, refreshData, showToast }) => {
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ ease: 'easeOut' }}
-        className="bg-[#121214] border border-white/10 rounded-2xl p-7 w-full max-w-[420px] relative max-h-[88vh] overflow-y-auto"
+        className="bg-[#16191e] border border-white/10 rounded-2xl p-7 w-full max-w-[420px] relative max-h-[88vh] overflow-y-auto"
         data-testid="habit-modal"
       >
         <button
@@ -98,7 +98,7 @@ const HabitModal = ({ habit, onClose, refreshData, showToast }) => {
               type="text"
               placeholder="Gym"
               data-testid="habit-name"
-              className="bg-[#0a0a0c] border-white/10 text-white placeholder:text-white/30 h-11"
+              className="bg-[#0d0f12] border-white/10 text-white placeholder:text-white/30 h-11"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -124,7 +124,7 @@ const HabitModal = ({ habit, onClose, refreshData, showToast }) => {
             </Label>
             <Input
               type="number" min={0} data-testid="habit-stars"
-              className="bg-[#0a0a0c] border-white/10 text-white h-11"
+              className="bg-[#0d0f12] border-white/10 text-white h-11"
               value={starsPerRep}
               onChange={(e) => setStarsPerRep(e.target.value)}
             />
@@ -138,7 +138,7 @@ const HabitModal = ({ habit, onClose, refreshData, showToast }) => {
                 </Label>
                 <Input
                   type="number" min={0} data-testid="habit-allowance"
-                  className="bg-[#0a0a0c] border-white/10 text-white h-11"
+                  className="bg-[#0d0f12] border-white/10 text-white h-11"
                   value={dailyAllowance}
                   onChange={(e) => setAllowance(e.target.value)}
                 />
@@ -149,7 +149,7 @@ const HabitModal = ({ habit, onClose, refreshData, showToast }) => {
                 </Label>
                 <Input
                   type="number" min={0} data-testid="habit-overage"
-                  className="bg-[#0a0a0c] border-white/10 text-white h-11"
+                  className="bg-[#0d0f12] border-white/10 text-white h-11"
                   value={overagePenalty}
                   onChange={(e) => setOverage(e.target.value)}
                 />
@@ -159,7 +159,7 @@ const HabitModal = ({ habit, onClose, refreshData, showToast }) => {
                   type="checkbox" data-testid="habit-free"
                   checked={freeWithinAllowance}
                   onChange={(e) => setFree(e.target.checked)}
-                  className="w-4 h-4 accent-[#a3c4b6]"
+                  className="w-4 h-4 accent-[#c0b3a5]"
                 />
                 <span className="text-xs text-white/70">Slips within the limit are free</span>
               </label>
@@ -172,7 +172,7 @@ const HabitModal = ({ habit, onClose, refreshData, showToast }) => {
                 </Label>
                 <Input
                   type="number" min={0} data-testid="habit-daily-target"
-                  className="bg-[#0a0a0c] border-white/10 text-white h-11"
+                  className="bg-[#0d0f12] border-white/10 text-white h-11"
                   value={dailyTarget}
                   onChange={(e) => setDailyTarget(e.target.value)}
                 />
@@ -190,14 +190,14 @@ const HabitModal = ({ habit, onClose, refreshData, showToast }) => {
                 <div className="flex gap-2 items-center">
                   <Input
                     type="number" min={0} data-testid="habit-target"
-                    className="bg-[#0a0a0c] border-white/10 text-white h-11 w-20"
+                    className="bg-[#0d0f12] border-white/10 text-white h-11 w-20"
                     value={targetReps}
                     onChange={(e) => setTargetReps(e.target.value)}
                   />
                   <span className="text-[10px] text-white/40 tracking-wider">REPS PER</span>
                   <select
                     data-testid="habit-period"
-                    className="flex-1 h-11 bg-[#0a0a0c] border border-white/10 rounded-md text-white text-sm px-3"
+                    className="flex-1 h-11 bg-[#0d0f12] border border-white/10 rounded-md text-white text-sm px-3"
                     value={targetPeriodWeeks}
                     onChange={(e) => setPeriodWeeks(e.target.value)}
                   >
@@ -217,7 +217,7 @@ const HabitModal = ({ habit, onClose, refreshData, showToast }) => {
             type="submit"
             disabled={submitting || !name.trim()}
             data-testid="habit-save"
-            className="w-full h-12 bg-[#a3c4b6] hover:bg-[#b5d3c6] text-black font-bold tracking-widest text-xs mt-2 rounded-xl"
+            className="w-full h-12 bg-[#c0b3a5] hover:bg-[#cfc4b8] text-black font-bold tracking-widest text-xs mt-2 rounded-xl"
           >
             {submitting ? 'SAVING...' : editing ? 'SAVE CHANGES' : 'CREATE HABIT'}
           </Button>

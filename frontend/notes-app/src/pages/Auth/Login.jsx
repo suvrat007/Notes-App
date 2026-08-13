@@ -65,7 +65,7 @@ const Login = () => {
       <motion.div 
         initial={{ opacity: 0, y: 20 }} 
         animate={{ opacity: 1, y: 0 }} 
-        className="w-full max-w-[420px] bg-[#121214] border border-white/10 rounded-[22px] overflow-hidden"
+        className="w-full max-w-[420px] bg-[#16191e] border border-white/10 rounded-[22px] overflow-hidden"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-8 pt-8 pb-4 border-b border-white/5">
@@ -91,7 +91,7 @@ const Login = () => {
                 <Input 
                   type="email" 
                   placeholder="OPERATOR@SYSTEM.COM" 
-                  className="bg-[#0a0a0c] border-white/10 text-white placeholder:text-white/30 pl-4 pr-10 h-12 text-xs font-mono tracking-wider"
+                  className="bg-[#0d0f12] border-white/10 text-white placeholder:text-white/30 pl-4 pr-10 h-12 text-xs font-mono tracking-wider"
                   value={email} 
                   onChange={e => setEmail(e.target.value)} 
                 />
@@ -108,7 +108,7 @@ const Login = () => {
                 <Input 
                   type={showPassword ? "text" : "password"} 
                   placeholder="••••••••" 
-                  className="bg-[#0a0a0c] border-white/10 text-white placeholder:text-white/30 pl-4 pr-10 h-12 text-lg tracking-widest"
+                  className="bg-[#0d0f12] border-white/10 text-white placeholder:text-white/30 pl-4 pr-10 h-12 text-lg tracking-widest"
                   value={password} 
                   onChange={e => setPassword(e.target.value)} 
                 />
@@ -143,7 +143,7 @@ const Login = () => {
               <div className="w-full border-t border-white/10"></div>
             </div>
             <div className="relative flex justify-center text-center">
-              <span className="bg-[#121214] px-4 text-[10px] uppercase font-bold tracking-widest text-white/40">
+              <span className="bg-[#16191e] px-4 text-[10px] uppercase font-bold tracking-widest text-white/40">
                 Or connect with
               </span>
             </div>

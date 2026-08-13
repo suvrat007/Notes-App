@@ -79,7 +79,7 @@ const Dashboard = () => {
   const ActiveTab = TABS[activeTab];
 
   return (
-    <div className="flex min-h-screen bg-[#0a0a0c] text-white">
+    <div className="flex min-h-screen bg-[#0d0f12] text-white">
       <Sidebar
         active={activeTab}
         onChange={setActiveTab}
@@ -93,12 +93,12 @@ const Dashboard = () => {
         <div className="w-full max-w-[880px] flex flex-col h-full relative pb-28">
           
           {/* Mobile Header */}
-          <header className="md:hidden flex items-center justify-between px-6 py-5 sticky top-0 bg-[#0a0a0c]/80 backdrop-blur-md z-40 border-b border-white/5">
+          <header className="md:hidden flex items-center justify-between px-6 py-5 sticky top-0 bg-[#0d0f12]/80 backdrop-blur-md z-40 border-b border-white/5">
             <div className="flex items-center gap-4">
               <button className="text-white/80 hover:text-white"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
               <span className="font-heading font-bold text-white tracking-widest text-lg">FOCUS</span>
             </div>
-            <div className="w-8 h-8 rounded-full overflow-hidden border border-white/10 bg-[#121214]">
+            <div className="w-8 h-8 rounded-full overflow-hidden border border-white/10 bg-[#16191e]">
               {/* Dummy avatar as seen in screenshot */}
               <div className="w-full h-full flex items-center justify-center text-[10px] text-white/40">{user?.fullName?.charAt(0)}</div>
             </div>
@@ -140,7 +140,7 @@ const Dashboard = () => {
           </button>
 
           <button
-            className="md:hidden fixed bottom-[84px] left-1/2 translate-x-[26px] ml-3 w-[52px] h-[52px] bg-[#1a2522] text-[#a3c4b6] rounded-full flex items-center justify-center shadow-lg z-[110] hover:-translate-y-1 transition-transform border border-[#a3c4b6]/30"
+            className="md:hidden fixed bottom-[84px] left-1/2 translate-x-[26px] ml-3 w-[52px] h-[52px] bg-[#241f19] text-[#c0b3a5] rounded-full flex items-center justify-center shadow-lg z-[110] hover:-translate-y-1 transition-transform border border-[#c0b3a5]/30"
             onClick={() => setIsVoiceOpen(true)}
             aria-label="Speak your day"
             data-testid="fab-voice"
