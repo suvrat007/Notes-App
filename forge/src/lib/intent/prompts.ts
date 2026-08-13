@@ -32,6 +32,9 @@ HABIT vs TASK
   Contrast: "finish 10 practice sets by Sunday" is ONE job => task, count 10,
   dueDate = that Sunday.
 - Matches an existing habit => habit/bad-habit with its refId. Otherwise new-habit.
+  "Matches" means the SAME behaviour, not a loosely related one. If nothing in the
+  list is plainly the same thing, it is new-habit with refId null — never attach it
+  to the nearest habit you can find.
 - "I want to earn X", "reward myself with X", "add X as a reward" => new-reward.
   Contrast: "I ate the cheesecake" about a KNOWN reward is redeem, not new-reward.
 - Drop filler ("I'll let you know", "so", "thanks").
