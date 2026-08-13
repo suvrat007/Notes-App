@@ -36,16 +36,16 @@ const heatColor = (v, max) => {
   return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
 };
 
-const CardBox = ({ title, right, children, delay = 0 }) => (
+const CardBox = ({ title, right, children, delay = 0, className = '' }) => (
   <motion.div
     initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}
-    className="bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6"
+    className={`bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6 md:flex md:flex-col md:min-h-0 ${className}`}
   >
-    <div className="flex items-center justify-between mb-5">
+    <div className="flex items-center justify-between mb-4 md:shrink-0">
       <h3 className="font-heading font-black text-white text-lg tracking-wide">{title}</h3>
       {right}
     </div>
-    {children}
+    <div className="md:flex-1 md:min-h-0">{children}</div>
   </motion.div>
 );
 
@@ -79,14 +79,15 @@ const Statistic = () => {
   for (let i = 0; i < data.heat.length; i += 7) weeks.push(data.heat.slice(i, i + 7));
 
   return (
-    <div className="space-y-4 md:space-y-6" data-testid="screen-stats">
-      <header>
+    <div className="space-y-4 md:space-y-5 md:h-full md:flex md:flex-col md:min-h-0" data-testid="screen-stats">
+      <header className="md:shrink-0">
         <h1 className="text-2xl font-bold font-heading text-white tracking-wide">STATISTICS</h1>
         <p className="text-sm text-white/40 mt-1">Everything below is summed from your ledger.</p>
       </header>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 md:flex-1 md:min-h-0">
       <CardBox title="This Week" delay={0.05}>
-        <div className="h-52" data-testid="week-chart">
+        <div className="h-52 md:h-full md:min-h-[160px]" data-testid="week-chart">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data.week} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
@@ -131,7 +132,7 @@ const Statistic = () => {
           </div>
         }
       >
-        <div className="h-52" data-testid="climb-chart">
+        <div className="h-52 md:h-full md:min-h-[160px]" data-testid="climb-chart">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data.climb} margin={{ top: 4, right: 6, left: -18, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
@@ -166,29 +167,39 @@ const Statistic = () => {
           </select>
         }
       >
-        <div className="overflow-x-auto pb-1">
-          <div className="flex gap-[3px]" data-testid="heatmap">
-            {weeks.map((wk, i) => (
-              <div key={i} className="flex flex-col gap-[3px]">
-                {wk.map((d) => (
-                  <div
-                    key={d.date}
-                    title={`${d.date}: ${d.value}`}
-                    className="w-[10px] h-[10px] rounded-[2px]"
-                    style={{ background: heatColor(d.value, heatMax) }}
-                  />
-                ))}
-              </div>
+        {/*
+          The grid STRETCHES to its card instead of sitting as fixed 10px
+          squares in the corner. Seven rows for the days of the week, one
+          column per week flowing sideways — so it reads as a calendar and
+          uses the space the card already reserved for it.
+        */}
+        <div className="flex flex-col h-full min-h-0">
+          <div
+            className="grid gap-[3px] flex-1 min-h-[84px]"
+            data-testid="heatmap"
+            style={{
+              gridTemplateRows: 'repeat(7, minmax(0, 1fr))',
+              gridAutoFlow: 'column',
+              gridAutoColumns: 'minmax(0, 1fr)',
+            }}
+          >
+            {weeks.flatMap((wk) => wk).map((d) => (
+              <div
+                key={d.date}
+                title={`${d.date}: ${d.value}`}
+                className="w-full h-full rounded-[2px] min-h-[8px]"
+                style={{ background: heatColor(d.value, heatMax) }}
+              />
             ))}
           </div>
+          <p className="text-[10px] text-white/40 mt-3 shrink-0">
+            {heatHabit ? 'Reps per day' : 'Net stars per day'} · last {weeks.length} weeks
+          </p>
         </div>
-        <p className="text-[10px] text-white/40 mt-3">
-          {heatHabit ? 'Reps per day' : 'Net stars per day'} · last {weeks.length} weeks
-        </p>
       </CardBox>
 
       <CardBox title="Per Habit" delay={0.2}>
-        <div className="space-y-2" data-testid="per-habit">
+        <div className="space-y-2 md:h-full md:overflow-y-auto md:pr-1" data-testid="per-habit">
           {data.perHabit.map((h) => (
             <div
               key={h.refId}
@@ -218,6 +229,7 @@ const Statistic = () => {
           )}
         </div>
       </CardBox>
+      </div>
     </div>
   );
 };

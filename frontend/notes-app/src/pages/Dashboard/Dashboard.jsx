@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Mic } from 'lucide-react';
+
 import api from '../../utils/api';
 import { useToast } from '../../utils/ToastContext';
 import { useAuth } from '../../utils/AuthContext';
@@ -9,13 +9,17 @@ import BottomNav from '../../components/BottomNav';
 import Sidebar from '../../components/Sidebar';
 import TaskModal from '../../components/TaskModal';
 import VoiceModal from '../../components/VoiceModal';
+import HabitModal from '../../components/HabitModal';
+import AddFab from '../../components/AddFab';
 import Home from './tabs/Home';
 import Statistic from './tabs/Statistic';
 import Calendar from './tabs/Calendar';
 import Data from './tabs/Data';
 import More from './tabs/More';
+import Manage from './tabs/Manage';
+import Roadmap from './tabs/Roadmap';
 
-const TABS = { home: Home, statistic: Statistic, calendar: Calendar, data: Data, more: More };
+const TABS = { home: Home, statistic: Statistic, calendar: Calendar, data: Data, more: More, manage: Manage, roadmap: Roadmap };
 
 const Dashboard = () => {
   const [user, setUser] = useState(null);
@@ -27,6 +31,7 @@ const Dashboard = () => {
   const [state, setState] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
+  const [isHabitOpen, setIsHabitOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('home');
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
   const showToast = useToast();
@@ -83,14 +88,22 @@ const Dashboard = () => {
       <Sidebar
         active={activeTab}
         onChange={setActiveTab}
-        onAddTask={() => setIsModalOpen(true)}
-        onVoice={() => setIsVoiceOpen(true)}
         user={user}
+        rank={state?.stars?.rank}
+        lifetime={state?.stars?.lifetime}
         showToast={showToast}
       />
 
-      <div className="flex-1 min-w-0 flex justify-center">
-        <div className="w-full max-w-[880px] flex flex-col h-full relative pb-28">
+      {/*
+        Desktop is a fixed-height workspace, not a document. The rail is
+        already pinned, so letting the page scroll as a whole moves the
+        content out from under a nav that stays put — and on a dashboard the
+        point is to see the day at once. Anything too tall scrolls INSIDE its
+        own panel instead. The phone keeps ordinary page scrolling, because
+        one column of cards on a small screen is a document.
+      */}
+      <div className="flex-1 min-w-0 flex justify-start md:h-screen md:overflow-hidden">
+        <div className="w-full flex flex-col h-full relative pb-28 md:pb-0">
           
           {/* Mobile Header */}
           <header className="md:hidden flex items-center justify-between px-6 py-5 sticky top-0 bg-[#0d0f12]/80 backdrop-blur-md z-40 border-b border-white/5">
@@ -104,10 +117,16 @@ const Dashboard = () => {
             </div>
           </header>
 
-          <div className="p-6 md:p-10 flex-1">
+          {/*
+            Scrolls when a page genuinely needs it, never clips. Pages that fit
+            — Home, Calendar, Stats — fill the height and stay still; a long
+            settings list is allowed to scroll rather than be cut off.
+          */}
+          <div className="p-6 md:px-8 md:py-7 flex-1 md:min-h-0 md:overflow-y-auto">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
+                className="md:h-full md:min-h-0"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
@@ -128,31 +147,25 @@ const Dashboard = () => {
             </AnimatePresence>
           </div>
 
-          {/* Add stays centred where the thumb already expects it; the mic
-              sits beside it rather than replacing it, because typing one
-              precise task and speaking a whole messy day are different jobs. */}
-          <button
-            className="md:hidden fixed bottom-[84px] left-1/2 -translate-x-1/2 w-[52px] h-[52px] bg-white text-black rounded-full flex items-center justify-center shadow-lg z-[110] hover:-translate-y-1 transition-transform border border-black"
-            onClick={() => setIsModalOpen(true)}
-            aria-label="Add task"
-          >
-            <Plus size={24} />
-          </button>
-
-          <button
-            className="md:hidden fixed bottom-[84px] left-1/2 translate-x-[26px] ml-3 w-[52px] h-[52px] bg-[#241f19] text-[#c0b3a5] rounded-full flex items-center justify-center shadow-lg z-[110] hover:-translate-y-1 transition-transform border border-[#c0b3a5]/30"
-            onClick={() => setIsVoiceOpen(true)}
-            aria-label="Speak your day"
-            data-testid="fab-voice"
-          >
-            <Mic size={22} />
-          </button>
-
           <BottomNav active={activeTab} onChange={setActiveTab} />
         </div>
       </div>
 
+      <AddFab onPick={(action) => {
+        if (action === 'speak') setIsVoiceOpen(true);
+        else if (action === 'task') setIsModalOpen(true);
+        else setIsHabitOpen(true);
+      }} />
+
       {isModalOpen && <TaskModal onClose={() => setIsModalOpen(false)} refreshData={fetchData} showToast={showToast} />}
+
+      {isHabitOpen && (
+        <HabitModal
+          onClose={() => setIsHabitOpen(false)}
+          refreshData={fetchData}
+          showToast={showToast}
+        />
+      )}
 
       {isVoiceOpen && (
         <VoiceModal

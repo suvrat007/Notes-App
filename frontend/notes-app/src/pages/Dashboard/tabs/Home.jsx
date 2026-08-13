@@ -58,13 +58,28 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
 
   const goalTasks = tasks.filter((t) => t.type === 'daily' || t.type === 'occasional');
   const maxToday = goalTasks.reduce((sum, t) => sum + t.baseReward, 0) || 1;
-  const earnedToday = todaysLogs.reduce((sum, l) => sum + Math.max(l.starsEarned, 0), 0);
-  const netToday = todaysLogs.reduce((sum, l) => sum + l.starsEarned, 0);
+  const earnedToday = todaysLogs.reduce((sum, l) => sum + Math.max((l.starsDelta ?? 0), 0), 0);
+  const netToday = todaysLogs.reduce((sum, l) => sum + (l.starsDelta ?? 0), 0);
 
-  const progressPercent = Math.min(100, Math.round((earnedToday / maxToday) * 100)) || 0;
-  const goalsAchievedToday = goalTasks.filter((t) =>
-    todaysLogs.some((l) => l.taskId && l.taskId._id === t._id && l.completedCount >= t.targetCount)
-  ).length;
+  /*
+   * Progress counts HABITS as well as tasks.
+   *
+   * The old sum read fields the ledger no longer has, so it sat at 0% while
+   * the day's stars climbed and a habit card plainly showed 3/5 — a dashboard
+   * contradicting itself on the same screen. A habit counts as done when it
+   * met its daily quota, or when it has been logged at all if it has none.
+   */
+  const habitDone = (h) => {
+    const quota = h.polarity === 'bad' ? 0 : h.dailyTarget;
+    return quota > 0 ? (h.repsToday ?? 0) >= quota : (h.repsToday ?? 0) > 0;
+  };
+  const goodHabits = habits.filter((h) => h.polarity === 'good');
+  const dayTasks = state?.tasks ?? [];
+
+  const doneToday = goodHabits.filter(habitDone).length + dayTasks.filter((t) => t.done).length;
+  const dueToday = goodHabits.length + dayTasks.length;
+  const progressPercent = dueToday === 0 ? 0 : Math.round((doneToday / dueToday) * 100);
+  const goalsAchievedToday = doneToday;
   const tasksDoneToday = todaysLogs.filter((l) => l.completedCount > 0).length;
   const totalTasks = tasks.length || 1;
   const tasksDonePercent = Math.round((tasksDoneToday / totalTasks) * 100) || 0;
@@ -76,7 +91,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
     return d.toLocaleDateString('en-CA');
   });
   const starsByDay = last7.map((key) =>
-    logs.filter((l) => new Date(l.date).toLocaleDateString('en-CA') === key).reduce((sum, l) => sum + l.starsEarned, 0)
+    logs.filter((l) => new Date(l.date).toLocaleDateString('en-CA') === key).reduce((sum, l) => sum + (l.starsDelta ?? 0), 0)
   );
   const maxBar = Math.max(...starsByDay, 1);
 
@@ -106,7 +121,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
   };
 
   return (
-    <div className="space-y-4 md:space-y-6">
+    <div className="space-y-4 md:space-y-5 md:h-full md:flex md:flex-col md:min-h-0">
       <header className="hidden md:block">
         <motion.h1
           initial={{ x: -16, opacity: 0 }}
@@ -123,7 +138,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
         <p className="text-xs text-focus-teal mt-1">{todayStr}</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:shrink-0">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
           <Card className="bg-[#16191e] border-white/5 h-full rounded-2xl md:rounded-xl">
             <CardHeader className="pb-2 px-5 pt-5">
@@ -225,10 +240,18 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
         </motion.div>
       </div>
 
+      {/*
+        Desktop gets columns, not one long scroll. Habits, today's plan and
+        rewards are three separate questions — "what am I keeping up", "what
+        is left today", "what am I working towards" — and stacking them means
+        the answer to the third is always below the fold. On a phone the
+        single column stays, because side-by-side at 390px is unreadable.
+      */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5 md:flex-1 md:min-h-0">
       {/* ---- Habits: the things you repeat, as opposed to finish ---- */}
       <motion.div
         initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
-        className="bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6"
+        className="bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6 md:flex md:flex-col md:min-h-0 md:overflow-hidden"
         data-testid="habits-section"
       >
         <div className="flex items-center justify-between mb-6">
@@ -242,7 +265,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
           </button>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-3 md:flex-1 md:min-h-0 md:overflow-y-auto md:pr-1">
           {habits.map((h) => (
             <HabitCard
               key={h._id}
@@ -260,7 +283,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
         </div>
       </motion.div>
 
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6 pb-8">
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6 md:flex md:flex-col md:min-h-0 md:overflow-hidden" data-testid="plan-section">
         {/* Work that did not stop being owed at midnight. Shown with the day's
             own list, so it is something to do today rather than a wall of
             shame parked somewhere else. */}
@@ -298,7 +321,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
           </button>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4 md:flex-1 md:min-h-0 md:overflow-y-auto md:pr-1">
           {tasks.map((task) => {
             const visuals = getTaskVisuals(task.type);
             const Icon = visuals.icon;
@@ -386,6 +409,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
         refreshData={refreshData}
         showToast={showToast}
       />
+      </div>
 
       {showHabitModal && (
         <HabitModal

@@ -1,30 +1,17 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Mic, Settings, Bell, CircleUser } from 'lucide-react';
+import { Settings, Bell, CircleUser } from 'lucide-react';
 import { TABS } from './navConfig';
 
-const Sidebar = ({ active, onChange, onAddTask, onVoice, user, showToast }) => (
+const Sidebar = ({ active, onChange, user, rank, lifetime, showToast }) => (
   <aside className="hidden md:flex flex-col w-64 shrink-0 bg-[#0d0f12] border-r border-white/5 p-6 h-screen sticky top-0">
     <div className="mb-10">
       <h1 className="font-heading font-bold text-white text-xl tracking-widest">FOCUS</h1>
       <p className="text-[10px] text-white/40 font-mono tracking-widest uppercase mt-1">Productivity Workspace</p>
     </div>
 
-    <button 
-      className="flex items-center justify-center gap-2 w-full bg-focus-green hover:bg-focus-green-soft text-white rounded-md py-3 font-semibold text-xs tracking-wider transition-colors mb-8"
-      onClick={onAddTask}
-    >
-      <Plus size={16} /> ADD TASK
-    </button>
-
-    {/* Speaking a whole day beats filling the form five times. */}
-    <button
-      className="flex items-center justify-center gap-2 w-full bg-transparent border border-white/10 hover:border-white/30 text-white/80 hover:text-white rounded-md py-3 font-semibold text-xs tracking-wider transition-colors mb-8"
-      onClick={onVoice}
-      data-testid="sidebar-voice"
-    >
-      <Mic size={15} /> SPEAK YOUR DAY
-    </button>
+    {/* Adding anything lives in the floating + now. It is reachable from every
+        screen, and two ways in only meant two things to keep in sync. */}
 
     <nav className="flex flex-col gap-2 flex-1">
       {TABS.map(({ key, label, icon: Icon }) => {
@@ -50,11 +37,45 @@ const Sidebar = ({ active, onChange, onAddTask, onVoice, user, showToast }) => (
     </nav>
 
     <div className="mt-auto pt-6 border-t border-white/5">
+      {/*
+        Rank sits with the name, not buried in a stats tab. It is the one
+        number the whole app is scored on, and seeing it every time you glance
+        at the corner is the point of having ranks at all.
+      */}
+      {rank && (
+        <div className="mb-3 px-2" data-testid="sidebar-rank">
+          <p className="text-[10px] tracking-widest uppercase text-white/40 mb-1.5">You are</p>
+          <div className="flex items-baseline gap-2">
+            <span
+              className="font-heading font-black text-lg leading-none tracking-wide"
+              style={{ color: rank.color }}
+            >
+              {rank.title}
+            </span>
+            <span className="font-heading font-bold text-sm text-white/50">
+              LVL {rank.level}
+            </span>
+          </div>
+          <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden mt-2">
+            <div
+              className="h-full rounded-full"
+              style={{ width: `${Math.round(rank.progress * 100)}%`, background: rank.color }}
+            />
+          </div>
+          <p className="text-[10px] text-white/35 mt-1.5">
+            {rank.nextAt === null ? 'Highest rank reached' : `${rank.toNext}★ to the next`}
+          </p>
+        </div>
+      )}
+
       <div className="flex items-center gap-3 mb-4 cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-colors">
-        <CircleUser size={32} className="text-white/80" />
+        {user?.avatarUrl
+          ? <img src={user.avatarUrl} alt="" referrerPolicy="no-referrer"
+                 className="w-8 h-8 rounded-full object-cover shrink-0" />
+          : <CircleUser size={32} className="text-white/80" />}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-white truncate">{user?.fullName}</p>
-          <p className="text-xs text-white/40">{user?.totalStars} Stars</p>
+          <p className="text-xs text-white/40">{(lifetime ?? user?.totalStars ?? 0)} Stars</p>
         </div>
       </div>
       <div className="flex justify-between px-2">

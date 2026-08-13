@@ -237,6 +237,9 @@ app.use('/habits', require('./routes/habits.js'));
 app.use('/rewards', require('./routes/rewards.js'));
 app.use('/state', require('./routes/state.js'));
 app.use('/stats', require('./routes/stats.js'));
+app.use('/ledger', require('./routes/ledger.js'));
+app.use('/manage', require('./routes/manage.js'));
+app.use('/roadmap', require('./routes/roadmap.js'));
 
 // --- Tasks Routes ---
 app.post('/tasks', authenticateToken, async (req, res) => {
@@ -354,17 +357,34 @@ app.post('/logs', authenticateToken, async (req, res) => {
         // component), so parsing it directly always lands on UTC midnight for that day.
         const logDate = new Date(`${date}T00:00:00.000Z`);
 
-        let log = await Log.findOne({ userId: req.userId, taskId: task._id, date: logDate });
+        /*
+         * Tasks still log "the state of this task today" rather than appending
+         * one row per unit, so this route rewrites its own entry instead of
+         * stacking. It must write the LEDGER shape — kind, refId, starsDelta —
+         * or the row fails validation and every task log 500s.
+         */
+        let log = await Log.findOne({
+            userId: req.userId, kind: 'task', refId: task._id, date: logDate,
+        });
 
         let previousStars = 0;
         let newCompletedCount = completedCount;
         if (log) {
-            previousStars = log.starsEarned;
-            // 'avoid' slip-ups accumulate per day; other task types are set to the latest value.
+            previousStars = log.starsDelta;
+            // 'avoid' slip-ups accumulate per day; other types take the latest value.
             newCompletedCount = task.type === 'avoid' ? log.completedCount + completedCount : completedCount;
             log.completedCount = newCompletedCount;
         } else {
-            log = new Log({ userId: req.userId, taskId: task._id, date: logDate, completedCount: newCompletedCount });
+            log = new Log({
+                userId: req.userId,
+                kind: 'task',
+                refId: task._id,
+                taskId: task._id,
+                date: logDate,
+                count: 1,
+                starsDelta: 0,
+                completedCount: newCompletedCount,
+            });
         }
 
         let newStars = calculateStars(task, newCompletedCount);
@@ -372,8 +392,16 @@ app.post('/logs', authenticateToken, async (req, res) => {
             const isBreakDay = await BreakDay.exists({ userId: req.userId, date: logDate });
             if (isBreakDay) newStars = Math.round(newStars * BREAK_DAY_BONUS);
         }
-        log.starsEarned = newStars;
+        log.starsDelta = newStars;
         await log.save();
+
+        // Reflect completion on the task itself, so the dashboard and the
+        // carry-over query agree with the ledger about what is finished.
+        const target = Math.max(1, task.targetCount || 1);
+        task.doneCount = Math.min(target, newCompletedCount);
+        task.done = task.type !== 'avoid' && task.doneCount >= target;
+        task.doneAt = task.done ? new Date() : null;
+        await task.save();
 
         const userRec = await User.findByIdAndUpdate(
             req.userId,

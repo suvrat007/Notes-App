@@ -196,10 +196,26 @@ const VoiceModal = ({ habits = [], onClose, refreshData, showToast }) => {
                     <><Mic size={16} className="mr-2" /> START SPEAKING</>
                   )}
                 </Button>
-                {recording && (
-                  <p className={`text-[10px] mt-2 text-center ${nearLimit ? 'text-focus-red' : 'text-white/40'}`}
-                     data-testid="rec-clock">
-                    {clock(remaining)} left — recording stops and transcribes automatically.
+                {/* The cap is stated BEFORE the first tap, not sprung at the
+                    end of it. Someone planning to reel off a whole day needs
+                    to know they have a minute before they start talking. */}
+                {recording ? (
+                  <div className="mt-3" data-testid="rec-clock">
+                    <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-[width] duration-200 ${
+                          nearLimit ? 'bg-focus-red' : 'bg-[#c0b3a5]'
+                        }`}
+                        style={{ width: `${(remaining / MAX_RECORDING_MS) * 100}%` }}
+                      />
+                    </div>
+                    <p className={`text-[10px] mt-2 text-center ${nearLimit ? 'text-focus-red font-bold' : 'text-white/40'}`}>
+                      {clock(remaining)} left — recording stops and transcribes automatically.
+                    </p>
+                  </div>
+                ) : phase !== 'thinking' && (
+                  <p className="text-[10px] mt-2 text-center text-white/40" data-testid="rec-limit">
+                    You can speak for up to {Math.round(MAX_RECORDING_MS / 1000)} seconds.
                   </p>
                 )}
               </>

@@ -78,7 +78,7 @@ const Calendar = ({ tasks, logs, refreshData, showToast }) => {
   };
 
   return (
-    <div className="flex flex-col h-full space-y-4 md:space-y-8">
+    <div className="flex flex-col h-full min-h-0 space-y-4 md:space-y-5">
       <header className="hidden md:block">
         <h1 className="text-2xl font-bold font-heading text-white">CALENDAR <span className="text-white/30 font-normal">| Plan and track any day</span></h1>
       </header>
@@ -89,14 +89,14 @@ const Calendar = ({ tasks, logs, refreshData, showToast }) => {
         <p className="text-xs text-white/40 mt-1">Plan and track any day</p>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-4 md:gap-8 items-start w-full">
+      <div className="flex flex-col lg:flex-row gap-4 md:gap-5 items-stretch w-full lg:flex-1 lg:min-h-0">
         {/* Left Calendar Grid */}
         <motion.div 
-          className="w-full lg:w-[55%] xl:w-[65%] shrink-0 bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6"
+          className="w-full lg:w-[58%] xl:w-[62%] shrink-0 bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6 lg:h-full lg:flex lg:flex-col lg:min-h-0"
           initial={{ opacity: 0, y: 16 }} 
           animate={{ opacity: 1, y: 0 }}
         >
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4 shrink-0">
             <span className="font-heading text-sm text-white flex items-center gap-2">
               {format(month, 'MMMM yyyy')} <CalendarPlus size={14} className="text-white/40" />
             </span>
@@ -110,10 +110,16 @@ const Calendar = ({ tasks, logs, refreshData, showToast }) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-7 gap-1 md:gap-3">
+          <div className="grid grid-cols-7 gap-1 md:gap-1.5 shrink-0 mb-1.5">
             {['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map((d, i) => (
-              <div key={i} className="text-center text-[9px] md:text-[10px] font-bold text-white/40 mb-2">{d}</div>
+              <div key={i} className="text-center text-[9px] md:text-[10px] font-bold text-white/40">{d}</div>
             ))}
+          </div>
+
+          <div
+            className="grid grid-cols-7 gap-1 md:gap-1.5 lg:flex-1 lg:min-h-0"
+            style={{ gridAutoRows: 'minmax(0, 1fr)' }}
+          >
             {days.map((day) => {
               const key = toKey(day);
               const isSelected = key === selected;
@@ -128,7 +134,7 @@ const Calendar = ({ tasks, logs, refreshData, showToast }) => {
                 <button 
                   key={key} 
                   className={`
-                    aspect-[4/5] rounded-none flex flex-col items-center justify-start pt-2 relative transition-all duration-200 border border-transparent
+                    aspect-square lg:aspect-auto lg:h-full rounded-lg flex flex-col items-center justify-center relative transition-all duration-200 border border-transparent
                     ${!isCurrentMonth ? 'opacity-30' : 'bg-[#1a1a1c]'}
                     ${isSelected ? 'bg-white text-black font-bold outline outline-2 outline-offset-[-2px] outline-white z-10' : 'text-white/80 hover:bg-white/[0.06]'}
                     ${isBreak && !isSelected ? 'text-[#c0b3a5]' : ''}
@@ -148,7 +154,7 @@ const Calendar = ({ tasks, logs, refreshData, showToast }) => {
 
         {/* Right Day Panel */}
         <motion.div 
-          className="w-full lg:flex-1 bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6"
+          className="w-full lg:flex-1 lg:min-h-0 lg:overflow-y-auto bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6"
           initial={{ opacity: 0, y: 16 }} 
           animate={{ opacity: 1, y: 0 }} 
           transition={{ delay: 0.1 }}

@@ -1,303 +1,186 @@
-import React, { useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AreaChart, Area, XAxis, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Terminal, Star, Download, Info } from 'lucide-react';
-import { format } from 'date-fns';
+import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { Download, Flame, Ban, CheckSquare, Gift, Clock } from 'lucide-react';
+import api from '../../../utils/api';
 
-const TYPE_LABEL = { daily: 'Daily', occasional: 'Occasional', avoid: 'Avoid', break_day: 'Break Day' };
-const TYPE_COLOR = { daily: '#ffffff', occasional: '#c0b3a5', avoid: '#e87070', break_day: '#c0b3a5' };
-
-const SystemAnalytics = ({ logs, breakdown }) => {
-  const efficiencyData = useMemo(() => {
-    const byDate = {};
-    logs.forEach((log) => {
-      const key = format(new Date(log.date), 'MMM dd');
-      byDate[key] = (byDate[key] || 0) + log.starsEarned;
-    });
-    return Object.entries(byDate)
-      .map(([time, value]) => ({ time, value }))
-      .sort((a, b) => new Date(a.time) - new Date(b.time))
-      .slice(-10);
-  }, [logs]);
-
-  const recentActivity = useMemo(
-    () =>
-      [...logs]
-        .sort((a, b) => new Date(b.date) - new Date(a.date))
-        .slice(0, 4)
-        .map((l) => ({
-          date: format(new Date(l.date), 'MMM dd'),
-          title: l.taskId?.title ?? 'Unknown task',
-          stars: l.starsEarned,
-        })),
-    [logs]
-  );
-
-  return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-      <header className="mb-4">
-        <h1 className="text-2xl font-bold font-heading text-white tracking-widest uppercase">System Analytics</h1>
-        <p className="text-xs text-focus-teal font-mono tracking-widest mt-1">LIVE // FROM YOUR LOGGED ACTIVITY</p>
-      </header>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <motion.div className="md:col-span-2" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <Card className="bg-[#16191e] border-white/5 h-full">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-[10px] font-bold text-white/40 tracking-widest uppercase">Star Trend (recent days)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[200px] w-full">
-                {efficiencyData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={efficiencyData}>
-                      <defs>
-                        <linearGradient id="effFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#c0b3a5" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#c0b3a5" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="time" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <RechartsTooltip contentStyle={{ backgroundColor: '#16191e', border: '1px solid rgba(255,255,255,0.1)' }} itemStyle={{ color: '#c0b3a5' }} />
-                      <Area type="monotone" dataKey="value" stroke="#c0b3a5" fill="url(#effFill)" strokeWidth={2} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-full flex items-center justify-center text-white/30 text-xs">No activity logged yet</div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card className="bg-[#16191e] border-white/5 h-full flex flex-col">
-            <CardHeader className="pb-0">
-              <CardTitle className="text-[10px] font-bold text-white/40 tracking-widest uppercase">Category Mix</CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col items-center justify-center pt-2">
-              <div className="h-[140px] w-full relative flex items-center justify-center">
-                {breakdown.length > 0 ? (
-                  <>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie data={breakdown} cx="50%" cy="50%" innerRadius={45} outerRadius={60} paddingAngle={2} dataKey="value" stroke="none">
-                          {breakdown.map((entry) => <Cell key={entry.type} fill={TYPE_COLOR[entry.type]} />)}
-                        </Pie>
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-xl font-heading font-bold text-white">{breakdown[0]?.pct ?? 0}%</span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-white/30 text-xs">No data yet</div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <Card className="bg-[#0d0f12] border-white/10 h-full overflow-hidden">
-            <CardHeader className="bg-white/5 py-3 border-b border-white/5 flex flex-row items-center gap-2">
-              <Terminal size={14} className="text-white/40" />
-              <CardTitle className="text-[10px] font-mono text-white/60 tracking-widest">RECENT_ACTIVITY_LOG</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4">
-              <div className="font-mono text-[10px] text-focus-teal/80 space-y-1.5">
-                {recentActivity.length > 0 ? (
-                  recentActivity.map((a, i) => (
-                    <p key={i}>
-                      &gt; {a.date} — {a.title} {a.stars >= 0 ? `+${a.stars}` : a.stars} stars
-                    </p>
-                  ))
-                ) : (
-                  <p>&gt; AWAITING FIRST LOGGED TASK_</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-    </motion.div>
-  );
+const KIND_ICON = {
+  habit: Flame,
+  task: CheckSquare,
+  redeem: Gift,
+  'missed-task': Clock,
 };
 
-const DataBreakdown = ({ totalEarned, totalLost, breakdown, onDownload }) => {
-  const netStars = totalEarned - totalLost;
-  const total = totalEarned + totalLost || 1;
+const fmtDay = (key) =>
+  new Date(`${key}T00:00:00Z`).toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC',
+  });
 
+const Tile = ({ label, value, tone = 'neutral', sub }) => {
+  const colour = tone === 'good' ? 'text-[#3ecf8e]'
+    : tone === 'bad' ? 'text-focus-red'
+    : 'text-white';
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold font-heading text-white">DATA</h1>
-        <p className="text-sm text-white/40 mt-1 italic">Where your stars come from</p>
-      </header>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="bg-[#16191e] border-white/5 rounded-3xl p-6">
-            <div className="flex justify-between items-start mb-6">
-              <span className="text-[11px] font-bold tracking-widest text-white/60 uppercase">Stars Earned</span>
-              <Star size={16} className="text-white/80" fill="currentColor" />
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-heading font-black text-white">{totalEarned.toLocaleString()}</span>
-            </div>
-          </Card>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <Card className="bg-[#16191e] border-white/5 rounded-3xl p-6">
-            <div className="flex justify-between items-start mb-6">
-              <span className="text-[11px] font-bold tracking-widest text-white/60 uppercase">Stars Lost</span>
-              <Star size={16} className="text-white/20" />
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-heading font-black text-white/40">{totalLost.toLocaleString()}</span>
-            </div>
-          </Card>
-        </motion.div>
-
-        <motion.div className="md:col-span-2" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card className="bg-[#16191e] border-white/5 rounded-2xl p-4">
-            <span className="text-[10px] font-bold tracking-widest text-white/60 uppercase block mb-1">Completion Rate</span>
-            <span className="text-lg font-mono text-white/80">{total > 0 ? Math.round((totalEarned / total) * 100) : 0}%</span>
-          </Card>
-        </motion.div>
-
-        <motion.div className="md:col-span-2" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <Card className="bg-[#16191e] border-white/5 rounded-3xl p-6 pt-5">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-sm font-medium text-white/80">Star Activity Breakdown</h3>
-              <Info size={16} className="text-white/40" />
-            </div>
-
-            {breakdown.length === 0 ? (
-              <p className="text-white/40 text-sm text-center py-10">No activity logged yet</p>
-            ) : (
-              <>
-                <div className="relative h-[220px] w-full flex justify-center items-center mb-6">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={[{ name: 'Earned', value: totalEarned || 0.0001 }, { name: 'Lost', value: totalLost }]}
-                        cx="50%" cy="50%"
-                        startAngle={220} endAngle={-40}
-                        innerRadius={70} outerRadius={90}
-                        paddingAngle={0}
-                        dataKey="value" stroke="none" cornerRadius={45}
-                      >
-                        <Cell fill="#ffffff" />
-                        <Cell fill="rgba(255,255,255,0.08)" />
-                      </Pie>
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pt-2">
-                    <span className="text-4xl font-heading font-black text-white">{netStars}</span>
-                    <span className="text-[10px] font-bold tracking-widest uppercase text-white/40">Net Stars</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-y-6 gap-x-4 pt-6 border-t border-white/10 relative">
-                  <div className="absolute top-6 bottom-0 left-1/2 w-px bg-white/10 -translate-x-1/2"></div>
-                  {breakdown.map((b, i) => (
-                    <div key={b.type} className={i % 2 === 1 ? 'pl-4' : ''}>
-                      <span className="text-[10px] font-bold tracking-widest uppercase text-white/60 block mb-1">{TYPE_LABEL[b.type]}</span>
-                      <span className="text-lg font-heading text-white" style={{ color: TYPE_COLOR[b.type] }}>{b.value}</span>
-                      <span className="text-xs text-white/30 ml-1">({b.pct}%)</span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </Card>
-        </motion.div>
-
-        <motion.button
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-          className="w-full h-14 bg-white text-black font-bold text-xs rounded-full flex items-center justify-center gap-2 hover:bg-white/90 transition-colors md:col-span-2 mt-2"
-          onClick={onDownload}
-        >
-          <Download size={16} /> DOWNLOAD MY DATA
-        </motion.button>
-
-        <p className="text-center text-[9px] font-bold tracking-widest uppercase text-white/30 md:col-span-2 mt-2">
-          Export your full log history as a CSV file.
-        </p>
-      </div>
-    </motion.div>
-  );
-};
-
-const Data = ({ logs }) => {
-  const [view, setView] = useState('breakdown');
-
-  const totalEarned = useMemo(() => logs.filter((l) => l.starsEarned > 0).reduce((s, l) => s + l.starsEarned, 0), [logs]);
-  const totalLost = useMemo(() => logs.filter((l) => l.starsEarned < 0).reduce((s, l) => s + Math.abs(l.starsEarned), 0), [logs]);
-
-  const breakdown = useMemo(() => {
-    const totals = {};
-    logs.forEach((log) => {
-      const type = log.taskId?.type;
-      if (!type) return;
-      totals[type] = (totals[type] || 0) + Math.abs(log.starsEarned);
-    });
-    const grand = Object.values(totals).reduce((a, b) => a + b, 0) || 1;
-    return Object.entries(totals)
-      .map(([type, value]) => ({ type, value, pct: Math.round((value / grand) * 100) }))
-      .sort((a, b) => b.value - a.value);
-  }, [logs]);
-
-  const downloadCsv = () => {
-    const rows = [['date', 'task', 'type', 'completedCount', 'starsEarned']];
-    logs.forEach((l) => rows.push([
-      new Date(l.date).toLocaleDateString('en-CA'),
-      l.taskId?.title ?? '',
-      l.taskId?.type ?? '',
-      l.completedCount,
-      l.starsEarned,
-    ]));
-    const csv = rows.map((r) => r.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'focus-logs.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  return (
-    <div>
-      <div className="flex bg-[#16191e] border border-white/5 p-1 rounded-xl w-full mb-6">
-        <button
-          className={`flex-1 px-4 py-2 text-[11px] font-bold tracking-wide uppercase rounded-lg transition-colors ${view === 'breakdown' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white'}`}
-          onClick={() => setView('breakdown')}
-        >
-          Data Breakdown
-        </button>
-        <button
-          className={`flex-1 px-4 py-2 text-[11px] font-bold tracking-wide uppercase rounded-lg transition-colors ${view === 'analytics' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white'}`}
-          onClick={() => setView('analytics')}
-        >
-          System Analytics
-        </button>
-      </div>
-
-      <AnimatePresence mode="wait">
-        {view === 'breakdown' ? (
-          <DataBreakdown key="breakdown" totalEarned={totalEarned} totalLost={totalLost} breakdown={breakdown} onDownload={downloadCsv} />
-        ) : (
-          <SystemAnalytics key="analytics" logs={logs} breakdown={breakdown} />
-        )}
-      </AnimatePresence>
+    <div className="bg-[#16191e] border border-white/5 rounded-2xl px-5 py-4">
+      <p className="text-[10px] font-bold tracking-widest uppercase text-white/40">{label}</p>
+      <p className={`font-heading font-black text-3xl leading-none mt-2 tabular-nums ${colour}`}>
+        {value}
+      </p>
+      {sub && <p className="text-[10px] text-white/35 mt-1.5">{sub}</p>}
     </div>
   );
 };
 
-export default Data;
+/**
+ * THE LEDGER — every star, and where it came from.
+ *
+ * The old version of this screen summarised fields that no longer exist, so it
+ * confidently reported zero while the user had thirty stars. This one reads
+ * the ledger itself: the same rows every total in the app is summed from, so
+ * if a number anywhere looks wrong, this page is the answer to "why".
+ *
+ * Grouped by day, newest first, because "what did I do on Tuesday" is the
+ * question people actually bring to a history.
+ */
+const Ledger = () => {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: d } = await api.get('/ledger');
+        if (!cancelled) { setData(d); setError(''); }
+      } catch (err) {
+        if (!cancelled) setError(err.response?.data?.message || 'Could not load your ledger');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const exportCsv = () => {
+    const rows = [
+      ['date', 'kind', 'name', 'count', 'stars'],
+      ...(data?.entries ?? []).map((e) => [e.date, e.kind, e.name, e.count, e.starsDelta]),
+    ];
+    // Quote every field: habit names contain commas more often than you think.
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `focus-ledger-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (error) return <p className="text-focus-red text-sm">{error}</p>;
+  if (!data) return <p className="text-white/40 text-sm">Loading your ledger…</p>;
+
+  // Group by day, preserving the newest-first order the server sent.
+  const days = [];
+  for (const entry of data.entries) {
+    const last = days[days.length - 1];
+    if (last && last.date === entry.date) last.entries.push(entry);
+    else days.push({ date: entry.date, entries: [entry] });
+  }
+
+  return (
+    <div className="space-y-5 md:h-full md:flex md:flex-col md:min-h-0" data-testid="screen-ledger">
+      <header className="flex items-end justify-between gap-4 md:shrink-0">
+        <div>
+          <h1 className="text-2xl font-bold font-heading text-white tracking-wide">LEDGER</h1>
+          <p className="text-sm text-white/40 mt-1">Every star, and where it came from.</p>
+        </div>
+        <button
+          type="button"
+          onClick={exportCsv}
+          data-testid="export-csv"
+          className="flex items-center gap-2 px-4 h-10 rounded-xl border border-white/10 text-white/70 hover:text-white hover:border-white/30 text-[11px] font-bold tracking-widest transition-colors shrink-0"
+        >
+          <Download size={14} /> EXPORT CSV
+        </button>
+      </header>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:shrink-0">
+        <Tile label="Earned" value={`+${data.totals.earned}`} tone="good" />
+        <Tile label="Lost" value={data.totals.lost} tone="bad" />
+        <Tile label="Net" value={data.totals.net} />
+        <Tile
+          label="Lifetime"
+          value={data.totals.lifetime}
+          sub="what your rank is built on"
+        />
+      </div>
+
+      <div
+        className="bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6 md:flex-1 md:min-h-0 md:flex md:flex-col"
+        data-testid="ledger-list"
+      >
+        <div className="flex items-center justify-between mb-4 md:shrink-0">
+          <h3 className="font-heading font-black text-white text-lg tracking-wide">History</h3>
+          <span className="text-[10px] text-white/35 tracking-wider">
+            {data.totals.count} {data.totals.count === 1 ? 'entry' : 'entries'}
+          </span>
+        </div>
+
+        <div className="space-y-5 md:flex-1 md:min-h-0 md:overflow-y-auto md:pr-1">
+          {days.map((day) => {
+            const net = day.entries.reduce((s, e) => s + e.starsDelta, 0);
+            return (
+              <div key={day.date}>
+                <div className="flex items-baseline justify-between mb-2">
+                  <p className="text-[10px] font-bold tracking-widest uppercase text-white/40">
+                    {fmtDay(day.date)}
+                  </p>
+                  <p className={`text-[11px] font-bold tabular-nums ${
+                    net >= 0 ? 'text-[#3ecf8e]' : 'text-focus-red'
+                  }`}>
+                    {net >= 0 ? '+' : ''}{net}★
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  {day.entries.map((e) => {
+                    const Icon = KIND_ICON[e.kind] ?? Flame;
+                    const good = e.starsDelta >= 0;
+                    return (
+                      <div
+                        key={e._id}
+                        className="flex items-center gap-3 bg-black/40 border border-white/5 rounded-xl px-3.5 py-2.5"
+                      >
+                        <span className={`w-7 h-7 rounded-lg grid place-items-center shrink-0 ${
+                          good ? 'bg-[#241f19] text-[#c0b3a5]' : 'bg-[#2a1a1a] text-focus-red'
+                        }`}>
+                          <Icon size={13} />
+                        </span>
+                        <span className="flex-1 min-w-0">
+                          <span className="block text-sm text-white truncate">{e.name}</span>
+                          <span className="block text-[10px] text-white/35">
+                            {e.kindLabel}{e.count > 1 ? ` ×${e.count}` : ''}
+                          </span>
+                        </span>
+                        <span className={`font-heading font-bold text-sm tabular-nums shrink-0 ${
+                          good ? 'text-[#3ecf8e]' : 'text-focus-red'
+                        }`}>
+                          {good ? '+' : ''}{e.starsDelta}★
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+
+          {days.length === 0 && (
+            <p className="text-center text-white/40 text-sm py-10" data-testid="ledger-empty">
+              Nothing logged yet. Every rep and task you complete lands here.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Ledger;

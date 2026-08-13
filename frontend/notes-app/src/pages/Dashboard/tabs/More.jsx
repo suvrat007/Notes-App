@@ -6,7 +6,7 @@ import { Star, Moon, Shield, Bell, Globe, Database, HelpCircle, ChevronRight, Lo
 import { useAuth } from '../../../utils/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-const More = ({ user, theme, toggleTheme, showToast }) => {
+const More = ({ user, theme, toggleTheme, showToast, onNavigate }) => {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const isDark = theme === 'dark';
@@ -17,7 +17,7 @@ const More = ({ user, theme, toggleTheme, showToast }) => {
   };
 
   return (
-    <div className="space-y-4 md:space-y-6">
+    <div className="space-y-4 md:space-y-6 md:h-full md:overflow-y-auto">
       <header className="hidden md:block">
         <h1 className="text-2xl font-bold font-heading text-white">More</h1>
         <p className="text-sm text-white/40 mt-1">Account & preferences</p>

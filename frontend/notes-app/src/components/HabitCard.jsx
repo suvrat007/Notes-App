@@ -2,18 +2,20 @@ import React from 'react';
 import { Plus, Minus, Check, Flame, Ban } from 'lucide-react';
 
 /**
- * One habit row.
+ * One habit row, built for a NARROW column.
  *
- * A number only earns its place when there is something to count TOWARDS.
- * Three cases, in order of what the user actually promised:
+ * Name and score on top, terms and controls beneath. Squeezing all four into
+ * one row is what turned "Reading" into "Read…" and wrapped the terms onto
+ * four lines; two short rows fit a third of a desktop and a whole phone alike.
+ *
+ * A number only earns its place when there is something to count TOWARDS:
  *
  *   "20 pushups a day"      -> today against the daily quota
  *   "10 sessions this week" -> the WEEK against the goal, because you may do
- *                              several in a day and none the next, and today's
- *                              tally alone would hide the pace
+ *                              several in a day and none the next
  *   "gym"                   -> nothing to count; a tick is the whole story
  *
- * Bad habits always show the raw tally: every slip costs, quota or not.
+ * Bad habits always show the tally: every slip costs, quota or not.
  */
 const HabitCard = ({ habit, onLog, onUndo, busy }) => {
   const isBad = habit.polarity === 'bad';
@@ -34,75 +36,75 @@ const HabitCard = ({ habit, onLog, onUndo, busy }) => {
   const tileBg = isBad ? 'bg-[#2a1a1a]' : 'bg-[#241f19]';
   const edge = isBad ? 'border-l-focus-red' : 'border-l-[#c0b3a5]';
 
+  /* One line, always. Long enough to say what matters, short enough to fit. */
+  const terms = isBad
+    ? [
+        habit.dailyAllowance > 0 ? `${reps}/${habit.dailyAllowance} allowed` : 'no allowance',
+        `next ${habit.nextDelta}★`,
+      ].join(' · ')
+    : [
+        `+${habit.starsPerRep}★`,
+        habit.dailyTarget > 0 && `${reps}/${habit.dailyTarget} today`,
+        habit.targetReps > 0 && `goal ${habit.targetReps}/wk`,
+        habit.targetReps > 0 && habit.dailyTarget === 0 && reps > 0 && `${reps} today`,
+      ].filter(Boolean).join(' · ');
+
   return (
     <div
-      className={`flex bg-black/40 border border-white/5 rounded-[20px] overflow-hidden ${edge} border-l-[3px]`}
+      className={`bg-black/40 border border-white/5 rounded-2xl ${edge} border-l-[3px] px-3.5 py-3`}
       data-testid={`habit-${habit._id}`}
     >
-      <div className="p-4 md:p-5 flex gap-4 w-full items-center">
-        <div className={`w-12 h-12 rounded-2xl ${tileBg} flex items-center justify-center shrink-0`}>
-          <Icon size={20} className={accent} />
-        </div>
+      <div className="flex items-center gap-3">
+        <span className={`w-9 h-9 rounded-xl ${tileBg} grid place-items-center shrink-0`}>
+          <Icon size={16} className={accent} />
+        </span>
 
-        <div className="flex-1 min-w-0">
-          <h4 className="text-sm md:text-base font-bold text-white truncate">{habit.name}</h4>
-          <p className="text-[11px] text-white/50 mt-0.5">
-            {isBad ? (
-              <>
-                {habit.dailyAllowance > 0
-                  ? `${reps}/${habit.dailyAllowance} allowed`
-                  : 'no allowance'}
-                {' • '}next {habit.nextDelta}★
-                {reps > habit.dailyAllowance && (
-                  <span className="text-focus-red font-bold"> • over</span>
-                )}
-              </>
-            ) : (
-              <>
-                +{habit.starsPerRep}★ each
-                {habit.dailyTarget > 0 && ` • ${reps}/${habit.dailyTarget} today`}
-                {habit.targetReps > 0 && ` • goal ${habit.targetReps}/wk`}
-                {/* Several in one day and none the next is exactly the case
-                    this exists for; without it today's part is invisible. */}
-                {habit.targetReps > 0 && habit.dailyTarget === 0 && reps > 0 && ` • ${reps} today`}
-              </>
-            )}
-          </p>
-        </div>
+        <h4 className="flex-1 min-w-0 text-sm font-bold text-white truncate">{habit.name}</h4>
 
         {/* The glyph reads at a glance; data-reps carries the exact number for
             anything that needs it, screen readers included. */}
         <span
-          className={`font-heading font-black text-lg tabular-nums shrink-0 ${met ? accent : 'text-white/30'}`}
+          className={`font-heading font-black text-lg leading-none tabular-nums shrink-0 ${
+            met ? accent : 'text-white/30'
+          }`}
           data-testid={`count-${habit._id}`}
           data-reps={reps}
           aria-label={`${reps} today`}
         >
-          {counted ? countText : (met ? <Check size={18} /> : '—')}
+          {counted ? countText : (met ? <Check size={17} /> : '—')}
         </span>
+      </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            disabled={reps === 0 || busy}
-            onClick={() => onUndo(habit)}
-            aria-label={`Remove one ${habit.name}`}
-            data-testid={`undo-${habit._id}`}
-            className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 text-white/60 flex items-center justify-center disabled:opacity-30 hover:text-white transition-colors"
-          >
-            <Minus size={15} />
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => onLog(habit)}
-            aria-label={`Log ${habit.name}`}
-            data-testid={`log-${habit._id}`}
-            className={`w-11 h-11 rounded-xl ${tileBg} border border-white/10 ${accent} flex items-center justify-center disabled:opacity-40 hover:scale-105 active:scale-95 transition-transform`}
-          >
-            <Plus size={19} />
-          </button>
-        </div>
+      <div className="flex items-center gap-2 mt-2.5">
+        <p className="flex-1 min-w-0 text-[11px] text-white/45 truncate" title={terms}>
+          {terms}
+          {/* Being past the allowance changes what the NEXT tap costs, so it
+              has to be said on the card and not left to be discovered. */}
+          {isBad && reps > habit.dailyAllowance && (
+            <span className="text-focus-red font-bold"> · over</span>
+          )}
+        </p>
+
+        <button
+          type="button"
+          disabled={reps === 0 || busy}
+          onClick={() => onUndo(habit)}
+          aria-label={`Remove one ${habit.name}`}
+          data-testid={`undo-${habit._id}`}
+          className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white/60 grid place-items-center disabled:opacity-30 hover:text-white transition-colors shrink-0"
+        >
+          <Minus size={14} />
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onLog(habit)}
+          aria-label={`Log ${habit.name}`}
+          data-testid={`log-${habit._id}`}
+          className={`w-9 h-9 rounded-lg ${tileBg} border border-white/10 ${accent} grid place-items-center disabled:opacity-40 hover:scale-105 active:scale-95 transition-transform shrink-0`}
+        >
+          <Plus size={17} />
+        </button>
       </div>
     </div>
   );

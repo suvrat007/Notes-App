@@ -148,7 +148,7 @@ const RewardPanel = ({ rewards = [], lifetime = 0, refreshData, showToast }) => 
       </div>
 
       {/* ---- add a reward ---- */}
-      <div className="mt-6 pt-5 border-t border-white/5">
+      <div className="mt-6 pt-5 border-t border-white/5 md:shrink-0">
         <div className="flex gap-2">
           <Input
             type="text"
