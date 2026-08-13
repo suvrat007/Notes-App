@@ -31,6 +31,9 @@ import { runningBalances, affordableStreak, buildRewardViews } from './rewards';
 import { starsForLevel, rankFor, MAX_LEVEL } from './rank';
 import { parseVoice, splitClauses } from './parseVoice';
 import {
+  extractCount, extractTime, extractHorizon, extractDate, isNegated,
+} from './extract';
+import {
   periodWindow, daysLeftInPeriod, periodElapsedFraction, safePeriodWeeks,
 } from './period';
 import {
@@ -399,6 +402,55 @@ export function runStarEngineTests(): TestResult[] {
   check('6 of 10 at the halfway mark = +1 ahead', paced[0].aheadBy, 1);
   check('safePeriodWeeks repairs junk', [safePeriodWeeks(0), safePeriodWeeks(undefined),
     safePeriodWeeks(999)], [1, 1, 52]);
+
+  /* ---- in-house mechanical extraction ---- */
+
+  const EX = { today: '2026-08-12', weekStartDay: 1 };  // a Wednesday
+
+  // counts: a repetition count, never the size of a single effort
+  check('"twice" = 2', extractCount('smoked twice'), 2);
+  check('"three times" = 3', extractCount('went three times'), 3);
+  check('"finish three videos" = 3', extractCount('finish three videos'), 3);
+  check('"read 20 pages" is NOT 20 reps', extractCount('read 20 pages'), null);
+  check('"ran 5 km" is NOT 5 reps', extractCount('ran 5 km'), null);
+  check('"meditate 20 minutes" is NOT 20 reps', extractCount('meditate 20 minutes'), null);
+  check('no number = null', extractCount('go to the gym'), null);
+  // A number owned by a clock time is never a repetition count.
+  check('"bread at nine in the evening" is NOT 9', extractCount('buy bread at nine in the evening'), null);
+  check('"call at 9am" is NOT 9', extractCount('call the bank at 9am'), null);
+  check('"meeting at 5" is NOT 5', extractCount('meeting at 5'), null);
+  // 'sets' is a unit of one effort, so a countable noun is the right probe here.
+  check('a real count still survives a time', extractCount('record three videos at 6pm'), 3);
+
+  // times
+  check('"at nine in the evening" = 21:00', extractTime('bring bread at nine in the evening'), '21:00');
+  check('"at 9am" = 09:00', extractTime('call at 9am'), '09:00');
+  check('"at 5" defaults to afternoon', extractTime('meeting at 5'), '17:00');
+  check('"at 9:30 pm" = 21:30', extractTime('at 9:30 pm'), '21:30');
+  check('no clock time = null', extractTime('sometime tomorrow'), null);
+
+  // recurrence, and a deadline is NOT a repeat
+  check('"every morning" = daily', extractHorizon('every morning I journal'), 'daily');
+  check('"every Monday" = weekly', extractHorizon('every Monday file it'), 'weekly');
+  check('"every month" = monthly', extractHorizon('every month pay rent'), 'monthly');
+  check('"by Friday" is once, not weekly', extractHorizon('finish the audit by Friday'), 'once');
+
+  // dates — deadlines land on the LAST day available
+  check('today', extractDate('do it today', EX), '2026-08-12');
+  check('tomorrow', extractDate('do it tomorrow', EX), '2026-08-13');
+  check('yesterday', extractDate('I did it yesterday', EX), '2026-08-11');
+  check('day before yesterday', extractDate('day before yesterday', EX), '2026-08-10');
+  check('"in three days"', extractDate('call in three days', EX), '2026-08-15');
+  check('"this week" = the week end', extractDate('finish this week', EX), '2026-08-16');
+  check('"next week"', extractDate('do it next week', EX), '2026-08-23');
+  check('"by Friday" = the coming Friday', extractDate('by Friday', EX), '2026-08-14');
+  check('a weekday today still means NEXT week', extractDate('on Wednesday', EX), '2026-08-19');
+  check('no date reference = null', extractDate('call the bank', EX), null);
+
+  // negation
+  check('"no TV" is negated', isNegated('no TV'), true);
+  check("\"didn't smoke\" is negated", isNegated("didn't smoke"), true);
+  check('a plain mention is not negated', isNegated('smoked a cigarette'), false);
 
   /* ---- date helpers (lib/dates) ---- */
 

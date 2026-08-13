@@ -84,6 +84,7 @@ export default function VoiceModal({ onClose, mode: initialMode = 'log', onNavig
     todayName: dayNames[new Date().getDay()],
     weekEnd: addDays(weekStartOf(todayStr(), weekStartDay), 6),
     nextWeekEnd: addDays(weekStartOf(todayStr(), weekStartDay), 13),
+    weekStartDay,
   };
 
   /** Commands act on rows that exist, so they see tasks as well as habits. */

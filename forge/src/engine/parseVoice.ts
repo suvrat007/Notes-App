@@ -112,6 +112,8 @@ export interface ParseContext {
   weekEnd?: string;
   /** Last day of next week. */
   nextWeekEnd?: string;
+  /** 1 = Monday. Used by the in-house date extractor. */
+  weekStartDay?: number;
 }
 
 /**

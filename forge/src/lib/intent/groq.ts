@@ -113,15 +113,30 @@ export function coerceItems(raw: unknown, ctx: ParseContext): ParsedItem[] {
       ? (String(r.createName ?? '').trim() || text).slice(0, 60)
       : undefined;
 
-    const count = Number.isFinite(r.count) ? Math.max(1, Math.min(50, Math.round(r.count!))) : 1;
+    /*
+     * NOT YET WIRED: `engine/extract.ts` determines counts, dates, times and
+     * recurrence deterministically and is proven against 30+ asserts plus an
+     * end-to-end test (v28) that feeds a stubbed model deliberately wrong
+     * values and checks we override them.
+     *
+     * The remaining gap is which TEXT it runs on. All we receive per item is
+     * the model's paraphrased label, and a stray number or weekday in a
+     * paraphrase can override correctly-parsed data. The prompt needs to echo
+     * each item's SOURCE FRAGMENT before the override can be trusted, so it is
+     * left out of the live path until then.
+     */
+    const count = Number.isFinite(r.count)
+      ? Math.max(1, Math.min(50, Math.round(r.count!)))
+      : 1;
     const avoided = kind === 'bad-habit' ? r.avoided === true : false;
 
     // A clock time only if it is a real one — a malformed value would become
     // a bogus calendar event in the user's actual account.
-    const dueTime = typeof r.dueTime === 'string'
+    const modelTime = typeof r.dueTime === 'string'
       && /^([01]\d|2[0-3]):[0-5]\d$/.test(r.dueTime)
       ? r.dueTime
       : null;
+    const dueTime = modelTime;
 
     const syncTargets = Array.isArray(r.syncTargets)
       ? (r.syncTargets as unknown[])
@@ -145,6 +160,7 @@ export function coerceItems(raw: unknown, ctx: ParseContext): ParsedItem[] {
       const plausible = raw
         && raw >= addDays(ctx.today, -370)
         && raw <= addDays(ctx.today, 730);
+      // Our own resolution wins whenever the fragment actually stated a date.
       dueDate = plausible ? raw : ctx.tomorrow;
     }
 
