@@ -1,32 +1,38 @@
-import Home from './pages/home/Home.jsx'
-import {createBrowserRouter, RouterProvider} from "react-router-dom";
-import Login from "./pages/login/Login.jsx";
-import SignUp from "./pages/login/SIgnUp.jsx";
-import LoginChecker from "./pages/utils/LoginChecker.jsx";
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './pages/Auth/Login';
+import Signup from './pages/Auth/Signup';
+import Dashboard from './pages/Dashboard/Dashboard';
+import { useAuth } from './utils/AuthContext';
 
-
-
-const app = createBrowserRouter([
-    {
-        path: "/",
-        element: <LoginChecker />,
-        children: [
-            { path: "/", element: <Home /> },
-        ],
-    },
-    { path: "/login", element: <Login /> },
-    { path: "/signup", element: <SignUp /> },
-])
-
-
+const PrivateRoute = ({ children }) => {
+  const { status } = useAuth();
+  if (status === 'loading') {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: 'var(--text-secondary)' }}>
+        Loading...
+      </div>
+    );
+  }
+  return status === 'authenticated' ? children : <Navigate to="/login" />;
+};
 
 const App = () => {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route
+          path="/"
+          element={
+            <PrivateRoute>
+              <Dashboard />
+            </PrivateRoute>
+          }
+        />
+      </Routes>
+    </BrowserRouter>
+  );
+};
 
-    return (
-        <div>
-            <RouterProvider router={app}/>
-        </div>
-    )
-}
-
-export default App
+export default App;

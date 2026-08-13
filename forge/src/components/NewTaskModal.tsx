@@ -12,6 +12,8 @@ export default function NewTaskModal({ onClose, onSave }: Props) {
   const [name, setName] = useState('');
   const [stars, setStars] = useState(10);
   const [dueDate, setDueDate] = useState(todayStr());
+  // Empty = all-day. Only Google sync reads it; FORGE's own maths is day-keyed.
+  const [dueTime, setDueTime] = useState('');
 
   const canSave = name.trim().length > 0 && stars > 0;
 
@@ -44,8 +46,22 @@ export default function NewTaskModal({ onClose, onSave }: Props) {
                onChange={(e) => e.target.value && setDueDate(e.target.value)} />
       </div>
 
+      <label className="field">
+        <span className="field__label">
+          Time <span className="setting__hint">Optional — sets the calendar event's time.</span>
+        </span>
+        <input className="input" type="time" value={dueTime} data-testid="task-time"
+               onChange={(e) => setDueTime(e.target.value)} />
+      </label>
+
       <button className="btn btn--primary" disabled={!canSave} data-testid="task-save"
-              onClick={() => canSave && onSave({ name: name.trim(), stars, dueDate })}>
+              onClick={() =>
+                canSave && onSave({
+                  name: name.trim(),
+                  stars,
+                  dueDate,
+                  dueTime: dueTime || null,
+                })}>
         Add Task
       </button>
     </Modal>

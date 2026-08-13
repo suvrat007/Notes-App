@@ -3,6 +3,7 @@ import { useForge } from '../store/useForge';
 import { exportBackup, backupToBlob, importBackup, InvalidBackupError } from '../db/backup';
 import { isGroqConfigured } from '../lib/intent';
 import { toast } from '../store/useToast';
+import GoogleSyncPanel from './GoogleSyncPanel';
 
 export default function SettingsPanel() {
   const { appState, updateSettings, loadToday } = useForge();
@@ -85,6 +86,8 @@ export default function SettingsPanel() {
           </select>
         </label>
       </div>
+
+      <GoogleSyncPanel />
 
       <h2 className="sect">Backup</h2>
       <div className="rewardadd">
