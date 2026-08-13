@@ -1,13 +1,56 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Star, ArrowRight, Sun, Calendar, Ban, Coffee, Check, X } from 'lucide-react';
+import { Star, ArrowRight, Sun, Calendar, Ban, Coffee, Check, X, Plus, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import api from '../../../utils/api';
+import HabitCard from '../../../components/HabitCard';
+import HabitModal from '../../../components/HabitModal';
+import RewardPanel from '../../../components/RewardPanel';
 
 const todayKey = () => new Date().toLocaleDateString('en-CA');
 
-const Home = ({ user, tasks, logs, refreshData, showToast, onNavigate }) => {
+const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) => {
+  const [habitBusy, setHabitBusy] = useState(false);
+  const [showHabitModal, setShowHabitModal] = useState(false);
+
+  const habits = state?.habits ?? [];
+  const carried = state?.carriedTasks ?? [];
+  const rewards = state?.rewards ?? [];
+  const stars = state?.stars;
+
+  /**
+   * Log a rep. The SERVER works out what it is worth — a bad habit's penalty
+   * escalates past its allowance, so the number depends on how many reps
+   * already exist today, which only the server can know for certain.
+   */
+  const logHabit = async (habit) => {
+    setHabitBusy(true);
+    try {
+      const { data } = await api.post(`/habits/${habit._id}/log`, {});
+      await refreshData();
+      const d = data.starsDelta;
+      showToast?.(`${habit.name} ${d >= 0 ? '+' : ''}${d}★`);
+    } catch (err) {
+      showToast?.(err.response?.data?.message || 'Could not log that', 'error');
+    } finally {
+      setHabitBusy(false);
+    }
+  };
+
+  const undoHabit = async (habit) => {
+    setHabitBusy(true);
+    try {
+      await api.delete(`/habits/${habit._id}/log`);
+      await refreshData();
+      showToast?.(`Undid one ${habit.name}`);
+    } catch (err) {
+      showToast?.(err.response?.data?.message || 'Nothing to undo', 'error');
+    } finally {
+      setHabitBusy(false);
+    }
+  };
+
   const todayStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   const firstName = user?.fullName?.split(' ')[0] || 'Operator';
 
@@ -117,12 +160,41 @@ const Home = ({ user, tasks, logs, refreshData, showToast, onNavigate }) => {
           <Card className="bg-[#121214] border-white/5 h-full flex flex-col justify-between rounded-2xl md:rounded-xl p-5">
             <CardTitle className="text-[11px] font-bold text-white/60 tracking-wide mb-3">Total Stars</CardTitle>
             <div>
-              <div className="flex items-end gap-3 mb-6">
-                <span className="text-4xl font-heading font-black text-white leading-none">{user?.totalStars?.toLocaleString()}</span>
+              <div className="flex items-end gap-3 mb-2">
+                {/* Summed from the ledger by the server, so this is the number
+                    the database agrees with rather than a client tally. */}
+                <span className="text-4xl font-heading font-black text-white leading-none" data-testid="lifetime">
+                  {(stars?.lifetime ?? user?.totalStars ?? 0).toLocaleString()}
+                </span>
                 <span className="bg-[#1a2522] text-[#a3c4b6] px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 mb-1">
-                  {netToday >= 0 ? '+' : ''}{netToday} <Star size={8} fill="currentColor" />
+                  {(stars?.dayNet ?? netToday) >= 0 ? '+' : ''}{stars?.dayNet ?? netToday} <Star size={8} fill="currentColor" />
                 </span>
               </div>
+
+              {stars?.rank && (
+                <div className="mb-5" data-testid="rank">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span
+                      className="text-[10px] font-black tracking-[0.15em] uppercase px-2 py-0.5 rounded-full border"
+                      style={{ color: stars.rank.color, borderColor: stars.rank.color }}
+                    >
+                      {stars.rank.title} {stars.rank.level}
+                    </span>
+                    <span className="text-[10px] font-bold text-white/40 tabular-nums">
+                      {stars.rank.nextAt === null ? 'MAX' : `${stars.rank.toNext}★ to next`}
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${Math.round(stars.rank.progress * 100)}%`,
+                        background: stars.rank.color,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
               <div className="flex items-end gap-1.5 h-10 w-full" title="Stars earned each of the last 7 days">
                 {starsByDay.map((v, i) => (
                   <div
@@ -153,7 +225,72 @@ const Home = ({ user, tasks, logs, refreshData, showToast, onNavigate }) => {
         </motion.div>
       </div>
 
+      {/* ---- Habits: the things you repeat, as opposed to finish ---- */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
+        className="bg-[#121214] border border-white/5 rounded-3xl p-5 md:p-6"
+        data-testid="habits-section"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="font-heading font-black text-white text-xl">Habits</h3>
+          <button
+            className="flex items-center gap-1 text-[11px] font-bold text-white/60 hover:text-white transition-colors"
+            onClick={() => setShowHabitModal(true)}
+            data-testid="new-habit"
+          >
+            <Plus size={13} /> New Habit
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {habits.map((h) => (
+            <HabitCard
+              key={h._id}
+              habit={h}
+              busy={habitBusy}
+              onLog={logHabit}
+              onUndo={undoHabit}
+            />
+          ))}
+          {habits.length === 0 && (
+            <p className="text-center text-white/40 text-sm py-6" data-testid="habits-empty">
+              No habits yet. Add the first thing you want to build — or break.
+            </p>
+          )}
+        </div>
+      </motion.div>
+
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-[#121214] border border-white/5 rounded-3xl p-5 md:p-6 pb-8">
+        {/* Work that did not stop being owed at midnight. Shown with the day's
+            own list, so it is something to do today rather than a wall of
+            shame parked somewhere else. */}
+        {carried.length > 0 && (
+          <div className="mb-6" data-testid="carried-section">
+            <h4 className="text-[11px] font-bold text-focus-red tracking-widest uppercase mb-3">
+              Still owed
+            </h4>
+            <div className="space-y-2">
+              {carried.map((t) => (
+                <div
+                  key={t._id}
+                  className="flex items-center gap-3 bg-black/40 border border-white/5 border-l-[3px] border-l-focus-red rounded-2xl px-4 py-3"
+                  data-testid={`carried-${t._id}`}
+                >
+                  <Clock size={15} className="text-focus-red shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-white truncate">{t.title}</p>
+                    <p className="text-[10px] text-white/50">
+                      {t.targetCount > 1 && `${t.targetCount - t.doneCount} left · `}
+                      {t.lateBy === 1 ? 'since yesterday' : `${t.lateBy} days late`}
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-bold text-white/40 tabular-nums">+{t.baseReward}★</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-heading font-black text-white text-xl">Today's Plan</h3>
           <button className="flex items-center gap-1 text-[11px] font-bold text-white/60 hover:text-white transition-colors" onClick={() => onNavigate?.('calendar')}>
@@ -242,6 +379,21 @@ const Home = ({ user, tasks, logs, refreshData, showToast, onNavigate }) => {
           )}
         </div>
       </motion.div>
+
+      <RewardPanel
+        rewards={rewards}
+        lifetime={stars?.lifetime ?? 0}
+        refreshData={refreshData}
+        showToast={showToast}
+      />
+
+      {showHabitModal && (
+        <HabitModal
+          onClose={() => setShowHabitModal(false)}
+          refreshData={refreshData}
+          showToast={showToast}
+        />
+      )}
     </div>
   );
 };

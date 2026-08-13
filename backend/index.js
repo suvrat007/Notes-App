@@ -203,7 +203,14 @@ app.post("/auth/google", async (req, res) => {
 });
 
 app.post("/logout", (req, res) => {
-    res.clearCookie(COOKIE_NAME, cookieOptions);
+    /*
+     * The clearing cookie has to match how it was SET — same path, domain,
+     * sameSite and secure — or the browser treats it as a different cookie and
+     * quietly keeps the original, leaving the user still logged in. maxAge is
+     * dropped because Express 5 ignores it here and warns about it.
+     */
+    const { maxAge, ...clearOptions } = cookieOptions;
+    res.clearCookie(COOKIE_NAME, clearOptions);
     return res.json({ error: false, message: "Logged out" });
 });
 

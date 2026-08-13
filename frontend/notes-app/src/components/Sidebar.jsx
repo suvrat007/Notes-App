@@ -1,9 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Settings, Bell, CircleUser } from 'lucide-react';
+import { Plus, Mic, Settings, Bell, CircleUser } from 'lucide-react';
 import { TABS } from './navConfig';
 
-const Sidebar = ({ active, onChange, onAddTask, user, showToast }) => (
+const Sidebar = ({ active, onChange, onAddTask, onVoice, user, showToast }) => (
   <aside className="hidden md:flex flex-col w-64 shrink-0 bg-[#0a0a0c] border-r border-white/5 p-6 h-screen sticky top-0">
     <div className="mb-10">
       <h1 className="font-heading font-bold text-white text-xl tracking-widest">FOCUS</h1>
@@ -15,6 +15,15 @@ const Sidebar = ({ active, onChange, onAddTask, user, showToast }) => (
       onClick={onAddTask}
     >
       <Plus size={16} /> ADD TASK
+    </button>
+
+    {/* Speaking a whole day beats filling the form five times. */}
+    <button
+      className="flex items-center justify-center gap-2 w-full bg-transparent border border-white/10 hover:border-white/30 text-white/80 hover:text-white rounded-md py-3 font-semibold text-xs tracking-wider transition-colors mb-8"
+      onClick={onVoice}
+      data-testid="sidebar-voice"
+    >
+      <Mic size={15} /> SPEAK YOUR DAY
     </button>
 
     <nav className="flex flex-col gap-2 flex-1">
