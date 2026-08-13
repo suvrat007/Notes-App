@@ -7,6 +7,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0a0c" />
     <meta name="description" content="Focus — a gamified productivity and habit tracker" />
+    <!--
+      Standalone display. "mobile-web-app-capable" is the modern spelling and
+      what iOS 16.4+ reads; the apple-prefixed one is still required by older
+      iOS, which ignores the modern name and would open Focus in a Safari tab
+      with the address bar showing.
+    -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- iOS takes the home-screen label from here, NOT from the manifest. -->
+    <meta name="apple-mobile-web-app-title" content="Focus" />
+    <!-- Stops iOS turning numbers in task names into phone links. -->
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="msapplication-TileColor" content="#0a0a0c" />
     <title>Focus — Productivity Tracker</title>
   </head>
   <body>

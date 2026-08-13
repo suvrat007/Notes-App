@@ -95,31 +95,79 @@ app.post("/login", async(req, res) => {
 });
 
 /**
+ * An ID token is a signed JWT — verified offline against Google's public keys.
+ * This is the strongest check available and needs no network round trip.
+ */
+async function verifyIdToken(idToken) {
+    const ticket = await googleClient.verifyIdToken({
+        idToken,
+        // Rejects a token minted for some OTHER application, which is how a
+        // token stolen from an unrelated site would otherwise be replayed.
+        audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    return ticket.getPayload();
+}
+
+/**
+ * An ACCESS token is opaque, so it has to be taken to Google to be identified.
+ *
+ * The audience check is the part that matters and the part that is easy to
+ * forget: userinfo will happily describe a token issued to any application at
+ * all, so without confirming `aud` is OUR client id, a token lifted from an
+ * unrelated site would sign its bearer straight in as that person.
+ */
+async function verifyAccessToken(accessToken) {
+    const infoRes = await fetch(
+        `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(accessToken)}`,
+    );
+    if (!infoRes.ok) throw new Error('Google did not recognise that token');
+    const info = await infoRes.json();
+
+    if (info.aud !== process.env.GOOGLE_CLIENT_ID) {
+        throw new Error('That token was issued to a different application');
+    }
+
+    const profileRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!profileRes.ok) throw new Error('Could not read the Google profile');
+    const p = await profileRes.json();
+
+    return {
+        sub: p.sub,
+        email: p.email,
+        // tokeninfo is authoritative on verification; userinfo may omit it.
+        email_verified: p.email_verified === true || info.email_verified === 'true',
+        name: p.name,
+        picture: p.picture,
+    };
+}
+
+/**
  * Sign in with Google.
  *
- * The browser sends the ID token Google issued it; the server VERIFIES that
- * token against Google's public keys before trusting a word of it. That check
- * is the whole point of doing this server-side — a client can claim to be
- * anyone, so an unverified token is worth nothing.
+ * Whichever kind of token the browser managed to get, the server verifies it
+ * with Google before trusting a word of it, and checks it was issued to THIS
+ * application. That is the whole point of doing this server-side — a client
+ * can claim to be anyone, so an unverified token is worth nothing.
  *
  * The outcome is the same httpOnly cookie the password flow issues, so every
  * route downstream is identical and neither way in is privileged.
  */
 app.post("/auth/google", async (req, res) => {
-    const { credential } = req.body;
-    if (!credential) return res.status(400).json({ error: true, message: "No Google credential" });
+    const { credential, accessToken } = req.body;
+    if (!credential && !accessToken) {
+        return res.status(400).json({ error: true, message: "No Google credential" });
+    }
     if (!process.env.GOOGLE_CLIENT_ID) {
         return res.status(500).json({ error: true, message: "Google sign-in is not configured on the server" });
     }
 
     try {
-        const ticket = await googleClient.verifyIdToken({
-            idToken: credential,
-            // Rejects a token minted for some OTHER application, which is how a
-            // token stolen from an unrelated site would otherwise be replayed.
-            audience: process.env.GOOGLE_CLIENT_ID,
-        });
-        const payload = ticket.getPayload();
+        const payload = credential
+            ? await verifyIdToken(credential)
+            : await verifyAccessToken(accessToken);
+
         if (!payload || !payload.email_verified) {
             return res.status(401).json({ error: true, message: "That Google account has no verified email" });
         }
