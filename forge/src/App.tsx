@@ -3,6 +3,7 @@ import TabBar from './components/TabBar';
 import Sidebar from './components/Sidebar';
 import VoiceModal from './components/VoiceModal';
 import Toaster from './components/Toaster';
+import VoiceFab, { type FabAction } from './components/VoiceFab';
 import type { ScreenKey } from './screens/registry';
 import HomeScreen from './screens/HomeScreen';
 import RoadmapScreen from './screens/RoadmapScreen';
@@ -18,7 +19,7 @@ import './App.css';
 export default function App() {
   const screen = useNav((s) => s.screen);
   const setScreen = useNav((s) => s.setScreen);
-  const [voice, setVoice] = useState(false);
+  const [voice, setVoice] = useState<FabAction | null>(null);
   const loadToday = useForge((s) => s.loadToday);
 
   // The sidebar reads store state, so the store must be warm before any
@@ -43,7 +44,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <Sidebar active={screen} onChange={setScreen} onVoice={() => setVoice(true)} />
+      <Sidebar active={screen} onChange={setScreen} onVoice={() => setVoice('speak')} />
 
       <main className="app__body">
         {screen === 'home' && <HomeScreen />}
@@ -55,12 +56,19 @@ export default function App() {
 
       <TabBar active={screen} onChange={setScreen} />
 
+      {/* The FAB already asked speak-or-type, so the sheet opens straight
+          into that mode rather than asking a second time. On Manage the
+          voice flow means operating the app, so it opens in command mode. */}
       {voice && (
         <VoiceModal
-          onClose={() => setVoice(false)}
+          autoStart={voice}
+          mode={screen === 'manage' ? 'command' : 'log'}
+          onClose={() => setVoice(null)}
           onNavigate={(s) => setScreen(s as ScreenKey)}
         />
       )}
+
+      <VoiceFab onPick={(a) => setVoice(a)} />
 
       <Toaster />
     </div>

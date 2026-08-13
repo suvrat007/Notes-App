@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Modal from './Modal';
 import { IconMic } from './icons';
 import { useForge } from '../store/useForge';
@@ -22,6 +22,11 @@ type Props = {
   mode?: VoiceMode;
   /** Command mode can ask the app to change screens. */
   onNavigate?: (screen: string) => void;
+  /**
+   * What the user already chose on the floating button. The sheet acts on it
+   * on mount instead of presenting the same choice a second time.
+   */
+  autoStart?: 'speak' | 'type';
 };
 
 const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -34,7 +39,9 @@ const KIND_LABEL: Record<IntentKind, string> = {
   'new-habit': 'New habit',
 };
 
-export default function VoiceModal({ onClose, mode: initialMode = 'log', onNavigate }: Props) {
+export default function VoiceModal({
+  onClose, mode: initialMode = 'log', onNavigate, autoStart,
+}: Props) {
   const { habits, rewards, commitVoiceItems, appState, upcomingTasks, applyCommands } = useForge();
   const [mode, setMode] = useState<VoiceMode>(initialMode);
   const [commands, setCommands] = useState<Command[]>([]);
@@ -65,6 +72,23 @@ export default function VoiceModal({ onClose, mode: initialMode = 'log', onNavig
     const id = window.setInterval(tick, 250);
     return () => clearInterval(id);
   }, [recording]);
+
+  // Acts on the FAB's choice exactly once per mount.
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (!autoStart || autoStarted.current) return;
+    autoStarted.current = true;
+    if (autoStart === 'type') {
+      window.setTimeout(
+        () => document.querySelector<HTMLInputElement>('[data-testid=voice-text]')?.focus(),
+        80,
+      );
+    } else {
+      void (useGroqStt ? toggleRecording() : listen());
+    }
+    // Intentionally mount-only: re-running would restart a live recording.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart]);
 
   const remaining = Math.max(0, MAX_RECORDING_MS - elapsed);
   const nearLimit = !!recording && remaining <= RECORDING_WARN_MS;

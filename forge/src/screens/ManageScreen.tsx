@@ -3,8 +3,6 @@ import { Reorder } from 'framer-motion';
 import { useForge } from '../store/useForge';
 import { HabitIcon } from '../components/habitIcons';
 import SortableRow from '../components/SortableRow';
-import VoiceModal from '../components/VoiceModal';
-import { IconMic } from '../components/icons';
 import { periodShortLabel } from '../engine/period';
 import { HORIZON_LABEL, HORIZON_ORDER, type Horizon } from '../engine/series';
 import type { Habit, Task } from '../db/schema';
@@ -24,7 +22,6 @@ export default function ManageScreen() {
   });
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
-  const [voice, setVoice] = useState(false);
   const [dropArmed, setDropArmed] = useState(false);
 
   // Hit-tested on drop, so a task dragged onto the Habits panel converts.
@@ -235,12 +232,8 @@ export default function ManageScreen() {
         </section>
       </div>
 
-      <button className="btn btn--primary btn--voice" data-testid="manage-voice"
-              onClick={() => setVoice(true)}>
-        <IconMic size={18} /> Command by voice
-      </button>
-
-      {voice && <VoiceModal mode="command" onClose={() => setVoice(false)} />}
+      {/* Voice moved to the floating button, which is app-wide and opens in
+          command mode while this screen is showing. */}
     </div>
   );
 }

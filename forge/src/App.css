@@ -11,7 +11,9 @@
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  /* The extra bottom room is the floating voice button's footprint: without
+     it the last row on a screen can never be scrolled out from under it. */
+  padding: 16px 16px calc(88px + env(safe-area-inset-bottom));
 }
 
 .screen__title {
@@ -2196,4 +2198,123 @@
 .daypick__note {
   font-size: 11px;
   color: var(--bad);
+}
+
+/* ---- Floating voice button ---- */
+
+.fab {
+  position: fixed;
+  right: 16px;
+  /* Clears the tab bar and the Android gesture area. */
+  bottom: calc(var(--tap) + 18px + env(safe-area-inset-bottom));
+  /* Above the page and the tab bar, but under .modal (50) — a button that
+     floats on top of an open sheet is just something in the way. */
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.fab__btn {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: #0d0f12;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5);
+  touch-action: manipulation;
+  transition: transform var(--fast) ease;
+}
+
+.fab__btn:active {
+  transform: scale(0.94);
+}
+
+.fab__btn--open {
+  background: var(--surface-raised);
+  color: var(--text);
+  border: 1px solid var(--steel);
+}
+
+/* Rings sit BEHIND the core and never intercept the tap. */
+.fab__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  pointer-events: none;
+}
+
+.fab__core {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: inherit;
+  pointer-events: none;
+}
+
+.fab__icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+}
+
+.fab__x {
+  font-size: 20px;
+  /* Cancels the wrapper's 45deg so the glyph reads upright while rotating in. */
+  display: block;
+  transform: rotate(-45deg);
+}
+
+.fab__menu {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.fab__item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  min-height: var(--tap);
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  border: 1px solid var(--steel);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+  text-align: right;
+  transition: border-color var(--fast) ease;
+}
+
+.fab__item:hover {
+  border-color: var(--accent);
+}
+
+.fab__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.fab__hint {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+@media (min-width: 1024px) {
+  .fab {
+    right: 28px;
+    bottom: 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fab__btn { transition: none; }
 }
