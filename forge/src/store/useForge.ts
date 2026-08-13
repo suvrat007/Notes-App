@@ -457,6 +457,17 @@ export const useForge = create<ForgeState>((set, get) => ({
           // "finish three videos" -> three units before it counts as done.
           targetCount: Math.max(1, it.count ?? 1),
         });
+
+        /*
+         * "Every Monday" has to become a real series, not just a label.
+         * setTaskHorizon assigns the seriesId and materialises the future
+         * occurrences; storing the horizon alone would leave a task that
+         * claims to repeat but never appears again.
+         */
+        if (it.horizon && it.horizon !== 'once') {
+          await q.setTaskHorizon(task.id, it.horizon);
+        }
+
         /*
          * Push to exactly the Google destinations the user confirmed for THIS
          * item, not the global toggles: a meeting belongs on the calendar and
