@@ -37,6 +37,7 @@ const KIND_LABEL: Record<IntentKind, string> = {
   task: 'Task',
   redeem: 'Redeem',
   'new-habit': 'New habit',
+  'new-reward': 'New reward',
 };
 
 export default function VoiceModal({
@@ -455,6 +456,19 @@ export default function VoiceModal({
               <input className="vrow__text" value={it.text}
                      data-testid={`vtext-${it.id}`}
                      onChange={(e) => setText(it.id, e.target.value)} />
+              {/* A reward's price is a percentage, and this is the last
+                  chance to change it before it exists. */}
+              {it.kind === 'new-reward' && (
+                <select className="vrow__kind" value={it.damagePct ?? 20}
+                        data-testid={`vdamage-${it.id}`}
+                        onChange={(e) => setItems((prev) => prev.map((x) =>
+                          x.id === it.id ? { ...x, damagePct: Number(e.target.value) } : x))}>
+                  {[20, 40, 60, 80, 100].map((p) => (
+                    <option key={p} value={p}>{p}%</option>
+                  ))}
+                </select>
+              )}
+
               {it.kind === 'task' && it.dueDate && (
                 <span className="vrow__due">
                   {it.dueDate === ctx.today ? 'today'

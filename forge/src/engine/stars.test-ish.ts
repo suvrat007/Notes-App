@@ -27,7 +27,9 @@ import {
   projectedWeekFinish,
   weeklyGoalStars,
 } from './targets';
-import { runningBalances, affordableStreak, buildRewardViews } from './rewards';
+import {
+  runningBalances, affordableStreak, buildRewardViews, rewardCost, suggestDamage,
+} from './rewards';
 import { starsForLevel, rankFor, MAX_LEVEL } from './rank';
 import { parseVoice, splitClauses } from './parseVoice';
 import {
@@ -230,16 +232,35 @@ export function runStarEngineTests(): TestResult[] {
     affordableStreak([150, 150, 20], 100), 0);
 
   // 20 — reward views: affordable, remaining, and the 2-day nudge
+  // Rewards are priced as a SHARE of lifetime stars now, so the same two
+  // prices come from 20% and 100% of a 500-star total.
   const views = buildRewardViews(
-    [{ id: 'r1', cost: 100, name: 'Cheesecake' }, { id: 'r2', cost: 500, name: 'Headphones' }],
+    [{ id: 'r1', cost: 0, damagePct: 20, name: 'Cheesecake' },
+     { id: 'r2', cost: 0, damagePct: 100, name: 'Headphones' }],
     150,
     [60, 120, 150, 150],
+    500,
   );
+  check('cost is a share of lifetime, not a stored price',
+    [views[0].cost, views[1].cost], [100, 500]);
   check('affordable reward has remaining 0', [views[0].affordable, views[0].remaining], [true, 0]);
   check('locked reward reports stars remaining', [views[1].affordable, views[1].remaining],
     [false, 350]);
   check('nudge fires after 2+ affordable days', views[0].nudge, true);
   check('no nudge on an unaffordable reward', views[1].nudge, false);
+
+  // 20b — the percentage pricing itself
+  check('20% of 500 is 100', rewardCost(500, 20), 100);
+  check('100% wipes the lot', rewardCost(500, 100), 500);
+  check('rounds UP, so a share of anything still costs', rewardCost(11, 20), 3);
+  check('nothing earned means nothing to spend', rewardCost(0, 100), 0);
+  check('a negative total cannot pay out', rewardCost(-50, 40), 0);
+  // The system's opening offer, which the user always sees and can override.
+  check('a week off is total damage', suggestDamage('a week off'), 100);
+  check('a big purchase is severe', suggestDamage('new phone'), 80);
+  check('a night out is fair', suggestDamage('dinner out'), 40);
+  check('a cheesecake is small', suggestDamage('cheesecake'), 20);
+  check('an unnamed reward defaults gently', suggestDamage('   '), 20);
 
   /* ---- analytics (Phase 7) ---- */
 

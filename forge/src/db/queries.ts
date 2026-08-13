@@ -235,8 +235,10 @@ export async function listAllLogs(): Promise<LogEntry[]> {
 
 /* ---------------- Rewards ---------------- */
 
-export async function addReward(name: string, cost: number): Promise<Reward> {
-  const reward: Reward = { id: newId(), name, cost, archived: false };
+export async function addReward(
+  name: string, cost: number, damagePct = 20,
+): Promise<Reward> {
+  const reward: Reward = { id: newId(), name, cost, damagePct, archived: false };
   await db.rewards.add(reward);
   return reward;
 }

@@ -96,7 +96,15 @@ export interface LogEntry {
 export interface Reward {
   id: string;
   name: string;
-  cost: number; // stars to redeem
+  cost: number; // legacy flat price; kept so old rows still read
+  /**
+   * Share of lifetime stars this costs, 20..100.
+   *
+   * Replaces the flat price: a fixed number is a fortune early and pocket
+   * change later, so the same treat stops meaning anything. A percentage
+   * keeps the sting proportional for the whole climb.
+   */
+  damagePct: number;
   archived: boolean;
 }
 
@@ -334,6 +342,27 @@ export class ForgeDB extends Dexie {
         await tx.table('habits').toCollection().modify((h) => {
           // No existing habit had a daily quota, so none gains one here.
           h.dailyTarget = h.dailyTarget ?? 0;
+        });
+      });
+
+    // v8: rewards cost a share of lifetime stars, not a flat price.
+    this.version(8)
+      .stores({
+        habits: 'id, name, polarity, archived, order',
+        tasks: 'id, dueDate, done, [dueDate+done], linkedHabitId, missedHandled, order, '
+          + 'horizon, seriesId, [seriesId+dueDate]',
+        logs: 'id, date, kind, refId, [date+kind], [refId+date]',
+        rewards: 'id, archived',
+        appState: 'id',
+        dailyTargets: 'date',
+        syncLinks: 'id, target, taskId',
+        syncQueue: 'id, target, taskId',
+      })
+      .upgrade(async (tx) => {
+        await tx.table('rewards').toCollection().modify((r) => {
+          // Existing rewards start at the gentlest tier rather than having a
+          // price guessed for them — the user can raise it once they see it.
+          r.damagePct = r.damagePct ?? 20;
         });
       });
   }

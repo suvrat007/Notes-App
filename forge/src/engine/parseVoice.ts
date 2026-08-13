@@ -9,7 +9,8 @@ export type IntentKind =
   | 'bad-habit'  // a slip or an avoidance of an existing bad habit
   | 'task'       // a one-off to-do
   | 'redeem'     // spent stars on a reward
-  | 'new-habit'; // something ongoing that is NOT yet a habit -> create it
+  | 'new-habit'  // something ongoing that is NOT yet a habit -> create it
+  | 'new-reward'; // a treat to work towards -> create it
 
 export interface ParsedItem {
   /** Stable within one parse, so preview rows can be edited by id. */
@@ -53,6 +54,8 @@ export interface ParsedItem {
    * the user confirms in the preview — it is their account being written to.
    */
   syncTargets?: Array<'calendar' | 'tasks'>;
+  /** new-reward only: what it costs, as a share of everything earned. */
+  damagePct?: number;
   /** Tasks: which bucket it belongs to, and whether it repeats. */
   horizon?: 'once' | 'daily' | 'weekly' | 'monthly';
 }

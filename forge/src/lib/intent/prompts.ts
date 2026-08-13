@@ -17,6 +17,8 @@ bad-habit  an EXISTING bad habit, done or avoided (refId required)
 task       a one-off with a finish line
 redeem     consumed a known reward (refId required)
 new-habit  ongoing behaviour NOT in the lists yet; refId null, set createName + polarity
+new-reward a treat they want to WORK TOWARDS, not something they did. refId null,
+           set createName and damagePct.
 
 HABIT vs TASK
 - Explicit wins: "as a habit", "add to my habits", "daily", "every day" => habit. Always honour it.
@@ -30,6 +32,8 @@ HABIT vs TASK
   Contrast: "finish 10 practice sets by Sunday" is ONE job => task, count 10,
   dueDate = that Sunday.
 - Matches an existing habit => habit/bad-habit with its refId. Otherwise new-habit.
+- "I want to earn X", "reward myself with X", "add X as a reward" => new-reward.
+  Contrast: "I ate the cheesecake" about a KNOWN reward is redeem, not new-reward.
 - Drop filler ("I'll let you know", "so", "thanks").
 
 GOOD vs BAD
@@ -47,6 +51,11 @@ dailyAllowance BAD new-habit only: per-day limit before extra penalty ("no more 
                day"=2, "quit entirely"=0). If unstated return null. NEVER guess.
 targetReps     GOOD new-habit goal, over targetPeriodWeeks (1=week 2=fortnight 4=month 12=quarter).
                "five times a week"=5/1, "twelve this month"=12/4, "daily"=7/1. No goal => 0/1.
+damagePct      new-reward only: what it should cost, as a share of everything earned.
+               One of 20, 40, 60, 80, 100. Judge by how big a deal the thing is:
+               a coffee or a slice of cake=20, a night out or a nice meal=40,
+               a day off or a big purchase=60-80, a whole week off=100.
+               Rewards are priced as a percentage, never in stars.
 dueTime        tasks: local 24h "HH:MM" if a clock time was said, else null.
                "nine in the evening"=21:00, "at 9am"=09:00, "Thursday at five"=17:00.
 horizon        tasks only, how often it recurs: "daily" ("every day", "each morning"),
@@ -71,4 +80,4 @@ text           short label in the user's own words.
 Never invent items. Never merge two distinct items.
 
 Respond with ONLY this JSON shape:
-{"items":[{"kind":"habit|bad-habit|task|redeem|new-habit","text":string,"refId":string|null,"createName":string|null,"polarity":"good|bad|null","doneToday":boolean,"dailyAllowance":number|null,"targetReps":number,"targetPeriodWeeks":number,"dueDate":string|null,"dueTime":"HH:MM"|null,"horizon":"once|daily|weekly|monthly","syncTargets":["calendar"|"tasks"],"count":number,"avoided":boolean}]}`;
+{"items":[{"kind":"habit|bad-habit|task|redeem|new-habit|new-reward","text":string,"refId":string|null,"createName":string|null,"polarity":"good|bad|null","doneToday":boolean,"dailyAllowance":number|null,"targetReps":number,"targetPeriodWeeks":number,"dueDate":string|null,"dueTime":"HH:MM"|null,"horizon":"once|daily|weekly|monthly","syncTargets":["calendar"|"tasks"],"count":number,"avoided":boolean,"damagePct":number}]}`;

@@ -19,11 +19,11 @@ import {
   dayNet,
   repsOn,
   repsInDates,
-  redeemDelta,
 } from '../engine/stars';
 import {
   buildRewardViews,
   runningBalances,
+  rewardCost,
   type RewardView,
 } from '../engine/rewards';
 import { buildRecurringRows, type VirtualTaskRow } from '../engine/recurring';
@@ -116,7 +116,7 @@ type ForgeState = {
   applyCommands: (cmds: Command[]) => Promise<{ done: number; failed: number; navigateTo: string | null }>;
   updateSettings: (patch: Partial<AppState['settings']>) => Promise<void>;
 
-  createReward: (name: string, cost: number) => Promise<void>;
+  createReward: (name: string, damagePct: number) => Promise<void>;
   removeReward: (id: string) => Promise<void>;
   redeemReward: (rewardId: string) => Promise<void>;
 
@@ -566,6 +566,11 @@ export const useForge = create<ForgeState>((set, get) => ({
         if (it.refId && !it.avoided) {
           for (let i = 0; i < reps; i++) await get().logHabitRep(it.refId);
         }
+      } else if (it.kind === 'new-reward') {
+        // Priced as a share of the total, so it stays meaningful as the rank
+        // climbs. The model's tier is a suggestion the user already saw and
+        // could edit in the preview.
+        await q.addReward(it.text, 0, it.damagePct ?? 20);
       } else if (it.kind === 'redeem') {
         if (it.refId) await get().redeemReward(it.refId);
       }
@@ -575,8 +580,9 @@ export const useForge = create<ForgeState>((set, get) => ({
 
   /* ---------------- Rewards ---------------- */
 
-  async createReward(name, cost) {
-    await q.addReward(name, cost);
+  async createReward(name, damagePct) {
+    // cost is legacy; the percentage is what actually prices it now.
+    await q.addReward(name, 0, damagePct);
     await get().loadToday();
   },
 
@@ -586,21 +592,36 @@ export const useForge = create<ForgeState>((set, get) => ({
   },
 
   /** Spends weekly Balance only. Lifetime and therefore Rank are untouched. */
+  /**
+   * Spend a reward. The price is a SHARE of everything earned so far, so it
+   * scales with the climb instead of going stale, and it lands on the rank
+   * itself: a week off should cost you rank, not pocket money.
+   */
   async redeemReward(rewardId) {
-    const { rewards, today } = get();
+    const { rewards, today, appState } = get();
     const reward = rewards.find((r) => r.id === rewardId);
     if (!reward) return;
+
+    const lifetime = appState?.lifetimeStars ?? 0;
+    const cost = rewardCost(lifetime, reward.damagePct ?? 20);
+    if (cost <= 0) {
+      toast.info('Nothing earned yet, so nothing to spend. Log something first.');
+      return;
+    }
 
     await q.addLog({
       date: today,
       kind: 'redeem',
       refId: rewardId,
       count: 1,
-      starsDelta: redeemDelta(reward),
+      starsDelta: -cost,
     });
-    // Deliberately NO addLifetimeStars call — spending never moves rank.
+    // Unlike every other spend, this one DOES move rank — that is the point.
+    await q.subtractLifetimeStars(cost);
     await get().loadToday();
-    toast.success(`Redeemed ${reward.name} for ${reward.cost} ★. Enjoy it.`);
+    toast.success(
+      `Redeemed ${reward.name} — ${reward.damagePct ?? 20}% of your total, ${cost} ★. Enjoy it.`,
+    );
   },
 
   /* ---------------- Tasks ---------------- */
@@ -821,6 +842,7 @@ export const useForge = create<ForgeState>((set, get) => ({
       rewards,
       get().weekBalance(),
       runningBalances(weekLogs, dates, { floor }),
+      appState.lifetimeStars,
     );
   },
 

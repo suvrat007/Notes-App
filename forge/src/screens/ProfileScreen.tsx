@@ -4,6 +4,7 @@ import { useForge } from '../store/useForge';
 import RewardList from '../components/RewardList';
 import Avatar from '../components/Avatar';
 import { rankFor, MAX_LEVEL } from '../engine/rank';
+import { DAMAGE_TIERS, rewardCost, suggestDamage, type DamageTier } from '../engine/rewards';
 import SettingsPanel from '../components/SettingsPanel';
 
 export default function ProfileScreen() {
@@ -13,7 +14,13 @@ export default function ProfileScreen() {
   } = useForge();
 
   const [name, setName] = useState('');
-  const [cost, setCost] = useState(100);
+  /*
+   * null means "whatever the system reckons from the name". The moment the
+   * user picks a tier it sticks, so their choice is never overwritten by the
+   * next keystroke.
+   */
+  const [pick, setPick] = useState<DamageTier | null>(null);
+  const damage = pick ?? suggestDamage(name);
 
   useEffect(() => { void loadToday(); }, [loadToday]);
   if (!ready) return <div className="screen" data-testid="screen-profile">Loading…</div>;
@@ -21,7 +28,7 @@ export default function ProfileScreen() {
   const lifetime = appState?.lifetimeStars ?? 0;
   const rank = rankFor(lifetime);
   const views = rewardViews();
-  const canAdd = name.trim().length > 0 && cost > 0;
+  const canAdd = name.trim().length > 0;
 
   return (
     <div className="screen" data-testid="screen-profile">
@@ -86,14 +93,37 @@ export default function ProfileScreen() {
       <div className="rewardadd">
         <input className="input" placeholder="Cheesecake" value={name}
                data-testid="reward-name" onChange={(e) => setName(e.target.value)} />
-        <input className="input rewardadd__cost" type="number" min={1} value={cost}
-               data-testid="reward-cost" onChange={(e) => setCost(Number(e.target.value))} />
         <button className="banner__btn banner__btn--go" disabled={!canAdd}
                 data-testid="reward-add"
-                onClick={async () => { await createReward(name.trim(), cost); setName(''); }}>
+                onClick={async () => {
+                  await createReward(name.trim(), damage);
+                  setName(''); setPick(null);
+                }}>
           Add
         </button>
       </div>
+
+      {/* How much this costs, as a share of everything earned. The system
+          opens with a guess from the name so nobody has to price a cheesecake
+          from first principles; picking any tier overrides it for good. */}
+      <div className="tierpick" data-testid="reward-tiers">
+        {DAMAGE_TIERS.map((t) => (
+          <button key={t.pct} type="button"
+                  className={'tierpick__opt' + (damage === t.pct ? ' tierpick__opt--on' : '')}
+                  data-testid={`tier-${t.pct}`}
+                  aria-pressed={damage === t.pct}
+                  title={t.blurb}
+                  onClick={() => setPick(t.pct)}>
+            <span className="tierpick__pct num">{t.pct}%</span>
+            <span className="tierpick__label">{t.label}</span>
+          </button>
+        ))}
+      </div>
+      <p className="reward__note" data-testid="tier-preview">
+        {name.trim()
+          ? `“${name.trim()}” would cost ${rewardCost(lifetime, damage)} ★ right now — ${damage}% of your total.`
+          : 'Name it and the cost is worked out as a share of your total.'}
+      </p>
 
       </div>
       </div>

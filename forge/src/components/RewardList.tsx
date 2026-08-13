@@ -31,7 +31,10 @@ export default function RewardList({ views, affordableOnly, onRedeem, onDelete }
             )}
           </span>
 
-          <span className="reward__cost num">{v.cost} ★</span>
+          <span className="reward__cost num">
+            <span data-testid={`cost-${v.id}`}>{v.cost} ★</span>
+            <span className="reward__pct" data-testid={`pct-${v.id}`}>{v.damagePct}%</span>
+          </span>
 
           {v.affordable ? (
             <button className="reward__btn" data-testid={`redeem-${v.id}`}
@@ -61,8 +64,9 @@ export default function RewardList({ views, affordableOnly, onRedeem, onDelete }
                 Redeem <b>{confirming.name}</b> for{' '}
                 <b className="num">{confirming.cost} ★</b>?
               </p>
-              <p className="reward__note">
-                Spends your weekly balance. Your lifetime stars and rank don't change.
+              <p className="reward__note" data-testid="redeem-warning">
+                That is {confirming.damagePct}% of everything you have earned, and
+                your rank drops with it. Which is what makes it worth earning.
               </p>
               <button className="btn btn--primary" data-testid="redeem-yes"
                       onClick={() => { onRedeem(confirming.id); setConfirming(null); }}>

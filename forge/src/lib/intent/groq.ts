@@ -55,9 +55,10 @@ type RawItem = {
   dueTime?: string | null;
   syncTargets?: unknown;
   horizon?: string;
+  damagePct?: number;
 };
 
-const KINDS: IntentKind[] = ['habit', 'bad-habit', 'task', 'redeem', 'new-habit'];
+const KINDS: IntentKind[] = ['habit', 'bad-habit', 'task', 'redeem', 'new-habit', 'new-reward'];
 
 /**
  * Coerce the model's output into ParsedItems we can trust.
@@ -106,10 +107,13 @@ export function coerceItems(raw: unknown, ctx: ParseContext): ParsedItem[] {
     } else if (kind === 'new-habit') {
       refId = null;
       polarity = modelPolarity;
+    } else if (kind === 'new-reward') {
+      // A reward being created does not point at anything yet.
+      refId = null;
     }
 
     // A name the user would recognise on a habit card.
-    const createName = kind === 'new-habit'
+    const createName = kind === 'new-habit' || kind === 'new-reward'
       ? (String(r.createName ?? '').trim() || text).slice(0, 60)
       : undefined;
 
@@ -167,13 +171,19 @@ export function coerceItems(raw: unknown, ctx: ParseContext): ParsedItem[] {
     return {
       id,
       kind,
-      text: kind === 'new-habit' ? createName! : text,
+      text: kind === 'new-habit' || kind === 'new-reward' ? createName! : text,
       refId,
       dueDate,
       raw: text,
       count,
       avoided,
       ...(kind === 'task' ? { dueTime, syncTargets, horizon } : {}),
+      // Rewards are priced as a share of everything earned, never in stars.
+      // Anything off the tier ladder falls back to the gentlest one.
+      ...(kind === 'new-reward'
+        ? { damagePct: [20, 40, 60, 80, 100].includes(Number(r.damagePct))
+            ? Number(r.damagePct) : 20 }
+        : {}),
       ...(kind === 'new-habit'
         ? {
           polarity,
