@@ -1,5 +1,18 @@
 require('dotenv').config();
 
+/*
+ * A `mongodb+srv://` URI needs a DNS SRV lookup, and some resolvers — corporate
+ * networks, a few VPNs, the odd container — refuse that query type while
+ * answering ordinary lookups happily. The failure reads as "querySrv
+ * ECONNREFUSED", which looks nothing like a DNS policy problem.
+ *
+ * Setting DNS_SERVERS routes Node's lookups somewhere that answers. Unset,
+ * which is the normal case, nothing changes.
+ */
+if (process.env.DNS_SERVERS) {
+    require('dns').setServers(process.env.DNS_SERVERS.split(',').map((s) => s.trim()));
+}
+
 const mongoose = require('mongoose');
 mongoose.connect(process.env.VITE_MONGO_URI, { family: 4 });
 
@@ -159,6 +172,15 @@ app.get("/get-user", authenticateToken, async(req, res) => {
         message: ""
     });
 });
+
+/*
+ * Habits, rewards and the day's state live in their own routers. They are a
+ * few hundred lines between them, and folding that into this file would bury
+ * the auth and task routes that were already here.
+ */
+app.use('/habits', require('./routes/habits.js'));
+app.use('/rewards', require('./routes/rewards.js'));
+app.use('/state', require('./routes/state.js'));
 
 // --- Tasks Routes ---
 app.post('/tasks', authenticateToken, async (req, res) => {
@@ -330,6 +352,31 @@ app.get('/logs', authenticateToken, async (req, res) => {
 });
 
 const port = process.env.PORT || 8000;
+/**
+ * Bring the collections' indexes in line with the schemas on boot.
+ *
+ * Specifically this DROPS the old unique index on (userId, taskId, date) that
+ * the ledger used to carry. It made "one row per task per day" a database-level
+ * rule, which is exactly what a habit logged three times in a morning breaks.
+ * Mongoose will not remove a stale index on its own, so without this an
+ * existing database rejects the second rep of the day with a duplicate key
+ * error that looks like a bug in the app.
+ */
+async function syncIndexes() {
+    try {
+        await Promise.all([
+            Log.syncIndexes(), Task.syncIndexes(), User.syncIndexes(),
+            require('./models/habit.model.js').syncIndexes(),
+            require('./models/reward.model.js').syncIndexes(),
+        ]);
+        console.log('Indexes in sync');
+    } catch (e) {
+        console.error('Index sync failed:', e.message);
+    }
+}
+
+mongoose.connection.once('open', syncIndexes);
+
 app.listen(port, () => console.log(`Server running on port ${port}`));
 
 module.exports = app;
