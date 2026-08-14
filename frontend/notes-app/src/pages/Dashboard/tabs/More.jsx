@@ -66,7 +66,7 @@ const More = ({ user, theme, toggleTheme, showToast, onNavigate }) => {
               <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center text-white/40">
                 <Moon size={16} />
               </div>
-              <Switch checked={isDark} onCheckedChange={toggleTheme} className="data-[state=checked]:bg-[#c0b3a5]" />
+              <Switch checked={isDark} onCheckedChange={toggleTheme} className="data-[checked]:bg-[#c0b3a5]" />
             </div>
             <h3 className="text-base font-bold text-white mb-1">Appearance</h3>
             <p className="text-xs text-white/60">Currently set to <span className="text-white font-bold">{isDark ? 'Dark' : 'Light'}</span></p>
@@ -89,7 +89,7 @@ const More = ({ user, theme, toggleTheme, showToast, onNavigate }) => {
                 onCheckedChange={setShowBacklog}
                 data-testid="pref-backlog"
                 aria-label="Show unfinished work from earlier days"
-                className="data-[state=checked]:bg-[#c0b3a5]"
+                className="data-[checked]:bg-[#c0b3a5]"
               />
             </div>
             <h3 className="text-base font-bold text-white mb-1">Carry over</h3>

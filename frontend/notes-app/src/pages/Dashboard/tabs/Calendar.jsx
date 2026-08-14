@@ -239,7 +239,7 @@ const Calendar = ({ tasks, logs, refreshData, showToast }) => {
             <span className="text-sm font-bold text-white/80 flex items-center gap-2">
               <Moon size={16} className="text-white/40" /> Mark Break Day
             </span>
-            <Switch checked={isSelectedBreakDay} onCheckedChange={toggleBreakDay} className="data-[state=checked]:bg-[#c0b3a5]" />
+            <Switch checked={isSelectedBreakDay} onCheckedChange={toggleBreakDay} className="data-[checked]:bg-[#c0b3a5]" />
           </div>
 
           {/* Schedule Timeline */}
