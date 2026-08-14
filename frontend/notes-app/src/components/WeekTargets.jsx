@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Target, TrendingUp, TrendingDown, Check } from 'lucide-react';
 import api from '../utils/api';
+import { Skeleton } from './Skeleton';
 import { useDataVersion } from '../utils/DataContext';
 
 /**
@@ -33,8 +34,26 @@ const WeekTargets = ({ onNavigate }) => {
     return () => { cancelled = true; };
   }, [dataVersion]);
 
-  // Nothing with a weekly goal yet: say so once, quietly, and stop taking space.
-  if (!nodes || nodes.length === 0) return null;
+  // Still loading: hold the space, so the day's work below does not jump
+  // down the page when the targets arrive.
+  if (nodes === null) {
+    return (
+      <div className="bg-[#16191e] border border-white/5 rounded-2xl p-4" data-testid="week-targets-loading">
+        <Skeleton className="h-3 w-24 mb-3" />
+        <div className="space-y-3">
+          {[0, 1].map((i) => (
+            <div key={i} className="space-y-1.5">
+              <Skeleton className="h-3 w-32" />
+              <Skeleton className="h-1.5 w-full" rounded="rounded-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Nothing with a goal yet: say nothing rather than show an empty box.
+  if (nodes.length === 0) return null;
 
   return (
     <motion.section

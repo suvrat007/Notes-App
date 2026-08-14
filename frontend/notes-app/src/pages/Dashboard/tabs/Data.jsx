@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Download, Flame, Ban, CheckSquare, Gift, Clock } from 'lucide-react';
 import api from '../../../utils/api';
+import { Skeleton, SkeletonCard, SkeletonHeader, SkeletonRows } from '../../../components/Skeleton';
 
 const KIND_ICON = {
   habit: Flame,
@@ -74,7 +75,17 @@ const Ledger = () => {
   };
 
   if (error) return <p className="text-focus-red text-sm">{error}</p>;
-  if (!data) return <p className="text-white/40 text-sm">Loading your ledger…</p>;
+  // A ledger is a list, so the wait looks like one.
+  if (!data) {
+    return (
+      <div className="space-y-5" data-testid="ledger-loading">
+        <SkeletonHeader />
+        <SkeletonCard>
+          <SkeletonRows rows={7} height="h-12" />
+        </SkeletonCard>
+      </div>
+    );
+  }
 
   // Group by day, preserving the newest-first order the server sent.
   const days = [];

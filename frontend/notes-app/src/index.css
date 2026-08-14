@@ -154,3 +154,34 @@ body[data-theme='light'] video {
 *::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/*
+ * The shimmer that runs across a loading placeholder.
+ *
+ * A moving highlight rather than a fading pulse: at this contrast a pulse
+ * reads as the screen failing to render. One background-position animation is
+ * cheap enough to run on a dozen blocks at once.
+ */
+@keyframes shimmer-sweep {
+  from { background-position: -150% 0; }
+  to   { background-position: 250% 0; }
+}
+
+.shimmer {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.06) 45%,
+    rgba(255, 255, 255, 0.10) 50%,
+    rgba(255, 255, 255, 0.06) 55%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: shimmer-sweep 1.6s ease-in-out infinite;
+}
+
+/* Someone who asked for less motion still gets the placeholder, just still. */
+@media (prefers-reduced-motion: reduce) {
+  .shimmer { animation: none; }
+}

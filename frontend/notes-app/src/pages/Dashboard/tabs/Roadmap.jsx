@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Flame, TrendingUp, TrendingDown } from 'lucide-react';
 import api from '../../../utils/api';
+import { Skeleton, SkeletonCard, SkeletonHeader, SkeletonRows } from '../../../components/Skeleton';
 import { useDataVersion } from '../../../utils/DataContext';
 
 const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -33,7 +34,26 @@ const Roadmap = () => {
   }, [dataVersion]);
 
   if (error) return <p className="text-focus-red text-sm">{error}</p>;
-  if (!data) return <p className="text-white/40 text-sm">Loading your week…</p>;
+  // The shape of the week, while the week is on its way.
+  if (!data) {
+    return (
+      <div className="space-y-5" data-testid="roadmap-loading">
+        <SkeletonHeader />
+        <SkeletonCard>
+          <div className="grid grid-cols-2 sm:flex sm:gap-8 gap-3">
+            <Skeleton className="h-12 w-24" />
+            <Skeleton className="h-12 w-20" />
+            <Skeleton className="h-12 w-28" />
+          </div>
+          <Skeleton className="h-2 w-full mt-5" rounded="rounded-full" />
+        </SkeletonCard>
+        <SkeletonCard>
+          <Skeleton className="h-5 w-24 mb-4" />
+          <SkeletonRows rows={3} height="h-24" />
+        </SkeletonCard>
+      </div>
+    );
+  }
 
   const { summary, nodes, daysLeft } = data;
 

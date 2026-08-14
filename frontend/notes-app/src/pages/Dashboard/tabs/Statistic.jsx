@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import { Flame } from 'lucide-react';
 import api from '../../../utils/api';
+import { Skeleton, SkeletonCard, SkeletonHeader, SkeletonRows } from '../../../components/Skeleton';
 import { useDataVersion } from '../../../utils/DataContext';
 import Select from '../../../components/Select';
 
@@ -74,7 +75,22 @@ const Statistic = () => {
   }, [range, heatHabit, dataVersion]);
 
   if (error) return <p className="text-focus-red text-sm">{error}</p>;
-  if (!data) return <p className="text-white/40 text-sm">Loading stats…</p>;
+  // Two charts and two panels, in their own places, before they arrive.
+  if (!data) {
+    return (
+      <div className="space-y-4 md:space-y-5" data-testid="stats-loading">
+        <SkeletonHeader />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonCard key={i}>
+              <Skeleton className="h-5 w-28 mb-4" />
+              <Skeleton className="h-40 w-full" rounded="rounded-xl" />
+            </SkeletonCard>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const heatMax = Math.max(...data.heat.map((h) => h.value), 1);
   // Column-per-week so the grid reads as calendar weeks, like a contribution graph.
