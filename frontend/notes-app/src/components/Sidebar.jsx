@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Settings, Bell, CircleUser } from 'lucide-react';
+import RankBadge from './RankBadge';
 import { TABS } from './navConfig';
 
 const Sidebar = ({ active, onChange, user, rank, lifetime, showToast }) => (
@@ -45,16 +46,19 @@ const Sidebar = ({ active, onChange, user, rank, lifetime, showToast }) => (
       {rank && (
         <div className="mb-3 px-2" data-testid="sidebar-rank">
           <p className="text-[10px] tracking-widest uppercase text-white/40 mb-1.5">You are</p>
-          <div className="flex items-baseline gap-2">
-            <span
-              className="font-heading font-black text-lg leading-none tracking-wide"
-              style={{ color: rank.color }}
-            >
-              {rank.title}
-            </span>
-            <span className="font-heading font-bold text-sm text-white/50">
-              LVL {rank.level}
-            </span>
+          <div className="flex items-center gap-2.5">
+            <RankBadge badge={rank.badge} color={rank.color} size="md" title={rank.title} />
+            <div className="min-w-0">
+              <span
+                className="block font-heading font-black text-lg leading-none tracking-wide truncate"
+                style={{ color: rank.color }}
+              >
+                {rank.title}
+              </span>
+              <span className="block font-heading font-bold text-[11px] text-white/50 mt-0.5">
+                LVL {rank.level}
+              </span>
+            </div>
           </div>
           <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden mt-2">
             <div
@@ -63,8 +67,16 @@ const Sidebar = ({ active, onChange, user, rank, lifetime, showToast }) => (
             />
           </div>
           <p className="text-[10px] text-white/35 mt-1.5">
-            {rank.nextAt === null ? 'Highest rank reached' : `${rank.toNext}★ to the next`}
+            {rank.nextAt === null
+              ? 'Highest rank reached'
+              : `${rank.toNext}★ to level ${rank.level + 1}`}
           </p>
+          {/* The next NAMED rank, which is the thing actually worth wanting. */}
+          {rank.nextTitle && (
+            <p className="text-[10px] text-white/25 mt-0.5 truncate">
+              Next rank: {rank.nextTitle}
+            </p>
+          )}
         </div>
       )}
 

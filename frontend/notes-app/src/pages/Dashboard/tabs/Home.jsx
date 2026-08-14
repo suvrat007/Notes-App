@@ -8,6 +8,7 @@ import HabitCard from '../../../components/HabitCard';
 import HabitModal from '../../../components/HabitModal';
 import RewardPanel from '../../../components/RewardPanel';
 import WeekTargets from '../../../components/WeekTargets';
+import RankBadge from '../../../components/RankBadge';
 import TaskRow from '../../../components/TaskRow';
 
 const todayKey = () => new Date().toLocaleDateString('en-CA');
@@ -187,14 +188,22 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
 
               {stars?.rank && (
                 <div className="mb-5" data-testid="rank">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span
-                      className="text-[10px] font-black tracking-[0.15em] uppercase px-2 py-0.5 rounded-full border"
-                      style={{ color: stars.rank.color, borderColor: stars.rank.color }}
-                    >
-                      {stars.rank.title} {stars.rank.level}
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="flex items-center gap-2 min-w-0">
+                      <RankBadge
+                        badge={stars.rank.badge}
+                        color={stars.rank.color}
+                        size="sm"
+                        title={stars.rank.title}
+                      />
+                      <span
+                        className="text-[10px] font-black tracking-[0.15em] uppercase px-2 py-0.5 rounded-full border truncate"
+                        style={{ color: stars.rank.color, borderColor: stars.rank.color }}
+                      >
+                        {stars.rank.title} {stars.rank.level}
+                      </span>
                     </span>
-                    <span className="text-[10px] font-bold text-white/40 tabular-nums">
+                    <span className="text-[10px] font-bold text-white/40 tabular-nums shrink-0">
                       {stars.rank.nextAt === null ? 'MAX' : `${stars.rank.toNext}★ to next`}
                     </span>
                   </div>

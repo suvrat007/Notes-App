@@ -55,22 +55,22 @@ const Signup = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-[100dvh] flex items-center justify-center p-4 sm:p-6 bg-[#0d0f12]">
       <motion.div 
         initial={{ opacity: 0, y: 20 }} 
         animate={{ opacity: 1, y: 0 }} 
-        className="w-full max-w-[420px] bg-[#16191e] border border-white/5 rounded-3xl overflow-hidden py-10 px-10 relative"
+        className="w-full max-w-[420px] bg-[#16191e] border border-white/5 rounded-3xl overflow-hidden py-6 px-6 sm:px-10 relative"
       >
-        <h2 className="font-heading text-center text-xl font-medium tracking-widest text-white/80 mb-10">
+        <h2 className="font-heading text-center text-xl font-medium tracking-widest text-white/80 mb-5">
           FOCUS
         </h2>
         
-        <div className="text-center mb-8">
-          <h1 className="font-sans text-3xl font-bold text-white mb-2">Start Tracking</h1>
+        <div className="text-center mb-5">
+          <h1 className="font-sans text-2xl font-bold text-white mb-1.5">Start Tracking</h1>
           <p className="text-white/60 text-sm">Create an account to begin</p>
         </div>
         
-        {error && <p className="text-focus-red text-sm mb-6 text-center">{error}</p>}
+        {error && <p className="text-focus-red text-sm mb-4 text-center">{error}</p>}
         
         <form onSubmit={handleSignup} className="space-y-5">
           <div className="space-y-1.5">
@@ -78,7 +78,7 @@ const Signup = () => {
             <Input 
               type="text" 
               placeholder="Enter your name" 
-              className="bg-white text-black border-0 h-12 rounded-xl px-4 placeholder:text-gray-400 font-medium"
+              className="bg-[#0d0f12] text-white border border-white/10 h-12 rounded-xl px-4 placeholder:text-white/30 font-medium"
               value={fullName} 
               onChange={e => setFullName(e.target.value)} 
             />
@@ -89,7 +89,7 @@ const Signup = () => {
             <Input 
               type="email" 
               placeholder="name@example.com" 
-              className="bg-white text-black border-0 h-12 rounded-xl px-4 placeholder:text-gray-400 font-medium"
+              className="bg-[#0d0f12] text-white border border-white/10 h-12 rounded-xl px-4 placeholder:text-white/30 font-medium"
               value={email} 
               onChange={e => setEmail(e.target.value)} 
             />
@@ -100,7 +100,7 @@ const Signup = () => {
             <Input 
               type="password" 
               placeholder="Create a strong password" 
-              className="bg-white text-black border-0 h-12 rounded-xl px-4 placeholder:text-gray-400 font-medium"
+              className="bg-[#0d0f12] text-white border border-white/10 h-12 rounded-xl px-4 placeholder:text-white/30 font-medium"
               value={password} 
               onChange={e => setPassword(e.target.value)} 
             />
@@ -109,7 +109,7 @@ const Signup = () => {
           <Button 
             type="submit" 
             disabled={submitting}
-            className="w-full h-12 bg-[#e8e8e8] hover:bg-white text-black font-bold text-sm mt-4 rounded-[20px] transition-colors"
+            className="w-full h-12 bg-focus-green hover:bg-focus-green-soft text-white font-bold tracking-widest text-sm mt-4 rounded-[20px] transition-colors"
           >
             {submitting ? 'Creating account...' : 'Sign Up'}
           </Button>
@@ -117,7 +117,7 @@ const Signup = () => {
 
         {googleReady && (
           <>
-            <div className="mt-8 flex items-center gap-4">
+            <div className="mt-6 flex items-center gap-4">
               <div className="h-[1px] flex-1 bg-white/10" />
               <span className="text-[9px] font-bold tracking-[0.2em] text-white/30">OR</span>
               <div className="h-[1px] flex-1 bg-white/10" />
@@ -130,7 +130,7 @@ const Signup = () => {
               variant="outline"
               disabled={googleBusy || submitting}
               onClick={handleGoogle}
-              className="w-full h-12 mt-6 bg-transparent border-white/10 text-white hover:bg-white/5 hover:text-white font-semibold text-xs tracking-wider"
+              className="w-full h-12 mt-4 bg-transparent border-white/10 text-white hover:bg-white/5 hover:text-white font-semibold text-xs tracking-wider"
             >
               <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -143,11 +143,11 @@ const Signup = () => {
           </>
         )}
 
-        <p className="text-center mt-8 text-sm font-medium text-white/60">
+        <p className="text-center mt-6 text-sm font-medium text-white/60">
           Already have an account? <span className="text-white font-bold hover:text-gray-200 cursor-pointer ml-1" onClick={() => navigate('/login')}>Login</span>
         </p>
 
-        <div className="mt-12 text-center">
+        <div className="mt-5 text-center">
           <div className="flex items-center justify-center gap-4">
             <div className="h-[1px] w-8 bg-white/10"></div>
             <span className="text-[9px] font-bold tracking-[0.2em] text-white/30">SYSTEM OPS V1.0</span>

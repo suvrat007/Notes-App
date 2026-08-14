@@ -60,15 +60,24 @@ const Login = () => {
     }
   };
 
+  /*
+   * The page states its own background.
+   *
+   * These pages render before the dashboard sets the theme attribute, so
+   * anything inherited is the light default: a white page around a dark card.
+   *
+   * 100dvh rather than 100vh because on mobile vh counts browser chrome that
+   * is not actually there, which pushes the card under the address bar.
+   */
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-[100dvh] flex items-center justify-center p-4 sm:p-6 bg-[#0d0f12]">
       <motion.div 
         initial={{ opacity: 0, y: 20 }} 
         animate={{ opacity: 1, y: 0 }} 
         className="w-full max-w-[420px] bg-[#16191e] border border-white/10 rounded-[22px] overflow-hidden"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-8 pt-8 pb-4 border-b border-white/5">
+        <div className="flex items-center justify-between px-6 sm:px-8 pt-6 pb-4 border-b border-white/5">
           <span className="font-heading font-bold text-white tracking-widest text-sm">FOCUS</span>
           <div className="flex items-center gap-3">
             <span className="text-[10px] font-mono text-focus-teal font-semibold tracking-wider">V2.4.0</span>
@@ -78,13 +87,13 @@ const Login = () => {
           </div>
         </div>
 
-        <div className="px-8 py-10">
+        <div className="px-6 sm:px-8 py-7">
           <h2 className="font-heading text-3xl font-bold text-white tracking-tight mb-2">WELCOME BACK</h2>
-          <p className="text-white/60 text-sm mb-10">Continue your productivity journey.</p>
+          <p className="text-white/60 text-sm mb-7">Continue your productivity journey.</p>
           
           {error && <p className="text-focus-red text-sm mb-6 text-center">{error}</p>}
           
-          <form onSubmit={handleLogin} className="space-y-6">
+          <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-2">
               <Label className="text-[10px] font-bold tracking-widest text-white/70 uppercase">Email</Label>
               <div className="relative">
@@ -115,30 +124,38 @@ const Login = () => {
                 <button 
                   type="button" 
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  /* The icon is 18px; the button it sits in has to be bigger
+                     than the icon for a thumb to land on it. */
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 grid place-items-center rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-colors"
                 >
                   <Eye size={18} />
                 </button>
               </div>
             </div>
 
-            <div className="flex items-center space-x-3 pt-2">
-              <Checkbox id="remember" className="border-white/20 data-[state=checked]:bg-focus-green data-[state=checked]:border-focus-green rounded-sm" />
-              <label htmlFor="remember" className="text-xs font-semibold text-white/70 cursor-pointer">
+            {/* The whole row is the target. An 18px glyph is not something a
+                thumb aims at, and the label was already the easier hit. */}
+            <label
+              htmlFor="remember"
+              className="flex items-center gap-3 py-2.5 cursor-pointer select-none"
+            >
+              <Checkbox id="remember" className="h-5 w-5 border-white/20 data-[state=checked]:bg-focus-green data-[state=checked]:border-focus-green rounded-sm" />
+              <span className="text-xs font-semibold text-white/70">
                 Stay logged in for this session
-              </label>
-            </div>
+              </span>
+            </label>
 
             <Button 
               type="submit" 
               disabled={submitting}
-              className="w-full h-14 bg-focus-green hover:bg-focus-green-soft text-white font-bold tracking-widest text-sm mt-4 rounded-md transition-colors"
+              className="w-full h-12 bg-focus-green hover:bg-focus-green-soft text-white font-bold tracking-widest text-sm mt-4 rounded-md transition-colors"
             >
               {submitting ? 'LOGGING IN...' : 'LOGIN →'}
             </Button>
           </form>
 
-          <div className="mt-12 relative">
+          <div className="mt-8 relative">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-white/10"></div>
             </div>
@@ -151,7 +168,7 @@ const Login = () => {
 
           {/* GitHub sat here too, but nothing was ever wired behind it, a
               button that silently does nothing is worse than no button. */}
-          <div className="mt-8">
+          <div className="mt-5">
             <Button
               type="button"
               variant="outline"
@@ -174,7 +191,7 @@ const Login = () => {
             )}
           </div>
 
-          <p className="text-center mt-10 text-xs font-medium text-white/60">
+          <p className="text-center mt-7 text-xs font-medium text-white/60">
             Don't have an account? <span className="text-[#e2d5f8] hover:text-white cursor-pointer ml-1" onClick={() => navigate('/signup')}>Sign up</span>
           </p>
         </div>
