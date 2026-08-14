@@ -86,7 +86,7 @@ async function settleShortfalls(userId, todayKey) {
     }).lean();
 
     const achieved = rows.reduce((sum, r) => sum + (r.count || 1), 0);
-    const delta = e.shortfallDelta(habit, achieved);
+    const delta = e.shortfallDelta(habit, achieved, lastStart);
 
     if (delta < 0) {
       await Log.create({

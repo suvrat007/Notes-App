@@ -157,6 +157,9 @@ router.get('/', async (req, res) => {
       collapsed.push({
         ...t,
         date: e.dayKey(t.targetDate),
+        // The editor reads dueKey; without it every task looked as though it
+        // had no deadline, whatever was actually saved.
+        dueKey: t.dueDate ? e.dayKey(t.dueDate) : null,
         upcoming: t.seriesId
           ? tasks.filter((x) => x.seriesId === t.seriesId).length
           : 1,

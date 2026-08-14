@@ -168,7 +168,7 @@ router.get('/', async (req, res) => {
       const periodStart = periodStartOf(h, dateKey);
       const days = periodDays(h, periodStart);
       const doneThisPeriod = e.repsInDates(logs, h._id, days);
-      const target = e.effectiveTarget(h);
+      const target = e.effectiveTarget(h, periodStart);
 
       return {
         ...h,

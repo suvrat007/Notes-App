@@ -215,10 +215,22 @@ goals. "Run 10 kilometres this week" is ONE new-habit: targetReps 10, unit
 - Going OVER the target is allowed and normal. Never clamp the count to what
   is left; report what was actually done.
 
+SWAPS
+"I could not run 8 so I ran 5 and did 1000 skips instead" is a swap, not a
+failure. Emit BOTH halves:
+  1. kind habit, refId of the goal that was cut, count = what WAS done (5),
+     and newTarget = that same number. newTarget tells the app to lower THIS
+     period only, so the week reads as met at 5 instead of failed at 8.
+  2. the substitute as its own item: an existing habit => kind habit with its
+     refId and count; something new => new-habit with the count as targetReps.
+Only set newTarget when the speaker says they FELL SHORT and did something
+else instead. Doing less with no substitute is a plain habit log, and doing
+MORE is never a swap.
+
 Never invent items. Never merge two distinct items.
 
 Respond with ONLY this JSON:
-{"items":[{"kind":"habit|progress|skipped|task|new-habit|new-reward","text":string,"refId":string|null,"name":string|null,"polarity":"good|bad|null","count":number,"dailyAllowance":number|null,"targetReps":number,"targetPeriodWeeks":number,"unit":string,"damagePct":number,"dueDate":string|null,"deadline":string|null,"cadence":"daily|anytime|null"}]}`;
+{"items":[{"kind":"habit|progress|skipped|task|new-habit|new-reward","text":string,"refId":string|null,"name":string|null,"polarity":"good|bad|null","count":number,"dailyAllowance":number|null,"targetReps":number,"targetPeriodWeeks":number,"unit":string,"damagePct":number,"dueDate":string|null,"deadline":string|null,"cadence":"daily|anytime|null","newTarget":number|null}]}`;
 
 async function chatJSON(messages, model) {
   const res = await fetch(CHAT_ENDPOINT, {
@@ -353,6 +365,9 @@ function coerce(raw, ctx) {
         ? Number(r.targetPeriodWeeks) : 1,
       // Short, lowercase, and only ever a label: it is never parsed as a number.
       unit: String(r.unit || '').trim().toLowerCase().slice(0, 16),
+      newTarget: Number.isFinite(Number(r.newTarget)) && Number(r.newTarget) >= 0
+        ? Math.round(Number(r.newTarget))
+        : null,
       damagePct: [20, 40, 60, 80, 100].includes(Number(r.damagePct))
         ? Number(r.damagePct) : 20,
       dueDate: /^\d{4}-\d{2}-\d{2}$/.test(r.dueDate || '')

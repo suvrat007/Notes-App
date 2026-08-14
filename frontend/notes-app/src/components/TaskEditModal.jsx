@@ -21,7 +21,9 @@ const TaskEditModal = ({ task, onClose, refreshData, showToast }) => {
   const [baseReward, setBaseReward] = useState(task.baseReward ?? 10);
   const [targetDate, setTargetDate] = useState(task.date ?? '');
   const [dueTime, setDueTime] = useState(task.dueTime ?? '');
-  const [dueDate, setDueDate] = useState(task.dueKey ?? '');
+  const [dueDate, setDueDate] = useState(
+    task.dueKey ?? (task.dueDate ? String(task.dueDate).slice(0, 10) : ''),
+  );
   const [repCadence, setRepCadence] = useState(task.repCadence ?? 'anytime');
   const [submitting, setSubmitting] = useState(false);
 

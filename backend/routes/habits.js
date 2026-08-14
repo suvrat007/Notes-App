@@ -164,7 +164,7 @@ router.post('/:habitId/log', logLimit, async (req, res) => {
       }).lean();
       const doneInPeriod = rows.reduce((sum, r) => sum + (r.count || 1), 0);
 
-      starsDelta = e.goodHabitDelta(habit, amount, doneInPeriod);
+      starsDelta = e.goodHabitDelta(habit, amount, doneInPeriod, pStart);
     }
 
     const log = await Log.create({
@@ -191,6 +191,55 @@ router.delete('/:habitId/log', async (req, res) => {
     return res.json({ error: false, removed: last.starsDelta });
   } catch {
     return res.status(500).json({ error: true, message: 'Internal Server Error' });
+  }
+});
+
+
+/**
+ * Renegotiate this period's target.
+ *
+ * The week you actually had is not always the week you planned. Someone who
+ * meant to run 8 and managed 5 because they spent the time skipping has not
+ * failed the week, they have swapped its contents — and a tracker that calls
+ * that a failure teaches people to stop telling it the truth.
+ *
+ * Only THIS period moves. The standing goal is untouched, so next week still
+ * asks for the original number, and the change is kept with its reason so the
+ * history says what happened rather than quietly reading as a hit target.
+ */
+router.patch('/:habitId/renegotiate', logLimit, async (req, res) => {
+  const { periodStart, target, reason } = req.body;
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(periodStart || '')) {
+    return res.status(400).json({ error: true, message: 'A period start is required.' });
+  }
+  const next = Math.max(0, Math.round(Number(target)));
+  if (!Number.isFinite(next)) {
+    return res.status(400).json({ error: true, message: 'A new target is required.' });
+  }
+
+  try {
+    const habit = await Habit.findOne({ _id: req.params.habitId, userId: req.userId });
+    if (!habit) return res.status(404).json({ error: true, message: 'Habit not found' });
+
+    const was = e.effectiveTarget(habit, periodStart);
+    if (next > was) {
+      return res.status(400).json({
+        error: true,
+        message: 'A renegotiated target can only be lower. Just do more to go higher.',
+      });
+    }
+
+    habit.periodOverrides = (habit.periodOverrides || [])
+      .filter((o) => o.periodStart !== periodStart);
+    habit.periodOverrides.push({
+      periodStart, target: next, was, reason: String(reason || '').slice(0, 140),
+    });
+    await habit.save();
+
+    return res.json({ error: false, habit, was, target: next, message: 'Target adjusted for this period' });
+  } catch (err) {
+    return res.status(400).json({ error: true, message: err.message || 'Could not adjust that' });
   }
 });
 

@@ -132,6 +132,21 @@ const VoiceModal = ({ habits = [], tasks = [], onClose, refreshData, showToast }
 
         if (it.kind === 'habit' && it.refId) {
           /*
+           * A swap: the week was cut short and filled with something else, so
+           * THIS period's target drops to what was actually done. The standing
+           * goal is untouched, and next period asks for the original number.
+           */
+          if (it.newTarget !== null && it.newTarget !== undefined) {
+            const h = habits.find((x) => String(x._id) === String(it.refId));
+            if (h?.periodStart) {
+              await api.patch(`/habits/${it.refId}/renegotiate`, {
+                periodStart: h.periodStart,
+                target: it.newTarget,
+                reason: 'Swapped for other work',
+              }).catch(() => {});
+            }
+          }
+          /*
            * A measured habit takes ONE log carrying the amount: four kilometres
            * is one run of four, not four runs of one, and the ledger has to say
            * which. Plain habits keep one row per rep.
@@ -332,6 +347,12 @@ const VoiceModal = ({ habits = [], tasks = [], onClose, refreshData, showToast }
                       <span className="text-[#3ecf8e]" data-testid={`vprog-${it.id}`}>
                         {it.taskBefore} → {Math.min(it.taskTarget, it.taskBefore + it.count)}
                         {' of '}{it.taskTarget}
+                      </span>
+                    )}
+
+                    {it.kind === 'habit' && it.newTarget !== null && it.newTarget !== undefined && (
+                      <span className="text-[#c0b3a5]" data-testid={`vswap-${it.id}`}>
+                        this period's target drops to {it.newTarget}
                       </span>
                     )}
 

@@ -62,6 +62,25 @@ const HabitSchema = new Schema({
      * the same shortfall again, so the last settled period start is kept here.
      */
     lastShortfallPeriod: { type: String, default: null },
+    /**
+     * A target renegotiated for ONE period.
+     *
+     * "I could not run 8 so I ran 5 and did 1000 skips instead" is not a
+     * failure, it is a swap — the week genuinely changed. Lowering targetReps
+     * would rewrite the standing goal and quietly make every future week
+     * easier, so the new number is pinned to the period it belongs to and
+     * every other period keeps the original promise.
+     *
+     * Kept as history: what the goal was, what it became, and why.
+     */
+    periodOverrides: [{
+        _id: false,
+        periodStart: { type: String, required: true },
+        target: { type: Number, required: true, min: 0 },
+        was: { type: Number, default: 0 },
+        reason: { type: String, default: '', maxlength: 140 },
+        at: { type: Date, default: Date.now },
+    }],
     /** Stars lost per missing unit when a period closes short. 0 disables it. */
     shortfallPenalty: { type: Number, default: 0, min: 0 },
     /** Also surface it on the daily task list. */

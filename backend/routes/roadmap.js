@@ -60,7 +60,7 @@ router.get('/', async (req, res) => {
         const pElapsed = pElapsedDays / pLength;
 
         const done = e.repsInDates(logs, h._id, pDays);
-        const target = e.effectiveTarget(h);
+        const target = e.effectiveTarget(h, pStart);
         const expected = Math.round(target * pElapsed * 10) / 10;
 
         // The strip is always the current WEEK, whatever the period: seven

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Moon, Plus, ClipboardList, CalendarPlus, Check, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Moon, ClipboardList, CalendarPlus, Check, X } from 'lucide-react';
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
   addMonths, subMonths, isSameMonth, isToday, format,
@@ -256,18 +256,15 @@ const Calendar = ({ tasks, logs, refreshData, showToast }) => {
 
             </div>
             
-            <div className="flex gap-3 mt-8">
-              <button 
-                className="flex-1 h-12 rounded-xl bg-transparent border border-white/10 text-white/60 font-bold text-xs flex items-center justify-center gap-2 hover:bg-white/5 transition-colors"
+            {/* One button, one action. The icon beside it did exactly the same
+                thing, which only makes people wonder what the difference is. */}
+            <div className="mt-8">
+              <button
+                type="button"
+                className="w-full h-12 rounded-xl bg-[#c0b3a5] text-black font-bold text-xs flex items-center justify-center gap-2 hover:bg-[#cfc4b8] transition-colors"
                 onClick={() => setIsModalOpen(true)}
               >
-                <Plus size={14} /> Add a new task
-              </button>
-              <button 
-                className="w-12 h-12 rounded-xl bg-[#c0b3a5] flex items-center justify-center text-black hover:bg-[#8eb3a4] transition-colors"
-                onClick={() => setIsModalOpen(true)}
-              >
-                <CalendarPlus size={18} />
+                <CalendarPlus size={16} /> Add a task on this day
               </button>
             </div>
           </div>

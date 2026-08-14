@@ -31,10 +31,10 @@ const OVER_CEILING = 3;
  * What `amount` more units are worth, given how much of the period is already
  * behind you. `done` is what the period held BEFORE this log.
  */
-function goodHabitDelta(habit, amount = 1, done = 0) {
+function goodHabitDelta(habit, amount = 1, done = 0, periodStart = null) {
   const units = Math.max(0, amount);
   const rate = habit.starsPerRep;
-  const target = effectiveTarget(habit);
+  const target = effectiveTarget(habit, periodStart);
 
   // No goal means nothing to be past, so every unit earns in full.
   if (target <= 0) return Math.round(rate * units);
@@ -56,8 +56,8 @@ function goodHabitDelta(habit, amount = 1, done = 0) {
  * stopping at nine of ten kilometres costs a tenth of what stopping at zero
  * does, and someone who overshoots is never charged at all.
  */
-function shortfallDelta(habit, achieved) {
-  const target = effectiveTarget(habit);
+function shortfallDelta(habit, achieved, periodStart = null) {
+  const target = effectiveTarget(habit, periodStart);
   const rate = habit.shortfallPenalty || 0;
   if (target <= 0 || rate <= 0) return 0;
   const missing = Math.max(0, target - Math.max(0, achieved));
@@ -190,7 +190,13 @@ function repsInDates(logs, refId, dateKeys) {
  * it said 6/8. The larger of the two is the one the user meant, so the whole
  * app agrees on one number.
  */
-function effectiveTarget(habit) {
+function effectiveTarget(habit, periodStart = null) {
+  // A target renegotiated for THIS period wins; every other period keeps the
+  // standing promise.
+  if (periodStart && Array.isArray(habit.periodOverrides)) {
+    const o = habit.periodOverrides.find((x) => x.periodStart === periodStart);
+    if (o) return Math.max(0, o.target);
+  }
   const period = habit.targetReps || 0;
   const daily = habit.dailyTarget || 0;
   if (period > 0 && daily > 0) return Math.max(period, daily);
