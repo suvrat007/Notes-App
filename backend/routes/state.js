@@ -9,6 +9,7 @@ const e = require('../engine/stars.js');
 const rank = require('../engine/rank.js');
 const { lifetimeStarsFor, logsInRange, weekBalanceOf } = require('../lib/totals.js');
 const { settleShortfalls, periodStartOf, periodDays } = require('../lib/shortfall.js');
+const { settleOverdue } = require('../lib/overdue.js');
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -91,6 +92,8 @@ router.get('/', async (req, res) => {
      * same request returns.
      */
     const settled = await settleShortfalls(req.userId, todayKey);
+    // A deadline nothing enforces is a suggestion.
+    const missed = await settleOverdue(req.userId, todayKey);
 
     const [habits, rewards, user, breakDay] = await Promise.all([
       Habit.find({ userId: req.userId, archived: false }).sort({ order: 1, createdAt: 1 }).lean(),
@@ -202,6 +205,7 @@ router.get('/', async (req, res) => {
       },
       habits: habitViews,
       settled,
+      missed,
       tasks: dayTasks.map((t) => taskView(t, logs, dateKey)),
       carriedTasks: carried.map((t) => ({
         ...t,

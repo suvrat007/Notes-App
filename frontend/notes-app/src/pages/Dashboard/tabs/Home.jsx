@@ -261,6 +261,35 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
         </motion.div>
       </div>
 
+      {/*
+        Stars taken for deadlines that passed.
+        A penalty applied silently is indistinguishable from a bug, so the
+        charge is stated once, with what was missed and what it cost.
+      */}
+      {(state?.missed?.length ?? 0) > 0 && (
+        <div
+          className="bg-focus-red/10 border border-focus-red/30 rounded-2xl p-4"
+          data-testid="missed-notice"
+        >
+          <p className="text-[11px] font-bold tracking-widest text-focus-red mb-2">
+            RAN OUT OF TIME
+          </p>
+          <ul className="space-y-1">
+            {state.missed.map((m) => (
+              <li key={m.taskId} className="flex items-center justify-between gap-3 text-[12px]">
+                <span className="text-white/70 truncate">
+                  {m.title}
+                  <span className="text-white/35"> · {m.done}/{m.target} by {m.due}</span>
+                </span>
+                <span className="font-bold text-focus-red tabular-nums shrink-0">
+                  {m.starsDelta}★
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* What the week asked for, kept in sight while the day is worked. */}
       <div className="md:shrink-0">
         <WeekTargets onNavigate={onNavigate} />
