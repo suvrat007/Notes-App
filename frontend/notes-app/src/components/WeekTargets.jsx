@@ -47,7 +47,7 @@ const WeekTargets = ({ onNavigate }) => {
       <header className="flex items-center justify-between mb-3">
         <h3 className="flex items-center gap-2 text-[11px] font-bold tracking-widest text-white/50">
           <Target size={13} className="text-[#c0b3a5]" />
-          THIS WEEK
+          THIS PERIOD
         </h3>
         {onNavigate && (
           <button
@@ -64,7 +64,8 @@ const WeekTargets = ({ onNavigate }) => {
         {nodes.map((n, i) => {
           const done = n.done ?? 0;
           const target = n.target ?? 0;
-          const complete = done >= target && target > 0;
+          const complete = (n.met ?? (done >= target)) && target > 0;
+          const unit = n.unit ? ' ' + n.unit : '';
           const behind = !complete && done < (n.expected ?? 0);
           const pct = Math.max(0, Math.min(1, n.fill ?? 0));
           const pace = Math.max(0, Math.min(1, target ? (n.expected ?? 0) / target : 0));
@@ -85,7 +86,8 @@ const WeekTargets = ({ onNavigate }) => {
                 </span>
                 <span className="flex items-center gap-1 shrink-0 text-[10px] font-bold tabular-nums">
                   <span className={complete ? 'text-[#3ecf8e]' : 'text-white/60'}>
-                    {done}/{target}
+                    {done}/{target}{unit}
+                    {n.overBy > 0 && <span className="text-[#3ecf8e]"> +{n.overBy}</span>}
                   </span>
                   {complete ? (
                     <Check size={11} className="text-[#3ecf8e]" />
@@ -116,7 +118,7 @@ const WeekTargets = ({ onNavigate }) => {
 
               {!complete && (
                 <p className="mt-1 text-[10px] text-white/35">
-                  {n.remaining} to go
+                  {n.remaining}{unit} to go
                   {behind && <span className="text-[#e5484d]"> · behind pace</span>}
                 </p>
               )}

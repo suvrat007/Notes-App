@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Plus, Minus, Check, Flame, Ban } from 'lucide-react';
 
 /**
@@ -17,19 +17,32 @@ import { Plus, Minus, Check, Flame, Ban } from 'lucide-react';
  *
  * Bad habits always show the tally: every slip costs, quota or not.
  */
+const PERIOD_WORD = { 1: 'this week', 4: 'this month', 12: 'this quarter' };
+
 const HabitCard = ({ habit, onLog, onUndo, busy }) => {
   const isBad = habit.polarity === 'bad';
+  /*
+   * A habit measured in something needs to say HOW MUCH, not just that it
+   * happened. A +1 button cannot express a four kilometre run, so unit habits
+   * get a number to type into and the button logs that amount.
+   */
+  const unit = (habit.unit || '').trim();
+  const [amount, setAmount] = useState(1);
   const quota = isBad ? habit.dailyAllowance : habit.dailyTarget;
-  const goalOnly = !isBad && quota === 0 && habit.targetReps > 0;
+  // The number the server judges the period by: a weekly goal smaller than a
+  // day's quota is incoherent, so the larger of the two wins everywhere.
+  const periodTarget = Math.max(habit.targetReps || 0, habit.dailyTarget || 0);
+  const goalOnly = !isBad && quota === 0 && periodTarget > 0;
   const counted = quota > 0 || isBad || goalOnly;
 
   const reps = habit.repsToday ?? 0;
   const period = habit.repsThisPeriod ?? 0;
+  const goalMet = !!habit.goalMet;
   const met = quota > 0 ? reps >= quota : reps > 0;
 
   const countText = quota > 0
     ? `${reps}/${quota}`
-    : goalOnly ? `${period}/${habit.targetReps}` : String(reps);
+    : goalOnly ? `${period}/${periodTarget}` : String(reps);
 
   const Icon = isBad ? Ban : Flame;
   const accent = isBad ? 'text-focus-red' : 'text-[#c0b3a5]';
@@ -45,7 +58,7 @@ const HabitCard = ({ habit, onLog, onUndo, busy }) => {
     : [
         `+${habit.starsPerRep}★`,
         habit.dailyTarget > 0 && `${reps}/${habit.dailyTarget} today`,
-        habit.targetReps > 0 && `goal ${habit.targetReps}/wk`,
+        periodTarget > 0 && `${period}/${periodTarget}${unit ? ' ' + unit : ''} ${PERIOD_WORD[habit.targetPeriodWeeks] ?? 'this period'}`,
         habit.targetReps > 0 && habit.dailyTarget === 0 && reps > 0 && `${reps} today`,
       ].filter(Boolean).join(' · ');
 
@@ -85,6 +98,23 @@ const HabitCard = ({ habit, onLog, onUndo, busy }) => {
           )}
         </p>
 
+        {/* How much of it. Only for habits that measure something; a plain
+            rep has nothing to type. */}
+        {unit && (
+          <span className="flex items-center gap-1 shrink-0">
+            <input
+              type="number"
+              min={1}
+              value={amount}
+              onChange={(ev) => setAmount(ev.target.value)}
+              aria-label={`How many ${unit} of ${habit.name}`}
+              data-testid={`amount-${habit._id}`}
+              className="w-12 h-7 bg-[#0d0f12] border border-white/10 rounded-lg px-1.5 text-center text-white text-[11px] tabular-nums"
+            />
+            <span className="text-[10px] text-white/35">{unit}</span>
+          </span>
+        )}
+
         <button
           type="button"
           disabled={reps === 0 || busy}
@@ -98,7 +128,7 @@ const HabitCard = ({ habit, onLog, onUndo, busy }) => {
         <button
           type="button"
           disabled={busy}
-          onClick={() => onLog(habit)}
+          onClick={() => onLog(habit, unit ? Math.max(1, Number(amount) || 1) : 1)}
           aria-label={`Log ${habit.name}`}
           data-testid={`log-${habit._id}`}
           className={`w-8 h-8 rounded-lg ${tileBg} border border-white/10 ${accent} grid place-items-center disabled:opacity-40 hover:scale-105 active:scale-95 transition-transform shrink-0`}

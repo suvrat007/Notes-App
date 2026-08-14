@@ -12,8 +12,56 @@
 /* ---------------- Per-event deltas ---------------- */
 
 /** Good habit rep -> +starsPerRep. Adds to lifetime. */
-function goodHabitDelta(habit) {
-  return Math.round(habit.starsPerRep);
+/*
+ * Beyond the goal, each unit is worth less.
+ *
+ * Beating a target should pay — that is the whole reason to set one — but
+ * unbounded pay means the fastest way to a rank is to hold down the + and
+ * lie. So the curve bends instead of stopping: everything up to the target
+ * earns in full, the next stretch earns half, and past three times the target
+ * a unit earns nothing at all.
+ *
+ * Someone who genuinely runs 15km against a goal of 10 is still paid more
+ * than someone who runs 10. Someone claiming 400 is not paid for 400.
+ */
+const OVER_RATE = 0.5;
+const OVER_CEILING = 3;
+
+/**
+ * What `amount` more units are worth, given how much of the period is already
+ * behind you. `done` is what the period held BEFORE this log.
+ */
+function goodHabitDelta(habit, amount = 1, done = 0) {
+  const units = Math.max(0, amount);
+  const rate = habit.starsPerRep;
+  const target = effectiveTarget(habit);
+
+  // No goal means nothing to be past, so every unit earns in full.
+  if (target <= 0) return Math.round(rate * units);
+
+  const ceiling = target * OVER_CEILING;
+  const from = Math.max(0, done);
+  const to = from + units;
+
+  const full = Math.max(0, Math.min(to, target) - Math.min(from, target));
+  const half = Math.max(0, Math.min(to, ceiling) - Math.max(from, target));
+
+  return Math.round(rate * full + rate * OVER_RATE * half);
+}
+
+/**
+ * What a period costs when it closes short of its target.
+ *
+ * A goal nobody is held to is a wish. The charge is per MISSING unit, so
+ * stopping at nine of ten kilometres costs a tenth of what stopping at zero
+ * does, and someone who overshoots is never charged at all.
+ */
+function shortfallDelta(habit, achieved) {
+  const target = effectiveTarget(habit);
+  const rate = habit.shortfallPenalty || 0;
+  if (target <= 0 || rate <= 0) return 0;
+  const missing = Math.max(0, target - Math.max(0, achieved));
+  return -Math.round(missing * rate);
 }
 
 /** Task done -> +stars. Adds to lifetime. */
@@ -133,6 +181,22 @@ function repsInDates(logs, refId, dateKeys) {
     .reduce((sum, l) => sum + (l.count || 1), 0);
 }
 
+
+/**
+ * The target a period is actually judged against.
+ *
+ * A period goal smaller than a single day's quota is incoherent — "8 a day,
+ * 1 a week" reads as done after one rep and showed 6/1 while the card next to
+ * it said 6/8. The larger of the two is the one the user meant, so the whole
+ * app agrees on one number.
+ */
+function effectiveTarget(habit) {
+  const period = habit.targetReps || 0;
+  const daily = habit.dailyTarget || 0;
+  if (period > 0 && daily > 0) return Math.max(period, daily);
+  return period > 0 ? period : daily;
+}
+
 /* ---------------- Dates ---------------- */
 
 /** A Date (or ISO string) as YYYY-MM-DD in UTC, which is how days are stored. */
@@ -169,6 +233,9 @@ function weekDates(startKey) {
 }
 
 module.exports = {
+  effectiveTarget,
+  OVER_RATE, OVER_CEILING,
+  shortfallDelta,
   goodHabitDelta,
   taskDelta,
   missedTaskDelta,

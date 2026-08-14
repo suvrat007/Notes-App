@@ -5,6 +5,7 @@ const { authenticateToken } = require('../utilities.js');
 const e = require('../engine/stars.js');
 const rank = require('../engine/rank.js');
 const { logsInRange, lifetimeStarsFor } = require('../lib/totals.js');
+const { periodStartOf, periodDays } = require('../lib/shortfall.js');
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -32,7 +33,8 @@ router.get('/', async (req, res) => {
       Habit.find({ userId: req.userId, archived: false, polarity: 'good' })
         .sort({ order: 1, createdAt: 1 }).lean(),
       Task.find({ userId: req.userId, onRoadmap: true }).sort({ order: 1 }).lean(),
-      logsInRange(req.userId, weekStart, days[6]),
+      // Wide enough for the longest goal period in play, not just this week.
+      logsInRange(req.userId, e.addDays(weekStart, -84), days[6]),
       lifetimeStarsFor(req.userId),
     ]);
 
@@ -43,10 +45,26 @@ router.get('/', async (req, res) => {
     let nodes = habits
       .filter((h) => h.targetReps > 0)
       .map((h) => {
-        const done = e.repsInDates(logs, h._id, days);
-        const target = h.targetReps;
-        // The pace line: what "on track" looks like at this point in the week.
-        const expected = Math.round(target * elapsed * 10) / 10;
+        /*
+         * Each goal is judged over ITS OWN period.
+         *
+         * "Ten questions a month" measured against this week would read 2/10
+         * every Monday and reset each Sunday — a number that is never true and
+         * never actionable. The pace line stretches over the same span, so a
+         * monthly goal is only "behind" if it is behind for the month.
+         */
+        const pStart = periodStartOf(h, today);
+        const pDays = periodDays(h, pStart);
+        const pLength = pDays.length;
+        const pElapsedDays = Math.min(pLength, e.daysBetween(pStart, today) + 1);
+        const pElapsed = pElapsedDays / pLength;
+
+        const done = e.repsInDates(logs, h._id, pDays);
+        const target = e.effectiveTarget(h);
+        const expected = Math.round(target * pElapsed * 10) / 10;
+
+        // The strip is always the current WEEK, whatever the period: seven
+        // boxes is a shape people can read, thirty is a smear.
         const perDay = days.map((d) => ({
           date: d,
           reps: e.repsOn(logs, h._id, d),
@@ -58,18 +76,28 @@ router.get('/', async (req, res) => {
           _id: h._id,
           name: h.name,
           starsPerRep: h.starsPerRep,
+          unit: h.unit || '',
+          periodWeeks: Math.max(1, h.targetPeriodWeeks || 1),
+          periodStart: pStart,
+          periodEnd: pDays[pLength - 1],
           target,
           done,
           remaining: Math.max(0, target - done),
           fill: Math.max(0, Math.min(1, done / target)),
+          // Met goals are struck off rather than removed, and beating one
+          // reads as beating it instead of silently capping at 100%.
+          met: done >= target,
+          overBy: Math.max(0, done - target),
           expected,
           /* Positive means ahead of pace. Rounded to one place, because
              "0.3 ahead" is a real distinction and "0.312" is noise. */
-          aheadBy: Math.round((done - target * elapsed) * 10) / 10,
+          aheadBy: Math.round((done - target * pElapsed) * 10) / 10,
           onTrack: done >= expected,
           perDay,
-          daysLeft: Math.max(0, 7 - elapsedDays),
+          daysLeft: Math.max(0, pLength - pElapsedDays),
           starsIfFinished: Math.max(0, target - done) * h.starsPerRep,
+          // What stopping here would cost when the period closes.
+          shortfallIfStopped: e.shortfallDelta(h, done),
         };
       });
 
@@ -106,6 +134,8 @@ router.get('/', async (req, res) => {
         remaining: Math.max(0, target - done),
         fill: Math.max(0, Math.min(1, done / target)),
         expected,
+        met: done >= target,
+        overBy: Math.max(0, done - target),
         aheadBy: Math.round((done - target * elapsed) * 10) / 10,
         onTrack: done >= expected,
         perDay: days.map((d) => ({

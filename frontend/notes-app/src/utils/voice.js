@@ -143,9 +143,21 @@ export async function transcribe(clip) {
 
 const SYSTEM = `You turn a spoken daily log into JSON for Focus, a habit + task tracker.
 
+Two kinds of sentence arrive together and must be told apart:
+an UPDATE reports what already happened; a PLAN sets something up for later.
+"I did three of the five PDFs" is an update. "I need to read five PDFs" is a
+plan. Past tense, "did", "finished", "managed", "only got through" => update.
+
 KINDS
-habit      a rep of an EXISTING habit (refId required, from the list given)
-task       a one-off with a finish line
+habit      a rep of an EXISTING habit that HAPPENED (refId required, from the list)
+progress   work done on an EXISTING task (refId required, from the task list).
+           count = units finished TODAY, not the running total. "I did 5 of the 8"
+           => count 5. "finished it" / "all of them" => count = whatever remains.
+skipped    something explicitly NOT done: "I didn't run", "no gym today",
+           "didn't manage the reading". refId when it names something on either
+           list. NOTHING is written for these; they are shown so the user can
+           see they were understood, and so a mishearing is visible.
+task       a NEW one-off with a finish line
 new-habit  ongoing behaviour NOT in the list yet; refId null, set name + polarity
 new-reward a treat to work TOWARDS, not something done; set name + damagePct
 
@@ -167,7 +179,8 @@ GOOD vs BAD
   "I don't want to smoke" => "smoking".
 
 FIELDS
-refId          only from the supplied list, else null. Never invent one.
+refId          only from the supplied lists, else null. Never invent one. A habit refId
+               for kind habit/skipped-habit, a TASK refId for kind progress.
 count          habit: reps done ("smoked twice"=2). task: units to finish. Default 1.
 polarity       new-habit only: "good" or "bad".
 dailyAllowance new-habit + bad: per-day limit before the extra penalty. null if unstated. NEVER guess.
@@ -187,10 +200,25 @@ cadence        tasks with count>1. "daily" when the units are explicitly spread 
                they can be done together ("read 5 pdfs"). null when it was not stated,
                which asks the user rather than guessing.
 
+MEASURED GOALS
+A goal with a QUANTITY is one goal measured in units, not that many separate
+goals. "Run 10 kilometres this week" is ONE new-habit: targetReps 10, unit
+"km", targetPeriodWeeks 1. It is NOT ten runs and NOT a task. Same shape for
+"ten questions every month" (targetReps 10, unit "questions", period 4) and
+"read 50 pages a week" (50, "pages", 1).
+- unit is the thing being counted, lowercase and short: km, pages, questions,
+  minutes, reps. Leave it empty when the thing counted is just doing it once
+  ("gym five times a week" => targetReps 5, unit "").
+- REPORTING progress on one of these is kind habit with its refId and
+  count = the amount done: "I ran four kilometres" => count 4, not 1.
+  "I did three questions" against a questions goal => count 3.
+- Going OVER the target is allowed and normal. Never clamp the count to what
+  is left; report what was actually done.
+
 Never invent items. Never merge two distinct items.
 
 Respond with ONLY this JSON:
-{"items":[{"kind":"habit|task|new-habit|new-reward","text":string,"refId":string|null,"name":string|null,"polarity":"good|bad|null","count":number,"dailyAllowance":number|null,"targetReps":number,"targetPeriodWeeks":number,"damagePct":number,"dueDate":string|null,"deadline":string|null,"cadence":"daily|anytime|null"}]}`;
+{"items":[{"kind":"habit|progress|skipped|task|new-habit|new-reward","text":string,"refId":string|null,"name":string|null,"polarity":"good|bad|null","count":number,"dailyAllowance":number|null,"targetReps":number,"targetPeriodWeeks":number,"unit":string,"damagePct":number,"dueDate":string|null,"deadline":string|null,"cadence":"daily|anytime|null"}]}`;
 
 async function chatJSON(messages, model) {
   const res = await fetch(CHAT_ENDPOINT, {
@@ -226,6 +254,14 @@ export async function parseSpokenDay(text, ctx) {
     `Existing habits (use these refIds): ${JSON.stringify(
       (ctx.habits || []).map((h) => ({ refId: h._id, name: h.name, polarity: h.polarity })),
     )}`,
+    // Without the day's tasks there is no id to hang progress on, and every
+    // "I did three of them" would create a second copy of a task that exists.
+    `Today's tasks (use these refIds for kind progress): ${JSON.stringify(
+      (ctx.tasks || []).map((t) => ({
+        refId: t._id, title: t.title,
+        done: t.doneCount ?? 0, target: t.targetCount ?? 1,
+      })),
+    )}`,
     '',
     `Transcript: "${text}"`,
     'Respond with json.',
@@ -257,7 +293,7 @@ export async function parseSpokenDay(text, ctx) {
   return coerce(parsed, ctx);
 }
 
-const KINDS = ['habit', 'task', 'new-habit', 'new-reward'];
+const KINDS = ['habit', 'progress', 'skipped', 'task', 'new-habit', 'new-reward'];
 
 /**
  * Validate the model's output into things we are willing to create.
@@ -269,21 +305,40 @@ const KINDS = ['habit', 'task', 'new-habit', 'new-reward'];
 function coerce(raw, ctx) {
   const list = Array.isArray(raw?.items) ? raw.items : [];
   const byId = new Map((ctx.habits || []).map((h) => [String(h._id), h]));
+  const taskById = new Map((ctx.tasks || []).map((t) => [String(t._id), t]));
 
   return list.slice(0, 15).map((r, i) => {
     const kind = KINDS.includes(r.kind) ? r.kind : 'task';
-    const refId = typeof r.refId === 'string' && byId.has(r.refId) ? r.refId : null;
+
+    /*
+     * Progress points at a TASK, everything else at a habit, so the id is
+     * checked against the right list. An id that matches neither is dropped:
+     * logging work against the wrong thing is worse than asking again.
+     */
+    const wantsTask = kind === 'progress';
+    const pool = wantsTask ? taskById : byId;
+    const refId = typeof r.refId === 'string' && pool.has(r.refId) ? r.refId : null;
 
     // A habit the model could not point at does not exist yet — offer to
-    // create it rather than silently turning it into a to-do.
-    const finalKind = kind === 'habit' && !refId ? 'new-habit' : kind;
+    // create it rather than silently turning it into a to-do. Progress with
+    // no task behind it becomes a new task, which is the honest reading of
+    // "I did some of X" when X is not on the list.
+    let finalKind = kind;
+    if (kind === 'habit' && !refId) finalKind = 'new-habit';
+    if (kind === 'progress' && !refId) finalKind = 'task';
+
     const label = String(r.name || r.text || '').trim().slice(0, 60);
+    const task = wantsTask && refId ? taskById.get(refId) : null;
 
     return {
       id: `v${i}`,
       kind: finalKind,
       text: label || 'Untitled',
       refId,
+      /* What the row will become if applied, so the preview can say it
+         plainly instead of making the user do the arithmetic. */
+      taskBefore: task ? (task.doneCount ?? 0) : null,
+      taskTarget: task ? (task.targetCount ?? 1) : null,
       count: Math.max(1, Math.min(50, Math.round(Number(r.count) || 1))),
       polarity: r.polarity === 'bad' ? 'bad' : 'good',
       // null is meaningful: it means "they never said", which the preview
@@ -296,6 +351,8 @@ function coerce(raw, ctx) {
         : 0,
       targetPeriodWeeks: [1, 2, 4, 12].includes(Number(r.targetPeriodWeeks))
         ? Number(r.targetPeriodWeeks) : 1,
+      // Short, lowercase, and only ever a label: it is never parsed as a number.
+      unit: String(r.unit || '').trim().toLowerCase().slice(0, 16),
       damagePct: [20, 40, 60, 80, 100].includes(Number(r.damagePct))
         ? Number(r.damagePct) : 20,
       dueDate: /^\d{4}-\d{2}-\d{2}$/.test(r.dueDate || '')

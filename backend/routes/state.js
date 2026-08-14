@@ -8,6 +8,7 @@ const { authenticateToken } = require('../utilities.js');
 const e = require('../engine/stars.js');
 const rank = require('../engine/rank.js');
 const { lifetimeStarsFor, logsInRange, weekBalanceOf } = require('../lib/totals.js');
+const { settleShortfalls, periodStartOf, periodDays } = require('../lib/shortfall.js');
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -84,6 +85,13 @@ router.get('/', async (req, res) => {
     const weekStartKey = e.weekStartOf(todayKey, 1);
     const activeDate = e.dayStart(dateKey);
 
+    /*
+     * Closed goal periods are settled BEFORE anything is totalled, or a
+     * shortfall charged this request would not appear in the figures the
+     * same request returns.
+     */
+    const settled = await settleShortfalls(req.userId, todayKey);
+
     const [habits, rewards, user, breakDay] = await Promise.all([
       Habit.find({ userId: req.userId, archived: false }).sort({ order: 1, createdAt: 1 }).lean(),
       Reward.find({ userId: req.userId, archived: false }).sort({ createdAt: 1 }).lean(),
@@ -148,15 +156,38 @@ router.get('/', async (req, res) => {
     /* ---- per-habit figures the UI would otherwise recompute wrongly ---- */
     const habitViews = habits.map((h) => {
       const repsToday = e.repsOn(logs, h._id, dateKey);
-      const periodDays = e.weekDates(weekStartKey);
+
+      /*
+       * The habit's OWN period, not always the week.
+       *
+       * "Ten questions a month" is judged over its month; measuring it against
+       * the current week would show 2/10 on a Monday and reset every seven
+       * days, which is neither the goal that was set nor a number anyone can
+       * act on.
+       */
+      const periodStart = periodStartOf(h, dateKey);
+      const days = periodDays(h, periodStart);
+      const doneThisPeriod = e.repsInDates(logs, h._id, days);
+      const target = e.effectiveTarget(h);
+
       return {
         ...h,
         repsToday,
-        repsThisPeriod: e.repsInDates(logs, h._id, periodDays),
+        repsThisPeriod: doneThisPeriod,
+        periodStart,
+        periodEnd: days[days.length - 1],
+        // Struck off once it is met, and it keeps counting past the target
+        // because beating a goal should read as beating it.
+        goalMet: target > 0 && doneThisPeriod >= target,
+        overBy: target > 0 ? Math.max(0, doneThisPeriod - target) : 0,
+        remainingInPeriod: target > 0 ? Math.max(0, target - doneThisPeriod) : 0,
         // What the NEXT tap will cost or earn, so the card never lies about it.
+        // What the NEXT unit earns, AFTER the taper past the goal — so a card
+        // sitting at three times its target says 0 instead of promising full
+        // price for work that will not be paid for.
         nextDelta: h.polarity === 'bad'
           ? e.badHabitRepDelta(h, repsToday)
-          : e.goodHabitDelta(h),
+          : e.goodHabitDelta(h, 1, doneThisPeriod),
       };
     });
 
@@ -170,6 +201,7 @@ router.get('/', async (req, res) => {
         avatarUrl: user.avatarUrl,
       },
       habits: habitViews,
+      settled,
       tasks: dayTasks.map((t) => taskView(t, logs, dateKey)),
       carriedTasks: carried.map((t) => ({
         ...t,

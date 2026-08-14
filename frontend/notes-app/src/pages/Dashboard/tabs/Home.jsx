@@ -27,15 +27,19 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
    * escalates past its allowance, so the number depends on how many reps
    * already exist today, which only the server can know for certain.
    */
-  const logHabit = async (habit) => {
+  const logHabit = async (habit, amount = 1) => {
     setHabitBusy(true);
     try {
-      const { data } = await api.post(`/habits/${habit._id}/log`, {});
+      const { data } = await api.post(`/habits/${habit._id}/log`, { amount });
       await refreshData();
       const d = data.starsDelta;
-      showToast?.(`${habit.name} ${d >= 0 ? '+' : ''}${d}★`);
+      const much = amount > 1 ? ` ${amount}${habit.unit ? ' ' + habit.unit : ''}` : '';
+      showToast?.(`${habit.name}${much} ${d >= 0 ? '+' : ''}${d}★`);
     } catch (err) {
-      showToast?.(err.response?.data?.message || 'Could not log that', 'error');
+      // Hitting the rate limit is not a failure of theirs, so it is said
+      // plainly rather than dressed as an error.
+      const d = err.response?.data;
+      showToast?.(d?.message || 'Could not log that', d?.rateLimited ? 'info' : 'error');
     } finally {
       setHabitBusy(false);
     }
@@ -83,9 +87,19 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
   const dueToday = goodHabits.length + dayTasks.length;
   const progressPercent = dueToday === 0 ? 0 : Math.round((doneToday / dueToday) * 100);
   const goalsAchievedToday = doneToday;
-  const tasksDoneToday = todaysLogs.filter((l) => l.completedCount > 0).length;
-  const totalTasks = tasks.length || 1;
-  const tasksDonePercent = Math.round((tasksDoneToday / totalTasks) * 100) || 0;
+  /*
+   * "Tasks done TODAY" counts today's tasks.
+   *
+   * It divided by `tasks`, which is every task the account has ever had —
+   * including every occurrence a repeating task generates months ahead. That
+   * read "0 / 128" on a day with four things on it. `dayTasks` is the day's
+   * own list, already carrying its own done flags from the server.
+   */
+  const tasksDoneToday = dayTasks.filter((t) => t.done).length;
+  const totalTasks = dayTasks.length;
+  const tasksDonePercent = totalTasks === 0
+    ? 0
+    : Math.round((tasksDoneToday / totalTasks) * 100);
 
   // Real last-7-days star totals (instead of a decorative random bar chart).
   const last7 = Array.from({ length: 7 }, (_, i) => {
@@ -241,7 +255,11 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
               </div>
               <Progress value={tasksDonePercent} className="h-2 bg-white/5 [&>div]:bg-[#c0b3a5] rounded-full" />
               <p className="text-[10px] font-bold text-white/40 mt-3">
-                {tasksDonePercent >= 100 ? 'All tasks done today!' : `${totalTasks - tasksDoneToday} task(s) left today`}
+                {totalTasks === 0
+                  ? 'Nothing scheduled today'
+                  : tasksDoneToday >= totalTasks
+                    ? 'All tasks done today!'
+                    : `${totalTasks - tasksDoneToday} task${totalTasks - tasksDoneToday === 1 ? '' : 's'} left today`}
               </p>
             </div>
           </Card>

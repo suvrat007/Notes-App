@@ -33,6 +33,8 @@ const HabitModal = ({ habit, onClose, refreshData, showToast }) => {
   const [dailyAllowance, setAllowance] = useState(habit?.dailyAllowance ?? 0);
   const [overagePenalty, setOverage] = useState(habit?.overagePenalty ?? 5);
   const [freeWithinAllowance, setFree] = useState(habit?.freeWithinAllowance ?? false);
+  const [unit, setUnit] = useState(habit?.unit ?? '');
+  const [shortfallPenalty, setShortfall] = useState(habit?.shortfallPenalty ?? 0);
   const [submitting, setSubmitting] = useState(false);
 
   const isBad = polarity === 'bad';
@@ -47,6 +49,8 @@ const HabitModal = ({ habit, onClose, refreshData, showToast }) => {
       dailyTarget: isBad ? 0 : Number(dailyTarget),
       targetReps: isBad ? 0 : Number(targetReps),
       targetPeriodWeeks: isBad ? 1 : Number(targetPeriodWeeks),
+      unit: isBad ? '' : unit.trim(),
+      shortfallPenalty: isBad ? 0 : Math.max(0, Number(shortfallPenalty) || 0),
       dailyAllowance: isBad ? Number(dailyAllowance) : 0,
       overagePenalty: isBad ? Number(overagePenalty) : 0,
       freeWithinAllowance: isBad ? freeWithinAllowance : false,
@@ -195,7 +199,14 @@ const HabitModal = ({ habit, onClose, refreshData, showToast }) => {
                     value={targetReps}
                     onChange={(e) => setTargetReps(e.target.value)}
                   />
-                  <span className="text-[10px] text-white/40 tracking-wider">REPS PER</span>
+                  <Input
+                    type="text" data-testid="habit-unit" maxLength={16}
+                    placeholder="reps"
+                    className="bg-[#0d0f12] border-white/10 text-white h-11 w-24 text-center"
+                    value={unit}
+                    onChange={(e) => setUnit(e.target.value)}
+                  />
+                  <span className="text-[10px] text-white/40 tracking-wider">PER</span>
                   <Select
                     testId="habit-period"
                     ariaLabel="Goal period"
@@ -206,9 +217,32 @@ const HabitModal = ({ habit, onClose, refreshData, showToast }) => {
                   />
                 </div>
                 <p className="text-[10px] text-white/40">
-                  Counted across the whole period, several in one day is fine.
+                  {unit.trim()
+                    ? `Logged in ${unit.trim()}, so ${starsPerRep}★ per ${unit.trim()} and going over still earns.`
+                    : 'Counted across the whole period, several in one day is fine.'}
                 </p>
               </div>
+
+              {/* A goal with no cost for missing it is a wish. Off by default:
+                  a penalty nobody asked for is a nasty surprise. */}
+              {Number(targetReps) > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold text-white/60 tracking-widest uppercase">
+                    Penalty per {unit.trim() || 'rep'} missed at the end (★, 0 = none)
+                  </Label>
+                  <Input
+                    type="number" min={0} data-testid="habit-shortfall"
+                    className="bg-[#0d0f12] border-white/10 text-white h-11"
+                    value={shortfallPenalty}
+                    onChange={(e) => setShortfall(e.target.value)}
+                  />
+                  <p className="text-[10px] text-white/40">
+                    {Number(shortfallPenalty) > 0
+                      ? `Stopping at ${Math.max(0, Number(targetReps) - 1)} of ${targetReps} would cost ${shortfallPenalty}★ when the period closes.`
+                      : 'Nothing is charged for falling short.'}
+                  </p>
+                </div>
+              )}
             </>
           )}
 

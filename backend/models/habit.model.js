@@ -42,6 +42,28 @@ const HabitSchema = new Schema({
     targetReps: { type: Number, default: 0, min: 0 },
     /** Length of that period in weeks. 1 = weekly, 4 = monthly, 12 = quarterly. */
     targetPeriodWeeks: { type: Number, default: 1, min: 1 },
+
+    /**
+     * What one unit IS, when it is not simply "a rep".
+     *
+     * "Run 10 kilometres this week" is not ten runs — it is one goal measured
+     * in kilometres, and a run of 4 has to count as 4. With a unit set, every
+     * log carries an AMOUNT and stars are paid per unit, so going past the
+     * target keeps earning and stopping short is visible as a shortfall.
+     * Empty means the old behaviour: one log, one rep.
+     */
+    unit: { type: String, default: '', trim: true, maxlength: 16 },
+
+    /**
+     * Charged once, when a period ends short of its target.
+     *
+     * A goal with no consequence for missing it is a wish. The sweep needs to
+     * know which periods it has already settled or a second pass would bill
+     * the same shortfall again, so the last settled period start is kept here.
+     */
+    lastShortfallPeriod: { type: String, default: null },
+    /** Stars lost per missing unit when a period closes short. 0 disables it. */
+    shortfallPenalty: { type: Number, default: 0, min: 0 },
     /** Also surface it on the daily task list. */
     isRecurringTask: { type: Boolean, default: false },
 

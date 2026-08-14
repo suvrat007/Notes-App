@@ -60,6 +60,7 @@ const Log = require('./models/log.model.js');
 const BreakDay = require('./models/breakday.model.js');
 const { authenticateToken, COOKIE_NAME, cookieOptions } = require('./utilities.js');
 const stars = require('./engine/stars.js');
+const { rateLimit } = require('./lib/ratelimit.js');
 const { OAuth2Client } = require('google-auth-library');
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -108,7 +109,14 @@ app.post("/create-account", async(req, res) => {
     }
 });
 
-app.post("/login", async(req, res) => {
+const loginLimit = rateLimit({
+  name: 'login',
+  limit: 12,
+  windowMs: 300_000,
+  message: 'Too many sign-in attempts. Wait a few minutes and try again.',
+});
+
+app.post("/login", loginLimit, async(req, res) => {
     const { email, password } = req.body;
     if(!email) return res.status(400).json({error:true, message: "Email Required"});
     if(!password) return res.status(400).json({error:true, message: "Password Required"});
@@ -287,7 +295,14 @@ const dayOnly = (v) => {
 };
 
 // --- Tasks Routes ---
-app.post('/tasks', authenticateToken, async (req, res) => {
+const createLimit = rateLimit({
+  name: 'create',
+  limit: 60,
+  windowMs: 60_000,
+  message: 'Too many things created at once. Try again shortly.',
+});
+
+app.post('/tasks', authenticateToken, createLimit, async (req, res) => {
     const { title, type, targetCount, baseReward, penaltyIntensity, targetDate,
             dueDate, repCadence } = req.body;
     try {
@@ -407,7 +422,18 @@ const calculateStars = (task, completedCount) => {
     return 0; // break_day task type
 };
 
-app.post('/logs', authenticateToken, async (req, res) => {
+/*
+ * The same ceiling for tasks. A debounced counter sends one request per
+ * settled number, so even a fast worker sends a handful a minute.
+ */
+const taskLogLimit = rateLimit({
+  name: 'task-log',
+  limit: 40,
+  windowMs: 60_000,
+  message: 'That is a lot of updates in one minute. Take a breath and carry on.',
+});
+
+app.post('/logs', authenticateToken, taskLogLimit, async (req, res) => {
     const { taskId, date, completedCount } = req.body;
     if (!date || typeof completedCount !== 'number') {
         return res.status(400).json({ error: true, message: "date and completedCount are required" });

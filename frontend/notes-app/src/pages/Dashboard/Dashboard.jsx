@@ -177,9 +177,12 @@ const Dashboard = () => {
         />
       )}
 
+      {/* Today's tasks go to the voice modal too, so "I did three of them" can
+          point at a real one instead of creating a second copy of it. */}
       {isVoiceOpen && (
         <VoiceModal
           habits={state?.habits ?? []}
+          tasks={state?.tasks ?? []}
           onClose={() => setIsVoiceOpen(false)}
           refreshData={fetchData}
           showToast={showToast}

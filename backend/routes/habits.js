@@ -2,6 +2,8 @@ const express = require('express');
 const Habit = require('../models/habit.model.js');
 const Log = require('../models/log.model.js');
 const { authenticateToken } = require('../utilities.js');
+const { rateLimit } = require('../lib/ratelimit.js');
+const { periodStartOf, periodDays } = require('../lib/shortfall.js');
 const e = require('../engine/stars.js');
 
 const router = express.Router();
@@ -32,6 +34,7 @@ router.post('/', async (req, res) => {
   const {
     name, icon, polarity, starsPerRep, dailyAllowance, overagePenalty,
     freeWithinAllowance, dailyTarget, targetReps, targetPeriodWeeks, isRecurringTask,
+    unit, shortfallPenalty,
   } = req.body;
 
   if (!name || !String(name).trim()) {
@@ -46,6 +49,7 @@ router.post('/', async (req, res) => {
       name: String(name).trim(),
       icon, polarity, starsPerRep, dailyAllowance, overagePenalty,
       freeWithinAllowance, dailyTarget, targetReps, targetPeriodWeeks, isRecurringTask,
+      unit, shortfallPenalty,
       order,
     });
     return res.json({ error: false, habit, message: 'Habit created' });
@@ -59,7 +63,7 @@ router.patch('/:habitId', async (req, res) => {
   const allowed = [
     'name', 'icon', 'starsPerRep', 'dailyAllowance', 'overagePenalty',
     'freeWithinAllowance', 'dailyTarget', 'targetReps', 'targetPeriodWeeks',
-    'isRecurringTask', 'order',
+    'isRecurringTask', 'order', 'unit', 'shortfallPenalty',
   ];
   const patch = {};
   for (const k of allowed) if (req.body[k] !== undefined) patch[k] = req.body[k];
@@ -105,7 +109,14 @@ router.delete('/:habitId', async (req, res) => {
  * escalates past its allowance, so the count matters and a client-supplied
  * number would be a scoreboard anyone could edit.
  */
-router.post('/:habitId/log', async (req, res) => {
+const logLimit = rateLimit({
+  name: 'habit-log',
+  limit: 40,
+  windowMs: 60_000,
+  message: 'That is a lot of taps in one minute. Take a breath and carry on.',
+});
+
+router.post('/:habitId/log', logLimit, async (req, res) => {
   const { key, at } = resolveDate(req.body.date);
 
   const age = e.daysBetween(key, e.dayKey(new Date()));
@@ -120,6 +131,15 @@ router.post('/:habitId/log', async (req, res) => {
     const habit = await Habit.findOne({ _id: req.params.habitId, userId: req.userId });
     if (!habit) return res.status(404).json({ error: true, message: 'Habit not found' });
 
+    /*
+     * How much of it was done. A habit measured in kilometres is logged as
+     * '4', not as four separate runs, so the amount rides on the log's count
+     * and every total in the app sums it already.
+     */
+    const amount = Number.isFinite(Number(req.body.amount))
+      ? Math.max(1, Math.min(10000, Math.round(Number(req.body.amount))))
+      : 1;
+
     let starsDelta;
     if (habit.polarity === 'bad') {
       // Which slot this rep takes decides whether it is inside the allowance.
@@ -128,12 +148,28 @@ router.post('/:habitId/log', async (req, res) => {
       });
       starsDelta = e.badHabitRepDelta(habit, already);
     } else {
-      starsDelta = e.goodHabitDelta(habit);
+      /*
+       * What the period already holds decides what these units are worth:
+       * everything up to the goal pays in full, beyond it pays less. Read here
+       * rather than sent by the client, which would be asking the tapper how
+       * much they should be paid.
+       */
+      const pStart = periodStartOf(habit, key);
+      const pDays = periodDays(habit, pStart);
+      const rows = await Log.find({
+        userId: req.userId,
+        kind: 'habit',
+        refId: habit._id,
+        date: { $gte: e.dayStart(pDays[0]), $lte: e.dayStart(pDays[pDays.length - 1]) },
+      }).lean();
+      const doneInPeriod = rows.reduce((sum, r) => sum + (r.count || 1), 0);
+
+      starsDelta = e.goodHabitDelta(habit, amount, doneInPeriod);
     }
 
     const log = await Log.create({
       userId: req.userId, kind: 'habit', refId: habit._id,
-      date: at, count: 1, starsDelta,
+      date: at, count: amount, starsDelta,
     });
 
     return res.json({ error: false, log, starsDelta });

@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 
 const KIND_LABEL = {
   habit: 'Habit rep',
+  progress: 'Progress',
+  skipped: 'Not done',
   task: 'Task',
   'new-habit': 'New habit',
   'new-reward': 'New reward',
@@ -28,7 +30,7 @@ const clock = (ms) => {
  * habit rep is a wrong entry in the ledger the game is scored on — so nothing
  * is written until the user has looked at it and said yes.
  */
-const VoiceModal = ({ habits = [], onClose, refreshData, showToast }) => {
+const VoiceModal = ({ habits = [], tasks = [], onClose, refreshData, showToast }) => {
   const [phase, setPhase] = useState('idle'); // idle | listening | thinking | preview | saving
   const [transcript, setTranscript] = useState('');
   const [items, setItems] = useState([]);
@@ -61,7 +63,7 @@ const VoiceModal = ({ habits = [], onClose, refreshData, showToast }) => {
     setTranscript(text);
     setPhase('thinking');
     try {
-      const parsed = await parseSpokenDay(text, { habits });
+      const parsed = await parseSpokenDay(text, { habits, tasks });
       if (parsed.length === 0) {
         setError("Couldn't find anything to log in that. Try naming what you did.");
         setPhase('idle');
@@ -119,11 +121,38 @@ const VoiceModal = ({ habits = [], onClose, refreshData, showToast }) => {
   const commit = async () => {
     setPhase('saving');
     try {
+      const today = new Date().toLocaleDateString('en-CA');
+
       for (const it of items) {
+        if (it.kind === 'skipped') {
+          // Nothing to write. Not doing something is already the default
+          // state; the row exists so the user can see it was heard correctly.
+          continue;
+        }
+
         if (it.kind === 'habit' && it.refId) {
-          for (let i = 0; i < it.count; i++) {
-            await api.post(`/habits/${it.refId}/log`, {});
+          /*
+           * A measured habit takes ONE log carrying the amount: four kilometres
+           * is one run of four, not four runs of one, and the ledger has to say
+           * which. Plain habits keep one row per rep.
+           */
+          const measured = habits.find((h) => String(h._id) === String(it.refId))?.unit;
+          if (measured) {
+            await api.post(`/habits/${it.refId}/log`, { amount: it.count });
+          } else {
+            for (let i = 0; i < it.count; i++) {
+              await api.post(`/habits/${it.refId}/log`, {});
+            }
           }
+        } else if (it.kind === 'progress' && it.refId) {
+          /*
+           * /logs takes the RUNNING total, while speech gives what was done
+           * today, so the two are added here. Capped at the target: "I did
+           * five" against a job with three left means three.
+           */
+          const target = it.taskTarget ?? 1;
+          const next = Math.min(target, (it.taskBefore ?? 0) + it.count);
+          await api.post('/logs', { taskId: it.refId, date: today, completedCount: next });
         } else if (it.kind === 'new-habit') {
           await api.post('/habits', {
             name: it.text,
@@ -131,6 +160,7 @@ const VoiceModal = ({ habits = [], onClose, refreshData, showToast }) => {
             dailyAllowance: it.polarity === 'bad' ? (it.dailyAllowance ?? 0) : 0,
             targetReps: it.polarity === 'good' ? it.targetReps : 0,
             targetPeriodWeeks: it.targetPeriodWeeks,
+            unit: it.polarity === 'good' ? it.unit : '',
           });
         } else if (it.kind === 'new-reward') {
           await api.post('/rewards', { name: it.text, damagePct: it.damagePct });
@@ -294,7 +324,23 @@ const VoiceModal = ({ habits = [], onClose, refreshData, showToast }) => {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 text-[10px] text-white/50">
-                    {it.count > 1 && <span>×{it.count}</span>}
+                    {it.count > 1 && it.kind !== 'progress' && <span>×{it.count}</span>}
+
+                    {/* State the arithmetic. "+3" is not checkable at a glance;
+                        "2 -> 5 of 8" is. */}
+                    {it.kind === 'progress' && (
+                      <span className="text-[#3ecf8e]" data-testid={`vprog-${it.id}`}>
+                        {it.taskBefore} → {Math.min(it.taskTarget, it.taskBefore + it.count)}
+                        {' of '}{it.taskTarget}
+                      </span>
+                    )}
+
+                    {it.kind === 'skipped' && (
+                      <span className="text-white/35" data-testid={`vskip-${it.id}`}>
+                        noted, nothing logged
+                      </span>
+                    )}
+
                     {it.kind === 'task' && <span>from {it.dueDate}</span>}
                     {it.kind === 'task' && it.deadline && (
                       <span className="text-[#c0b3a5]">by {it.deadline}</span>

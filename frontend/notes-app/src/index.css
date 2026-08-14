@@ -108,3 +108,49 @@ body[data-theme='light'] img,
 body[data-theme='light'] video {
   filter: invert(1) hue-rotate(180deg);
 }
+
+/*
+ * Scrollbars that belong to this app.
+ *
+ * The OS default is a wide light-grey slab with arrow buttons at each end —
+ * next to a dark panel with rounded corners it reads as a piece of furniture
+ * from another room. This makes it a thin rail that only shows when there is
+ * something to scroll, and lets the panel behind it stay the thing you look at.
+ *
+ * Firefox takes the two-value shorthand; everything else uses ::-webkit-*.
+ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  /* Inset from the edge so the rail never touches the panel's rounded corner. */
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(192, 179, 165, 0.45);
+  background-clip: content-box;
+}
+
+/* The little arrow buttons are the ugliest part and serve no purpose here. */
+*::-webkit-scrollbar-button {
+  display: none;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
