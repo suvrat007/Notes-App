@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Menu } from 'lucide-react';
 
 import api from '../../utils/api';
 import { useToast } from '../../utils/ToastContext';
-import { useAuth } from '../../utils/AuthContext';
 import { DataProvider } from '../../utils/DataContext';
 import BottomNav from '../../components/BottomNav';
 import Sidebar from '../../components/Sidebar';
@@ -39,8 +36,6 @@ const Dashboard = () => {
   // Bumped by every write so the screens holding their own fetch reload too.
   const [version, setVersion] = useState(0);
   const showToast = useToast();
-  const { logout } = useAuth();
-  const navigate = useNavigate();
 
   useEffect(() => {
     document.body.setAttribute('data-theme', theme);
@@ -78,11 +73,6 @@ const Dashboard = () => {
     fetchData();
   }, [fetchData]);
 
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
-
   if (!user) {
     return (
       <div className="app-shell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
@@ -102,7 +92,6 @@ const Dashboard = () => {
         user={user}
         rank={state?.stars?.rank}
         lifetime={state?.stars?.lifetime}
-        showToast={showToast}
       />
 
       {/*
@@ -153,7 +142,7 @@ const Dashboard = () => {
 , Home, Calendar, Stats, fill the height and stay still; a long
             settings list is allowed to scroll rather than be cut off.
           */}
-          <div className="p-4 sm:p-6 md:px-8 md:py-7 flex-1 md:min-h-0 md:overflow-y-auto">
+          <div className="p-4 pb-28 sm:p-6 sm:pb-28 md:px-8 md:pt-7 md:pb-24 flex-1 md:min-h-0 md:overflow-y-auto">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}

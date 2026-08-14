@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { usePref, SHOW_BACKLOG } from '../../../utils/prefs';
+import InstallApp from '../../../components/InstallApp';
 import { Star, Moon, Shield, Bell, Globe, Database, HelpCircle, ChevronRight, LogOut, Edit2, History } from 'lucide-react';
 import { useAuth } from '../../../utils/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -99,6 +100,10 @@ const More = ({ user, theme, toggleTheme, showToast, onNavigate }) => {
                 : "Earlier days are left behind. Today's list only."}
             </p>
           </Card>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.09 }}>
+          <InstallApp showToast={showToast} />
         </motion.div>
 
         {/* Security */}

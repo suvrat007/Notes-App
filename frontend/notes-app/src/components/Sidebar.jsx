@@ -1,10 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Bell, CircleUser } from 'lucide-react';
+import { CircleUser } from 'lucide-react';
 import RankBadge from './RankBadge';
 import { TABS } from './navConfig';
 
-const Sidebar = ({ active, onChange, user, rank, lifetime, showToast }) => (
+const Sidebar = ({ active, onChange, user, rank, lifetime }) => (
   <aside className="hidden md:flex flex-col w-64 shrink-0 bg-[#0d0f12] border-r border-white/5 p-6 h-screen sticky top-0">
     <div className="mb-10">
       <h1 className="font-heading font-bold text-white text-xl tracking-widest">FOCUS</h1>
@@ -80,7 +80,13 @@ const Sidebar = ({ active, onChange, user, rank, lifetime, showToast }) => (
         </div>
       )}
 
-      <div className="flex items-center gap-3 mb-4 cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-colors">
+      <button
+        type="button"
+        onClick={() => onChange('more')}
+        aria-label="Your profile and settings"
+        data-testid="sidebar-profile"
+        className="w-full flex items-center gap-3 text-left cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-colors"
+      >
         {user?.avatarUrl
           ? <img src={user.avatarUrl} alt="" referrerPolicy="no-referrer"
                  className="w-8 h-8 rounded-full object-cover shrink-0" />
@@ -89,23 +95,10 @@ const Sidebar = ({ active, onChange, user, rank, lifetime, showToast }) => (
           <p className="text-sm font-semibold text-white truncate">{user?.fullName}</p>
           <p className="text-xs text-white/40">{(lifetime ?? user?.totalStars ?? 0)} Stars</p>
         </div>
-      </div>
-      <div className="flex justify-between px-2">
-        <button
-          className="text-white/40 hover:text-white transition-colors"
-          onClick={() => showToast?.('No new notifications')}
-          aria-label="Notifications"
-        >
-          <Bell size={18} />
-        </button>
-        <button
-          className="text-white/40 hover:text-white transition-colors"
-          onClick={() => onChange('more')}
-          aria-label="Settings"
-        >
-          <Settings size={18} />
-        </button>
-      </div>
+      </button>
+      {/* The bell and the gear were beneath this. The bell only ever raised a
+          toast saying there was nothing, and the gear went exactly where the
+          row above it now goes. */}
     </div>
   </aside>
 );
