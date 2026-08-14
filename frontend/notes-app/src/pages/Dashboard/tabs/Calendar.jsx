@@ -60,10 +60,20 @@ const Calendar = ({ tasks, logs, refreshData, showToast }) => {
   const selectedLabelDay = format(selectedDateObj, 'EEEE');
   const isSelectedBreakDay = breakDays.has(selected);
 
-  // Every task is shown for any selected day, but each row's logged status below
-  // is computed specifically for `selected` (not always "today").
-  const logFor = (taskId) => logs.find((l) => l.taskId && l.taskId._id === taskId && toKey(new Date(l.date)) === selected);
-  const tasksForSelected = tasks;
+  const logFor = (taskId) => logs.find((l) =>
+    String(l.refId ?? l.taskId?._id ?? l.taskId) === String(taskId)
+    && toKey(new Date(l.date)) === selected);
+
+  /*
+   * Only the SELECTED day's tasks.
+   *
+   * This used to hand back every task the user owns, so picking the 15th
+   * showed the 14th's list under a heading that said the 15th — a day view
+   * that ignores the day. Daily tasks are the one exception: they are due
+   * every day by definition.
+   */
+  const tasksForSelected = tasks.filter((t) =>
+    t.type === 'daily' || (t.targetDate && toKey(new Date(t.targetDate)) === selected));
 
   const submitLog = async (taskId, completedCount) => {
     try {

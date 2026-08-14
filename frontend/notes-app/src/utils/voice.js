@@ -177,7 +177,7 @@ damagePct      new-reward only: 20, 40, 60, 80 or 100 by how big a deal it is.
                a coffee=20, a night out=40, a day off=60-80, a whole week off=100.
 dueDate        tasks only, YYYY-MM-DD from the anchors given. A stated day carries
                forward to later items until a different one appears. If no timing was
-               stated at all, use today — someone speaking into a daily tracker means now.
+               stated at all, use today, someone speaking into a daily tracker means now.
 
 Never invent items. Never merge two distinct items.
 

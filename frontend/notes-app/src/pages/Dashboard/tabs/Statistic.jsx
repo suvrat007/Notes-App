@@ -6,6 +6,8 @@ import {
 } from 'recharts';
 import { Flame } from 'lucide-react';
 import api from '../../../utils/api';
+import { useDataVersion } from '../../../utils/DataContext';
+import Select from '../../../components/Select';
 
 /*
  * The palette, stated once. Green and red mean EARNED and LOST and nothing
@@ -50,6 +52,7 @@ const CardBox = ({ title, right, children, delay = 0, className = '' }) => (
 );
 
 const Statistic = () => {
+  const dataVersion = useDataVersion();
   const [range, setRange] = useState('day');
   const [heatHabit, setHeatHabit] = useState('');
   const [data, setData] = useState(null);
@@ -68,7 +71,7 @@ const Statistic = () => {
       }
     })();
     return () => { cancelled = true; };
-  }, [range, heatHabit]);
+  }, [range, heatHabit, dataVersion]);
 
   if (error) return <p className="text-focus-red text-sm">{error}</p>;
   if (!data) return <p className="text-white/40 text-sm">Loading stats…</p>;
@@ -143,7 +146,7 @@ const Statistic = () => {
                 labelStyle={{ color: '#e6e8eb' }}
               />
               {/* Lifetime only ever climbs, so no area fill is needed to say
-                  which way is good — the shape already does. */}
+                  which way is good, the shape already does. */}
               <Line type="monotone" dataKey="value" stroke={ACCENT} strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
@@ -154,23 +157,23 @@ const Statistic = () => {
         title="Consistency"
         delay={0.15}
         right={
-          <select
+          <Select
+            testId="heat-habit"
+            ariaLabel="Which habit to show"
+            className="w-40"
             value={heatHabit}
-            onChange={(e) => setHeatHabit(e.target.value)}
-            data-testid="heat-habit"
-            className="bg-[#0d0f12] border border-white/10 rounded-md text-white/70 text-[11px] px-2 py-1"
-          >
-            <option value="">All stars</option>
-            {data.habits.map((h) => (
-              <option key={h._id} value={h._id}>{h.name}</option>
-            ))}
-          </select>
+            onChange={setHeatHabit}
+            options={[
+              { value: '', label: 'All stars' },
+              ...data.habits.map((h) => ({ value: h._id, label: h.name })),
+            ]}
+          />
         }
       >
         {/*
           The grid STRETCHES to its card instead of sitting as fixed 10px
           squares in the corner. Seven rows for the days of the week, one
-          column per week flowing sideways — so it reads as a calendar and
+          column per week flowing sideways, so it reads as a calendar and
           uses the space the card already reserved for it.
         */}
         <div className="flex flex-col h-full min-h-0">

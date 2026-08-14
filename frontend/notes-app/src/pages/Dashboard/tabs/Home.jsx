@@ -7,6 +7,8 @@ import api from '../../../utils/api';
 import HabitCard from '../../../components/HabitCard';
 import HabitModal from '../../../components/HabitModal';
 import RewardPanel from '../../../components/RewardPanel';
+import WeekTargets from '../../../components/WeekTargets';
+import TaskRow from '../../../components/TaskRow';
 
 const todayKey = () => new Date().toLocaleDateString('en-CA');
 
@@ -95,19 +97,16 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
   );
   const maxBar = Math.max(...starsByDay, 1);
 
-  const [loggingTaskId, setLoggingTaskId] = useState(null);
-  const [count, setCount] = useState(1);
-
-  const submitLog = async (taskId, completedCount) => {
-    try {
-      await api.post('/logs', { taskId, date: todayKey(), completedCount });
-      setLoggingTaskId(null);
-      setCount(1);
-      refreshData();
-      showToast?.('Progress logged');
-    } catch (e) {
-      showToast?.(e.response?.data?.message || 'Could not log progress', 'error');
-    }
+  /**
+   * Persist a task's progress.
+   *
+   * The row has already debounced the taps and shown the result, so this sends
+   * the settled number once. It deliberately does NOT catch: the row needs the
+   * rejection to put its own number back.
+   */
+  const logTask = async (task, completedCount) => {
+    await api.post('/logs', { taskId: task._id, date: todayKey(), completedCount });
+    await refreshData();
   };
 
   const getTaskVisuals = (type) => {
@@ -240,10 +239,15 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
         </motion.div>
       </div>
 
+      {/* What the week asked for, kept in sight while the day is worked. */}
+      <div className="md:shrink-0">
+        <WeekTargets onNavigate={onNavigate} />
+      </div>
+
       {/*
         Desktop gets columns, not one long scroll. Habits, today's plan and
-        rewards are three separate questions — "what am I keeping up", "what
-        is left today", "what am I working towards" — and stacking them means
+        rewards are three separate questions, "what am I keeping up", "what
+        is left today", "what am I working towards", and stacking them means
         the answer to the third is always below the fold. On a phone the
         single column stays, because side-by-side at 390px is unreadable.
       */}
@@ -265,7 +269,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
           </button>
         </div>
 
-        <div className="space-y-3 md:flex-1 md:min-h-0 md:overflow-y-auto md:pr-1">
+        <div className="space-y-2 md:flex-1 md:min-h-0 md:overflow-y-auto md:pr-1">
           {habits.map((h) => (
             <HabitCard
               key={h._id}
@@ -277,7 +281,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
           ))}
           {habits.length === 0 && (
             <p className="text-center text-white/40 text-sm py-6" data-testid="habits-empty">
-              No habits yet. Add the first thing you want to build — or break.
+              No habits yet. Add the first thing you want to build, or break.
             </p>
           )}
         </div>
@@ -321,81 +325,18 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
           </button>
         </div>
 
-        <div className="space-y-4 md:flex-1 md:min-h-0 md:overflow-y-auto md:pr-1">
-          {tasks.map((task) => {
-            const visuals = getTaskVisuals(task.type);
-            const Icon = visuals.icon;
-            const todayLog = todaysLogs.find((l) => l.taskId && l.taskId._id === task._id);
-            const isLogging = loggingTaskId === task._id;
-
-            return (
-              <div key={task._id} className={`flex bg-black/40 border border-white/5 rounded-[20px] overflow-hidden ${visuals.border} border-l-[3px]`}>
-                <div className="p-4 md:p-5 flex gap-4 w-full">
-                  <div className={`w-12 h-12 rounded-2xl ${visuals.bg} flex items-center justify-center shrink-0`}>
-                    <Icon size={20} className={visuals.color} />
-                  </div>
-
-                  <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <div className="flex justify-between items-start mb-1">
-                      <h4 className="text-sm md:text-base font-bold text-white truncate pr-2">{task.title}</h4>
-                      {todayLog && (
-                        <span className="text-[10px] font-bold text-white/40 whitespace-nowrap">{todayLog.completedCount} logged</span>
-                      )}
-                    </div>
-
-                    <p className="text-[11px] text-white/50 mb-3 line-clamp-2">
-                      <span className="capitalize">{task.type.replace('_', ' ')}</span>
-                      {task.type !== 'break_day' && <> • Target {task.targetCount}</>}
-                    </p>
-
-                    {isLogging ? (
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min="0"
-                          value={count}
-                          onChange={(e) => setCount(parseInt(e.target.value) || 0)}
-                          className="w-16 bg-black/60 border border-white/10 rounded-lg text-white text-xs px-2 py-1.5"
-                        />
-                        <button onClick={() => submitLog(task._id, count)} className="px-3 py-1.5 bg-[#c0b3a5] text-black rounded-lg text-[10px] font-bold flex items-center gap-1">
-                          <Check size={12} /> Confirm
-                        </button>
-                        <button onClick={() => setLoggingTaskId(null)} className="px-3 py-1.5 bg-transparent border border-white/10 text-white/60 rounded-lg text-[10px] font-bold flex items-center gap-1">
-                          <X size={12} /> Cancel
-                        </button>
-                      </div>
-                    ) : task.type === 'avoid' ? (
-                      <div className="flex gap-2">
-                        <button
-                          className="px-5 py-1.5 bg-[#c0b3a5] text-black rounded-lg text-[10px] font-bold transition-transform hover:scale-105"
-                          onClick={() => showToast?.('Marked safe for today')}
-                        >
-                          Still Safe
-                        </button>
-                        <button
-                          className="px-4 py-1.5 bg-transparent border border-white/10 hover:border-focus-red hover:text-focus-red text-white rounded-lg text-[10px] font-bold transition-colors"
-                          onClick={() => submitLog(task._id, 1)}
-                        >
-                          Slipped Up
-                        </button>
-                      </div>
-                    ) : task.type === 'break_day' ? (
-                      <span className="inline-block px-4 py-1.5 bg-white/5 text-white/50 rounded-lg text-[10px] font-bold">Rest day — no pressure</span>
-                    ) : (
-                      <div className="flex gap-2">
-                        <button
-                          className="px-6 py-1.5 bg-[#c0b3a5] text-black rounded-lg text-[10px] font-bold transition-transform hover:scale-105"
-                          onClick={() => { setLoggingTaskId(task._id); setCount(todayLog?.completedCount || task.targetCount); }}
-                        >
-                          Log
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+        <div className="space-y-2 md:flex-1 md:min-h-0 md:overflow-y-auto md:pr-1">
+          {/* Logged where it sits: a one-off is a checkbox, a multi-unit job
+              is a counter. Neither opens a form to describe an action the
+              user could simply have performed. */}
+          {dayTasks.map((task) => (
+            <TaskRow
+              key={task._id}
+              task={task}
+              onLog={logTask}
+              showToast={showToast}
+            />
+          ))}
 
           {tasks.length === 0 && (
             <div className="p-8 text-center text-white/40 text-sm">No tasks scheduled for today.</div>

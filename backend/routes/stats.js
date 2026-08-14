@@ -24,7 +24,12 @@ const HEATMAP_WEEKS = 26;
 router.get('/', async (req, res) => {
   try {
     const range = ['day', 'week', 'month'].includes(req.query.range) ? req.query.range : 'day';
-    const today = e.dayKey(new Date());
+    // The caller's calendar day wins: a UTC server is still on yesterday
+    // until the morning in India, and would draw the wrong week.
+    const serverKey = e.dayKey(new Date());
+    const today = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '')
+      ? req.query.date
+      : serverKey;
     const weekStart = e.weekStartOf(today, 1);
 
     // One wide read; every series below is a slice of it.

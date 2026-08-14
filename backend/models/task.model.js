@@ -45,6 +45,20 @@ const TaskSchema = new Schema({
     /** Groups the occurrences of one repeating task. Null for a one-off. */
     seriesId: { type: String, default: null, index: true },
 
+    /**
+     * Show this on the Roadmap.
+     *
+     * A repeating task IS a weekly commitment — "go to the gym, once a week"
+     * is the same promise as a habit with a goal of 1, just expressed as a
+     * task. Rather than make people model it twice, a task can join the
+     * roadmap and be counted there.
+     */
+    onRoadmap: { type: Boolean, default: false },
+
+    /** Where this task has been pushed outside the app, so it is pushed once. */
+    googleTaskId: { type: String, default: null },
+    googleEventId: { type: String, default: null },
+
     /** Manual sort position within its day. */
     order: { type: Number, default: 0 },
     createdAt: { type: Date, default: Date.now }

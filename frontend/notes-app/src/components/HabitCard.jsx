@@ -51,12 +51,12 @@ const HabitCard = ({ habit, onLog, onUndo, busy }) => {
 
   return (
     <div
-      className={`bg-black/40 border border-white/5 rounded-2xl ${edge} border-l-[3px] px-3.5 py-3`}
+      className={`bg-black/40 border border-white/5 rounded-xl ${edge} border-l-[3px] px-3 py-2`}
       data-testid={`habit-${habit._id}`}
     >
-      <div className="flex items-center gap-3">
-        <span className={`w-9 h-9 rounded-xl ${tileBg} grid place-items-center shrink-0`}>
-          <Icon size={16} className={accent} />
+      <div className="flex items-center gap-2.5">
+        <span className={`w-8 h-8 rounded-lg ${tileBg} grid place-items-center shrink-0`}>
+          <Icon size={14} className={accent} />
         </span>
 
         <h4 className="flex-1 min-w-0 text-sm font-bold text-white truncate">{habit.name}</h4>
@@ -64,18 +64,18 @@ const HabitCard = ({ habit, onLog, onUndo, busy }) => {
         {/* The glyph reads at a glance; data-reps carries the exact number for
             anything that needs it, screen readers included. */}
         <span
-          className={`font-heading font-black text-lg leading-none tabular-nums shrink-0 ${
+          className={`font-heading font-black text-base leading-none tabular-nums shrink-0 ${
             met ? accent : 'text-white/30'
           }`}
           data-testid={`count-${habit._id}`}
           data-reps={reps}
           aria-label={`${reps} today`}
         >
-          {counted ? countText : (met ? <Check size={17} /> : '—')}
+          {counted ? countText : (met ? <Check size={17} /> : '-')}
         </span>
       </div>
 
-      <div className="flex items-center gap-2 mt-2.5">
+      <div className="flex items-center gap-2 mt-1.5">
         <p className="flex-1 min-w-0 text-[11px] text-white/45 truncate" title={terms}>
           {terms}
           {/* Being past the allowance changes what the NEXT tap costs, so it
@@ -91,9 +91,9 @@ const HabitCard = ({ habit, onLog, onUndo, busy }) => {
           onClick={() => onUndo(habit)}
           aria-label={`Remove one ${habit.name}`}
           data-testid={`undo-${habit._id}`}
-          className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white/60 grid place-items-center disabled:opacity-30 hover:text-white transition-colors shrink-0"
+          className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-white/60 grid place-items-center disabled:opacity-30 hover:text-white transition-colors shrink-0"
         >
-          <Minus size={14} />
+          <Minus size={13} />
         </button>
         <button
           type="button"
@@ -101,9 +101,9 @@ const HabitCard = ({ habit, onLog, onUndo, busy }) => {
           onClick={() => onLog(habit)}
           aria-label={`Log ${habit.name}`}
           data-testid={`log-${habit._id}`}
-          className={`w-9 h-9 rounded-lg ${tileBg} border border-white/10 ${accent} grid place-items-center disabled:opacity-40 hover:scale-105 active:scale-95 transition-transform shrink-0`}
+          className={`w-8 h-8 rounded-lg ${tileBg} border border-white/10 ${accent} grid place-items-center disabled:opacity-40 hover:scale-105 active:scale-95 transition-transform shrink-0`}
         >
-          <Plus size={17} />
+          <Plus size={15} />
         </button>
       </div>
     </div>

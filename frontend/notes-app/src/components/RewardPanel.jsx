@@ -193,7 +193,7 @@ const RewardPanel = ({ rewards = [], lifetime = 0, refreshData, showToast }) => 
 
         <p className="text-[10px] text-white/40 mt-3" data-testid="tier-preview">
           {name.trim()
-            ? `“${name.trim()}” would cost ${previewCost}★ right now — ${damage}% of your total.`
+            ? `“${name.trim()}” would cost ${previewCost}★ right now, ${damage}% of your total.`
             : 'Name it and the cost is worked out as a share of your total.'}
         </p>
       </div>
@@ -213,8 +213,8 @@ const RewardPanel = ({ rewards = [], lifetime = 0, refreshData, showToast }) => 
               Redeem {confirming.name}?
             </h3>
             <p className="text-sm text-white/60 mb-6" data-testid="redeem-warning">
-              That is {confirming.damagePct}% of everything you have earned —
-              <b className="text-white"> {confirming.cost}★</b> — and your rank drops with it.
+              That is {confirming.damagePct}% of everything you have earned, 
+              <b className="text-white"> {confirming.cost}★</b>, and your rank drops with it.
               Which is what makes it worth earning.
             </p>
             <Button

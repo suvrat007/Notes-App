@@ -5,6 +5,7 @@ import api from '../utils/api';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import Select from './Select';
 
 const PERIODS = [
   { weeks: 1, label: 'Week' },
@@ -109,10 +110,10 @@ const HabitModal = ({ habit, onClose, refreshData, showToast }) => {
               <Label className="text-[10px] font-bold text-white/60 tracking-widest uppercase">Kind</Label>
               <div className="flex gap-2">
                 <button type="button" data-testid="pol-good" className={seg(!isBad)} onClick={() => setPolarity('good')}>
-                  BUILD — EARN
+                  BUILD, EARN
                 </button>
                 <button type="button" data-testid="pol-bad" className={seg(isBad)} onClick={() => setPolarity('bad')}>
-                  BREAK — LOSE
+                  BREAK, LOSE
                 </button>
               </div>
             </div>
@@ -179,7 +180,7 @@ const HabitModal = ({ habit, onClose, refreshData, showToast }) => {
                 <p className="text-[10px] text-white/40">
                   {Number(dailyTarget) > 0
                     ? `Counts ${dailyTarget} a day and only reads as done at ${dailyTarget}.`
-                    : 'One tap a day marks it done — no counter.'}
+                    : 'One tap a day marks it done, no counter.'}
                 </p>
               </div>
 
@@ -195,19 +196,17 @@ const HabitModal = ({ habit, onClose, refreshData, showToast }) => {
                     onChange={(e) => setTargetReps(e.target.value)}
                   />
                   <span className="text-[10px] text-white/40 tracking-wider">REPS PER</span>
-                  <select
-                    data-testid="habit-period"
-                    className="flex-1 h-11 bg-[#0d0f12] border border-white/10 rounded-md text-white text-sm px-3"
+                  <Select
+                    testId="habit-period"
+                    ariaLabel="Goal period"
+                    className="flex-1"
                     value={targetPeriodWeeks}
-                    onChange={(e) => setPeriodWeeks(e.target.value)}
-                  >
-                    {PERIODS.map((p) => (
-                      <option key={p.weeks} value={p.weeks}>{p.label}</option>
-                    ))}
-                  </select>
+                    onChange={setPeriodWeeks}
+                    options={PERIODS.map((p) => ({ value: p.weeks, label: p.label }))}
+                  />
                 </div>
                 <p className="text-[10px] text-white/40">
-                  Counted across the whole period — several in one day is fine.
+                  Counted across the whole period, several in one day is fine.
                 </p>
               </div>
             </>

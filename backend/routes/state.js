@@ -27,10 +27,19 @@ const CARRY_OVER_DAYS = 14;
  */
 router.get('/', async (req, res) => {
   try {
-    const todayKey = e.dayKey(new Date());
+    const serverKey = e.dayKey(new Date());
     const dateKey = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '')
       ? req.query.date
-      : todayKey;
+      : serverKey;
+
+    /*
+     * "Today" is whichever is later: this box's UTC day or the day the caller
+     * says it is where they are. A server in UTC is still on yesterday until
+     * 5:30am in India, and a ledger window that ends there would drop every
+     * log the user has just made. Looking BACK at an older day keeps the real
+     * today as the window's end, so the week's totals stay whole.
+     */
+    const todayKey = dateKey > serverKey ? dateKey : serverKey;
 
     const weekStartKey = e.weekStartOf(todayKey, 1);
     const activeDate = e.dayStart(dateKey);

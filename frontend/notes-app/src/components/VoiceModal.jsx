@@ -93,7 +93,7 @@ const VoiceModal = ({ habits = [], onClose, refreshData, showToast }) => {
       setPhase('listening');
       const rec = await startRecording({
         onAutoStop: () => {
-          showToast?.('Stopped at the 60s limit — transcribing what was captured.');
+          showToast?.('Stopped at the 60s limit, transcribing what was captured.');
           void finish(rec);
         },
       });
@@ -210,7 +210,7 @@ const VoiceModal = ({ habits = [], onClose, refreshData, showToast }) => {
                       />
                     </div>
                     <p className={`text-[10px] mt-2 text-center ${nearLimit ? 'text-focus-red font-bold' : 'text-white/40'}`}>
-                      {clock(remaining)} left — recording stops and transcribes automatically.
+                      {clock(remaining)} left, recording stops and transcribes automatically.
                     </p>
                   </div>
                 ) : phase !== 'thinking' && (
@@ -323,7 +323,7 @@ const VoiceModal = ({ habits = [], onClose, refreshData, showToast }) => {
 
             {needsLimit && (
               <p className="text-[11px] text-focus-red mt-4" data-testid="voice-needslimit">
-                Set a daily limit for the habit you want to break — how many before it starts costing extra?
+                Set a daily limit for the habit you want to break, how many before it starts costing extra?
               </p>
             )}
 
@@ -334,7 +334,7 @@ const VoiceModal = ({ habits = [], onClose, refreshData, showToast }) => {
               data-testid="voice-ok"
               className="w-full h-12 mt-6 bg-[#c0b3a5] hover:bg-[#cfc4b8] text-black font-bold tracking-widest text-xs rounded-xl disabled:opacity-40"
             >
-              {phase === 'saving' ? 'SAVING...' : `OK — APPLY ${items.length} ITEM${items.length === 1 ? '' : 'S'}`}
+              {phase === 'saving' ? 'SAVING...' : `OK, APPLY ${items.length} ITEM${items.length === 1 ? '' : 'S'}`}
             </Button>
             <button
               type="button"

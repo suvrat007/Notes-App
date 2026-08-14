@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Flame, TrendingUp, TrendingDown } from 'lucide-react';
 import api from '../../../utils/api';
+import { useDataVersion } from '../../../utils/DataContext';
 
 const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
@@ -14,6 +15,7 @@ const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
  * the bar itself rather than buried in a number underneath.
  */
 const Roadmap = () => {
+  const dataVersion = useDataVersion();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
 
@@ -28,7 +30,7 @@ const Roadmap = () => {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [dataVersion]);
 
   if (error) return <p className="text-focus-red text-sm">{error}</p>;
   if (!data) return <p className="text-white/40 text-sm">Loading your week…</p>;
@@ -178,7 +180,7 @@ const Roadmap = () => {
 
           {nodes.length === 0 && (
             <p className="text-center text-white/40 text-sm py-10" data-testid="roadmap-empty">
-              No weekly goals yet. Give a habit a goal — like 5 gym sessions a week —
+              No weekly goals yet. Give a habit a goal, like 5 gym sessions a week, 
               and it becomes a track you can win.
             </p>
           )}

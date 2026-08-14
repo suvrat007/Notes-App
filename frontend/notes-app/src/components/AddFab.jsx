@@ -115,7 +115,7 @@ const AddFab = ({ onPick }) => {
         onClick={() => (open ? close() : setOpen(true))}
         className="relative w-[60px] h-[60px] rounded-full bg-[#c0b3a5] text-[#0d0f12] grid place-items-center shadow-xl active:scale-95 transition-transform"
       >
-        {/* Two rings on a slow offset pulse — alive without being a spinner,
+        {/* Two rings on a slow offset pulse, alive without being a spinner,
             which would imply the app is busy. Purely decorative, so they must
             never intercept the tap. */}
         {!reduce && (

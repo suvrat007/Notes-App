@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import api from '../../utils/api';
 import { useToast } from '../../utils/ToastContext';
 import { useAuth } from '../../utils/AuthContext';
+import { DataProvider } from '../../utils/DataContext';
 import BottomNav from '../../components/BottomNav';
 import Sidebar from '../../components/Sidebar';
 import TaskModal from '../../components/TaskModal';
@@ -34,6 +35,8 @@ const Dashboard = () => {
   const [isHabitOpen, setIsHabitOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('home');
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
+  // Bumped by every write so the screens holding their own fetch reload too.
+  const [version, setVersion] = useState(0);
   const showToast = useToast();
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -51,12 +54,18 @@ const Dashboard = () => {
         api.get('/get-user'),
         api.get('/tasks'),
         api.get('/logs'),
-        api.get('/state'),
+        /*
+         * The day is the USER'S, not the server's. A server running in UTC
+         * thinks it is still yesterday until 5:30am in India, and would hand
+         * back an empty plan for a day that has clearly started.
+         */
+        api.get(`/state?date=${new Date().toLocaleDateString('en-CA')}`),
       ]);
       setUser(userRes.data.user);
       setTasks(taskRes.data.tasks);
       setLogs(logRes.data.logs);
       setState(stateRes.data);
+      setVersion((v) => v + 1);
     } catch (err) {
       if (err.response?.status !== 401) {
         showToast('Could not load your data', 'error');
@@ -84,6 +93,7 @@ const Dashboard = () => {
   const ActiveTab = TABS[activeTab];
 
   return (
+    <DataProvider version={version} refresh={fetchData}>
     <div className="flex min-h-screen bg-[#0d0f12] text-white">
       <Sidebar
         active={activeTab}
@@ -97,7 +107,7 @@ const Dashboard = () => {
       {/*
         Desktop is a fixed-height workspace, not a document. The rail is
         already pinned, so letting the page scroll as a whole moves the
-        content out from under a nav that stays put — and on a dashboard the
+        content out from under a nav that stays put, and on a dashboard the
         point is to see the day at once. Anything too tall scrolls INSIDE its
         own panel instead. The phone keeps ordinary page scrolling, because
         one column of cards on a small screen is a document.
@@ -119,7 +129,7 @@ const Dashboard = () => {
 
           {/*
             Scrolls when a page genuinely needs it, never clips. Pages that fit
-            — Home, Calendar, Stats — fill the height and stay still; a long
+, Home, Calendar, Stats, fill the height and stay still; a long
             settings list is allowed to scroll rather than be cut off.
           */}
           <div className="p-6 md:px-8 md:py-7 flex-1 md:min-h-0 md:overflow-y-auto">
@@ -176,6 +186,7 @@ const Dashboard = () => {
         />
       )}
     </div>
+    </DataProvider>
   );
 };
 

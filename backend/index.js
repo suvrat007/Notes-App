@@ -14,7 +14,39 @@ if (process.env.DNS_SERVERS) {
 }
 
 const mongoose = require('mongoose');
-mongoose.connect(process.env.VITE_MONGO_URI, { family: 4 });
+mongoose.connect(process.env.VITE_MONGO_URI, { family: 4 })
+    .catch((err) => console.error('[mongo] initial connect failed:', err.message));
+
+/*
+ * A dropped Atlas socket must not take the server with it.
+ *
+ * The driver's TLS connections get reset by the usual network weather: an idle
+ * pool, a failover, a laptop lid. The driver reconnects on its own, but the
+ * reset surfaces as an unhandled rejection first, and Node 20 treats that as
+ * fatal — so a blip that the pool would have healed in a second instead killed
+ * the process mid-request and logged every user out.
+ *
+ * These handlers keep the box alive and let the driver do its job. Anything
+ * that is NOT a transient connection error still crashes loudly, because a
+ * process quietly running in an unknown state is worse than one that restarts.
+ */
+const TRANSIENT = /ECONNRESET|ETIMEDOUT|EPIPE|ENOTFOUND|EAI_AGAIN|MongoNetworkError|connection .* closed/i;
+
+mongoose.connection.on('error', (err) => {
+    console.error('[mongo] connection error:', err.message);
+});
+mongoose.connection.on('disconnected', () => {
+    console.warn('[mongo] disconnected; the driver will retry');
+});
+
+process.on('unhandledRejection', (reason) => {
+    const message = reason?.message ?? String(reason);
+    if (TRANSIENT.test(message)) {
+        console.error('[transient] recovered from:', message);
+        return;
+    }
+    throw reason;
+});
 
 const express = require('express');
 const cors = require('cors');
@@ -27,6 +59,7 @@ const Task = require('./models/task.model.js');
 const Log = require('./models/log.model.js');
 const BreakDay = require('./models/breakday.model.js');
 const { authenticateToken, COOKIE_NAME, cookieOptions } = require('./utilities.js');
+const stars = require('./engine/stars.js');
 const { OAuth2Client } = require('google-auth-library');
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -241,13 +274,25 @@ app.use('/ledger', require('./routes/ledger.js'));
 app.use('/manage', require('./routes/manage.js'));
 app.use('/roadmap', require('./routes/roadmap.js'));
 
+/*
+ * A day is stored as midnight UTC, and the whole app looks tasks up by exact
+ * equality on that instant. A value carrying a time of day would be saved as
+ * a moment no query ever asks for: the task exists and is invisible.
+ */
+const dayOnly = (v) => {
+    if (!v) return v;
+    const d = new Date(v);
+    return Number.isNaN(d.getTime()) ? v : stars.dayStart(stars.dayKey(d));
+};
+
 // --- Tasks Routes ---
 app.post('/tasks', authenticateToken, async (req, res) => {
     const { title, type, targetCount, baseReward, penaltyIntensity, targetDate } = req.body;
     try {
         const task = new Task({
             userId: req.userId,
-            title, type, targetCount, baseReward, penaltyIntensity, targetDate
+            title, type, targetCount, baseReward, penaltyIntensity,
+            targetDate: dayOnly(targetDate),
         });
         await task.save();
         return res.json({ error: false, task, message: "Task created successfully" });
@@ -270,7 +315,8 @@ app.patch('/tasks/:taskId', authenticateToken, async (req, res) => {
     try {
         const task = await Task.findOneAndUpdate(
             { _id: req.params.taskId, userId: req.userId },
-            { $set: { title, targetCount, baseReward, penaltyIntensity, targetDate } },
+            { $set: { title, targetCount, baseReward, penaltyIntensity,
+                      targetDate: dayOnly(targetDate) } },
             { new: true, runValidators: true }
         );
         if (!task) return res.status(404).json({ error: true, message: "Task not found" });

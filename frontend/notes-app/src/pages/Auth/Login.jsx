@@ -149,7 +149,7 @@ const Login = () => {
             </div>
           </div>
 
-          {/* GitHub sat here too, but nothing was ever wired behind it — a
+          {/* GitHub sat here too, but nothing was ever wired behind it, a
               button that silently does nothing is worse than no button. */}
           <div className="mt-8">
             <Button

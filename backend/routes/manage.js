@@ -169,4 +169,87 @@ router.get('/', async (req, res) => {
   }
 });
 
+
+/** Put a task on the roadmap, or take it off. */
+router.patch('/tasks/:taskId/roadmap', async (req, res) => {
+  try {
+    const task = await Task.findOne({ _id: req.params.taskId, userId: req.userId });
+    if (!task) return res.status(404).json({ error: true, message: 'Task not found' });
+    task.onRoadmap = !task.onRoadmap;
+    await task.save();
+    return res.json({
+      error: false,
+      onRoadmap: task.onRoadmap,
+      message: task.onRoadmap
+        ? `"${task.title}" is on the roadmap`
+        : `"${task.title}" is off the roadmap`,
+    });
+  } catch (err) {
+    return res.status(400).json({ error: true, message: err.message || 'Could not update' });
+  }
+});
+
+/**
+ * Turn a task into a habit.
+ *
+ * Some things are only discovered to be habits after living with them for a
+ * week. The task's history is NOT carried over: its ledger rows point at a
+ * task id and re-pointing them would rewrite what those entries meant.
+ */
+router.post('/tasks/:taskId/to-habit', async (req, res) => {
+  try {
+    const task = await Task.findOne({ _id: req.params.taskId, userId: req.userId });
+    if (!task) return res.status(404).json({ error: true, message: 'Task not found' });
+
+    const order = await Habit.countDocuments({ userId: req.userId, archived: false });
+    const habit = await Habit.create({
+      userId: req.userId,
+      name: task.title,
+      polarity: task.type === 'avoid' ? 'bad' : 'good',
+      starsPerRep: task.baseReward || 10,
+      // A repeating task already stated how often; carry that as the goal.
+      targetReps: task.horizon === 'daily' ? 7 : task.horizon === 'weekly' ? 1 : 0,
+      targetPeriodWeeks: task.horizon === 'monthly' ? 4 : 1,
+      order,
+    });
+
+    // The whole series goes, not just this occurrence — the habit replaces it.
+    if (task.seriesId) {
+      await Task.deleteMany({ userId: req.userId, seriesId: task.seriesId, done: false });
+    } else {
+      await Task.deleteOne({ _id: task._id, userId: req.userId });
+    }
+
+    return res.json({ error: false, habit, message: `"${habit.name}" is now a habit` });
+  } catch (err) {
+    return res.status(400).json({ error: true, message: err.message || 'Could not convert' });
+  }
+});
+
+/** And back the other way. The habit is archived, so its history survives. */
+router.post('/habits/:habitId/to-task', async (req, res) => {
+  try {
+    const habit = await Habit.findOne({ _id: req.params.habitId, userId: req.userId });
+    if (!habit) return res.status(404).json({ error: true, message: 'Habit not found' });
+
+    const order = await Task.countDocuments({ userId: req.userId });
+    const task = await Task.create({
+      userId: req.userId,
+      title: habit.name,
+      type: habit.polarity === 'bad' ? 'avoid' : 'occasional',
+      baseReward: habit.starsPerRep,
+      targetCount: 1,
+      targetDate: e.dayStart(e.dayKey(new Date())),
+      order,
+    });
+
+    habit.archived = true;
+    await habit.save();
+
+    return res.json({ error: false, task, message: `"${task.title}" is now a task` });
+  } catch (err) {
+    return res.status(400).json({ error: true, message: err.message || 'Could not convert' });
+  }
+});
+
 module.exports = router;
