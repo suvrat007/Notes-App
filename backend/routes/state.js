@@ -16,6 +16,46 @@ router.use(authenticateToken);
 const CARRY_OVER_DAYS = 14;
 
 /**
+ * What a task looks like on a given day.
+ *
+ * `doneToday` and `remainingToday` are computed here rather than in the browser
+ * because the cadence rule is the whole point: a `daily` task allows one rep a
+ * day no matter how many are still owed overall, so the control has to know
+ * today's allowance and not just the total. A client working that out for
+ * itself would be a second copy of the rule, free to disagree.
+ */
+function taskView(task, logs, dateKey) {
+  /*
+   * A task's row holds its RUNNING total, not that day's units, so today's
+   * work is the difference between today's row and the best of the days
+   * before it. Counting rows instead would call a five-day job "1 today"
+   * forever.
+   */
+  const rows = logs.filter((l) => l.kind === 'task' && String(l.refId) === String(task._id));
+  const before = rows
+    .filter((l) => e.dayKey(l.date) < dateKey)
+    .reduce((max, l) => Math.max(max, l.completedCount || 0), 0);
+  const todayRow = rows.find((l) => e.dayKey(l.date) === dateKey);
+  const doneToday = Math.max(0, (todayRow?.completedCount ?? before) - before);
+
+  const remainingTotal = Math.max(0, (task.targetCount ?? 1) - (task.doneCount ?? 0));
+  const perDayCap = task.repCadence === 'daily' ? 1 : remainingTotal;
+
+  return {
+    ...task,
+    doneToday,
+    // How many more this task will accept TODAY.
+    remainingToday: Math.max(0, Math.min(perDayCap - doneToday, remainingTotal)),
+    remainingTotal,
+    // True when today's share is met but the task itself is not finished.
+    doneForToday: task.repCadence === 'daily' && doneToday >= 1 && remainingTotal > 0,
+    spansToDue: !!task.dueDate,
+    dueKey: task.dueDate ? e.dayKey(task.dueDate) : null,
+    daysLeft: task.dueDate ? e.daysBetween(dateKey, e.dayKey(task.dueDate)) : null,
+  };
+}
+
+/**
  * Everything the dashboard needs for one day, in one round trip.
  *
  * The alternative is six requests that each re-authenticate, each re-read the
@@ -59,20 +99,49 @@ router.get('/', async (req, res) => {
     const logs = await logsInRange(req.userId, windowStart, todayKey);
 
     /* ---- tasks: the day's own, plus what is still owed from before ---- */
-    const dayTasks = await Task.find({ userId: req.userId, targetDate: activeDate })
+    const ownTasks = await Task.find({ userId: req.userId, targetDate: activeDate })
       .sort({ order: 1, createdAt: 1 }).lean();
+
+    /*
+     * A task with a deadline belongs to EVERY day until that deadline.
+     *
+     * "Finish the report by Friday" entered on Monday used to appear on Monday
+     * and then disappear, resurfacing only once it was late. It stays in front
+     * of you for the whole window it was given, and leaves the moment it is
+     * finished rather than when the calendar says so.
+     */
+    const spanning = await Task.find({
+      userId: req.userId,
+      dueDate: { $gte: activeDate },
+      targetDate: { $lt: activeDate },
+      /*
+       * Unfinished, or finished TODAY. A task completed this morning stays on
+       * the list struck through until the day is over — vanishing the instant
+       * it is ticked takes away the only evidence the work happened.
+       */
+      $or: [
+        { done: false },
+        { doneAt: { $gte: activeDate, $lt: e.dayStart(e.addDays(dateKey, 1)) } },
+      ],
+    }).sort({ dueDate: 1, order: 1 }).lean();
+
+    const dayTasks = [...ownTasks, ...spanning];
+    const spanningIds = new Set(spanning.map((t) => String(t._id)));
 
     /*
      * Unfinished work does not stop being owed at midnight. Repeating tasks are
      * excluded because a daily task already has a fresh row waiting for today —
-     * carrying yesterday's would show the same thing twice.
+     * carrying yesterday's would show the same thing twice. So are tasks still
+     * inside their own deadline, which are already listed above as today's.
      */
-    const carried = await Task.find({
+    const carriedRaw = await Task.find({
       userId: req.userId,
       done: false,
       seriesId: null,
       targetDate: { $gte: e.dayStart(e.addDays(dateKey, -CARRY_OVER_DAYS)), $lt: activeDate },
     }).sort({ targetDate: 1, order: 1 }).lean();
+
+    const carried = carriedRaw.filter((t) => !spanningIds.has(String(t._id)));
 
     const lifetime = await lifetimeStarsFor(req.userId);
 
@@ -101,7 +170,7 @@ router.get('/', async (req, res) => {
         avatarUrl: user.avatarUrl,
       },
       habits: habitViews,
-      tasks: dayTasks,
+      tasks: dayTasks.map((t) => taskView(t, logs, dateKey)),
       carriedTasks: carried.map((t) => ({
         ...t,
         lateBy: e.daysBetween(e.dayKey(t.targetDate), dateKey),

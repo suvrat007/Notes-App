@@ -5,6 +5,7 @@ import api from '../utils/api';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import Select from './Select';
 
 const TaskModal = ({ onClose, refreshData, showToast }) => {
   const [title, setTitle] = useState('');
@@ -13,6 +14,8 @@ const TaskModal = ({ onClose, refreshData, showToast }) => {
   const [baseReward, setBaseReward] = useState(10);
   const [penaltyIntensity, setPenaltyIntensity] = useState(1);
   const [targetDate, setTargetDate] = useState(new Date().toLocaleDateString('en-CA'));
+  const [dueDate, setDueDate] = useState('');
+  const [repCadence, setRepCadence] = useState('anytime');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -22,6 +25,8 @@ const TaskModal = ({ onClose, refreshData, showToast }) => {
       await api.post('/tasks', {
         title, type, targetCount, baseReward, penaltyIntensity,
         targetDate: type === 'occasional' ? targetDate : undefined,
+        dueDate: type === 'occasional' && dueDate ? dueDate : null,
+        repCadence,
       });
       refreshData();
       showToast?.('Task created');
@@ -85,9 +90,58 @@ const TaskModal = ({ onClose, refreshData, showToast }) => {
                 type="date" 
                 className="bg-[#0d0f12] border-white/10 text-white h-11"
                 value={targetDate} 
-                onChange={(e) => setTargetDate(e.target.value)} 
-                required 
+                onChange={(e) => setTargetDate(e.target.value)}
+                required
               />
+            </div>
+          )}
+
+          {/*
+            A deadline turns one day's task into a standing one: it shows every
+            day from now until the date, and leaves when it is finished rather
+            than when the calendar moves on.
+          */}
+          {type === 'occasional' && (
+            <div className="space-y-2">
+              <Label className="text-[10px] font-bold text-white/60 tracking-widest uppercase">
+                Due by <span className="text-white/30 normal-case tracking-normal">(optional)</span>
+              </Label>
+              <Input
+                type="date"
+                className="bg-[#0d0f12] border-white/10 text-white h-11"
+                value={dueDate}
+                min={targetDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
+              {dueDate && (
+                <p className="text-[10px] text-white/35">
+                  Stays on your list every day until then, or until it is done.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Only worth asking once there is more than one unit to spread. */}
+          {type !== 'break_day' && type !== 'avoid' && targetCount > 1 && (
+            <div className="space-y-2">
+              <Label className="text-[10px] font-bold text-white/60 tracking-widest uppercase">
+                How the {targetCount} are done
+              </Label>
+              <Select
+                testId="tm-cadence"
+                ariaLabel="How the reps may be done"
+                value={repCadence}
+                onChange={setRepCadence}
+                options={[
+                  { value: 'anytime', label: 'Any number in a day' },
+                  { value: 'daily', label: 'Once a day, no more' },
+                ]}
+              />
+              <p className="text-[10px] text-white/35">
+                {repCadence === 'daily'
+                  ? `One a day, so it takes at least ${targetCount} days.`
+                  : 'All of them in one sitting is fine.'}
+              </p>
             </div>
           )}
 

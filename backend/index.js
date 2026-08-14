@@ -288,12 +288,15 @@ const dayOnly = (v) => {
 
 // --- Tasks Routes ---
 app.post('/tasks', authenticateToken, async (req, res) => {
-    const { title, type, targetCount, baseReward, penaltyIntensity, targetDate } = req.body;
+    const { title, type, targetCount, baseReward, penaltyIntensity, targetDate,
+            dueDate, repCadence } = req.body;
     try {
         const task = new Task({
             userId: req.userId,
             title, type, targetCount, baseReward, penaltyIntensity,
             targetDate: dayOnly(targetDate),
+            dueDate: dayOnly(dueDate) || null,
+            repCadence: repCadence === 'daily' ? 'daily' : 'anytime',
         });
         await task.save();
         return res.json({ error: false, task, message: "Task created successfully" });
@@ -312,12 +315,25 @@ app.get('/tasks', authenticateToken, async (req, res) => {
 });
 
 app.patch('/tasks/:taskId', authenticateToken, async (req, res) => {
-    const { title, targetCount, baseReward, penaltyIntensity, targetDate } = req.body;
+    const { title, targetCount, baseReward, penaltyIntensity, targetDate,
+            dueDate, repCadence } = req.body;
     try {
         const task = await Task.findOneAndUpdate(
             { _id: req.params.taskId, userId: req.userId },
-            { $set: { title, targetCount, baseReward, penaltyIntensity,
-                      targetDate: dayOnly(targetDate) } },
+            /*
+             * Only what was actually sent. A $set built from every field would
+             * write undefined over a due date the caller never mentioned, and
+             * a task would silently stop spanning because something else was
+             * edited.
+             */
+            { $set: {
+                title, targetCount, baseReward, penaltyIntensity,
+                targetDate: dayOnly(targetDate),
+                ...(dueDate !== undefined ? { dueDate: dayOnly(dueDate) || null } : {}),
+                ...(repCadence !== undefined
+                    ? { repCadence: repCadence === 'daily' ? 'daily' : 'anytime' }
+                    : {}),
+            } },
             { new: true, runValidators: true }
         );
         if (!task) return res.status(404).json({ error: true, message: "Task not found" });
@@ -410,16 +426,42 @@ app.post('/logs', authenticateToken, async (req, res) => {
          * stacking. It must write the LEDGER shape — kind, refId, starsDelta —
          * or the row fails validation and every task log 500s.
          */
+        /*
+         * Every row this task has ever written. A task with a deadline is
+         * worked across several days, so what it has already been paid, and
+         * how much of it was finished before today, both live in other rows.
+         */
+        const allRows = await Log.find({
+            userId: req.userId, kind: 'task', refId: task._id,
+        }).lean();
+
+        const priorRows = allRows.filter((r) => r.date.getTime() !== logDate.getTime());
+        const priorStars = priorRows.reduce((sum, r) => sum + (r.starsDelta || 0), 0);
+        const progressBefore = priorRows
+            .filter((r) => r.date < logDate)
+            .reduce((max, r) => Math.max(max, r.completedCount || 0), 0);
+
         let log = await Log.findOne({
             userId: req.userId, kind: 'task', refId: task._id, date: logDate,
         });
 
         let previousStars = 0;
         let newCompletedCount = completedCount;
+
+        /*
+         * A `daily` task takes one unit a day however much is still owed.
+         * Enforced HERE, not just in the UI: the cap is what makes "once a day
+         * for five days" different from "five whenever", and a rule only the
+         * browser knows is a rule anyone can skip.
+         */
+        if (task.repCadence === 'daily' && task.type !== 'avoid') {
+            newCompletedCount = Math.min(newCompletedCount, progressBefore + 1);
+        }
+
         if (log) {
             previousStars = log.starsDelta;
             // 'avoid' slip-ups accumulate per day; other types take the latest value.
-            newCompletedCount = task.type === 'avoid' ? log.completedCount + completedCount : completedCount;
+            newCompletedCount = task.type === 'avoid' ? log.completedCount + completedCount : newCompletedCount;
             log.completedCount = newCompletedCount;
         } else {
             log = new Log({
@@ -439,6 +481,17 @@ app.post('/logs', authenticateToken, async (req, res) => {
             const isBreakDay = await BreakDay.exists({ userId: req.userId, date: logDate });
             if (isBreakDay) newStars = Math.round(newStars * BREAK_DAY_BONUS);
         }
+
+        /*
+         * calculateStars prices the task's TOTAL progress, so on a task worked
+         * across several days every day would be paid the full running value
+         * again — three days of a five-part job paying for eleven parts. Today
+         * is credited only with what the task is worth now, less everything it
+         * has already been paid. 'avoid' is excluded: each slip is its own
+         * penalty, not a running total.
+         */
+        if (task.type !== 'avoid') newStars -= priorStars;
+
         log.starsDelta = newStars;
         await log.save();
 

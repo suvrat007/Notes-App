@@ -20,6 +20,30 @@ const TaskSchema = new Schema({
     baseReward: { type: Number, default: 10 }, // stars earned for full completion
     penaltyIntensity: { type: Number, default: 0 }, // stars deducted if done (for 'avoid' tasks)
     targetDate: { type: Date }, // For occasional or break_day tasks
+    /**
+     * The deadline, when there is one.
+     *
+     * A task with a due date is not a task for ONE day, it is a task for every
+     * day between now and then. Without this a job entered on Monday and due
+     * Friday vanished from Tuesday morning onward and was only rediscovered
+     * once it was already late. Null means the task belongs to targetDate alone.
+     */
+    dueDate: { type: Date, default: null },
+
+    /**
+     * Whether the reps can be stacked.
+     *
+     * "Read 5 PDFs by Friday" can be five in one sitting; "walk once a day for
+     * five days" cannot, and treating them the same makes one of the two a lie.
+     * `anytime` lets a day take as many as you like; `daily` caps each day at
+     * one, so the target genuinely spreads across the days it was meant to.
+     */
+    repCadence: {
+        type: String,
+        enum: ['anytime', 'daily'],
+        default: 'anytime',
+    },
+
     /** Local "HH:MM" when a clock time was given, else null. Display + sync only. */
     dueTime: { type: String, default: null },
 
@@ -66,5 +90,7 @@ const TaskSchema = new Schema({
 
 TaskSchema.index({ userId: 1, targetDate: 1 });
 TaskSchema.index({ userId: 1, seriesId: 1, targetDate: 1 });
+// A spanning task is found by the window it covers, not by a single day.
+TaskSchema.index({ userId: 1, dueDate: 1, done: 1 });
 
 module.exports = mongoose.model('Task', TaskSchema);

@@ -61,6 +61,17 @@ const TaskRow = ({ task, onLog, showToast }) => {
   };
 
   const done = count >= target;
+
+  /*
+   * A once-a-day task will not take a second unit today however much is still
+   * owed, so the + has to stop at today's share rather than at the target.
+   * The server enforces the same cap; this only keeps the button honest.
+   */
+  const perDayCap = task.repCadence === 'daily'
+    ? (task.doneCount ?? 0) - (task.doneToday ?? 0) + 1
+    : target;
+  const ceiling = Math.min(target, perDayCap);
+  const spentToday = task.repCadence === 'daily' && count >= ceiling && !done;
   const v = VISUALS[task.type] ?? VISUALS.daily;
   const Icon = v.icon;
 
@@ -82,9 +93,20 @@ const TaskRow = ({ task, onLog, showToast }) => {
         }`}>
           {task.title}
         </span>
-        <span className="block text-[10px] text-white/40">
+        <span className="block text-[10px] text-white/40 truncate">
           {isMulti ? `${count}/${target}` : task.type.replace('_', ' ')}
           {` · +${task.baseReward}★`}
+          {/* A deadline is the thing you most need to see on a task that has
+              been sitting in the list for three days. */}
+          {task.dueKey && !done && (
+            <span className={task.daysLeft <= 1 ? 'text-[#e5484d]' : 'text-[#c0b3a5]'}>
+              {task.daysLeft === 0 ? ' · due today'
+                : task.daysLeft === 1 ? ' · due tomorrow'
+                : task.daysLeft > 1 ? ` · ${task.daysLeft} days left`
+                : ` · ${Math.abs(task.daysLeft)}d overdue`}
+            </span>
+          )}
+          {spentToday && <span className="text-white/30"> · done for today</span>}
         </span>
       </span>
 
@@ -112,8 +134,8 @@ const TaskRow = ({ task, onLog, showToast }) => {
             type="button"
             aria-label={`Add one to ${task.title}`}
             data-testid={`plus-${task._id}`}
-            disabled={count >= target}
-            onClick={() => queue(count + 1)}
+            disabled={count >= ceiling}
+            onClick={() => queue(Math.min(ceiling, count + 1))}
             className={`w-9 h-9 rounded-lg ${v.tile} border border-white/10 ${v.colour} grid place-items-center disabled:opacity-30 hover:scale-105 active:scale-95 transition-transform`}
           >
             <Plus size={16} />

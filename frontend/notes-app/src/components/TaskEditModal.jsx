@@ -5,6 +5,7 @@ import api from '../utils/api';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import Select from './Select';
 
 /**
  * Change what a task ASKS OF YOU, after the fact.
@@ -20,6 +21,8 @@ const TaskEditModal = ({ task, onClose, refreshData, showToast }) => {
   const [baseReward, setBaseReward] = useState(task.baseReward ?? 10);
   const [targetDate, setTargetDate] = useState(task.date ?? '');
   const [dueTime, setDueTime] = useState(task.dueTime ?? '');
+  const [dueDate, setDueDate] = useState(task.dueKey ?? '');
+  const [repCadence, setRepCadence] = useState(task.repCadence ?? 'anytime');
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async (e) => {
@@ -35,6 +38,8 @@ const TaskEditModal = ({ task, onClose, refreshData, showToast }) => {
         done: (task.doneCount ?? 0) >= target,
         baseReward: Number(baseReward),
         targetDate,
+        dueDate: dueDate || null,
+        repCadence,
         dueTime: dueTime.trim() || null,
       });
       await refreshData();
@@ -92,13 +97,49 @@ const TaskEditModal = ({ task, onClose, refreshData, showToast }) => {
           </label>
 
           <label className="space-y-2">
-            <Label className="text-[10px] font-bold text-white/60 tracking-widest uppercase">Due date</Label>
+            <Label className="text-[10px] font-bold text-white/60 tracking-widest uppercase">Scheduled date</Label>
             <Input
               type="date" value={targetDate} data-testid="et-date"
               className="bg-[#0d0f12] border-white/10 text-white h-11"
               onChange={(e) => setTargetDate(e.target.value)}
             />
           </label>
+
+          {/* With a deadline the task shows every day until then, instead of
+              only on its scheduled day. */}
+          <label className="space-y-2">
+            <Label className="text-[10px] font-bold text-white/60 tracking-widest uppercase">
+              Due by <span className="text-white/30 normal-case tracking-normal">(optional)</span>
+            </Label>
+            <Input
+              type="date" value={dueDate} min={targetDate} data-testid="et-due"
+              className="bg-[#0d0f12] border-white/10 text-white h-11"
+              onChange={(e) => setDueDate(e.target.value)}
+            />
+            <span className="block text-[10px] text-white/40">
+              {dueDate
+                ? 'Shows every day until then, or until it is finished.'
+                : 'Without one it belongs to its scheduled day alone.'}
+            </span>
+          </label>
+
+          {Number(targetCount) > 1 && (
+            <label className="space-y-2">
+              <Label className="text-[10px] font-bold text-white/60 tracking-widest uppercase">
+                How the {targetCount} are done
+              </Label>
+              <Select
+                testId="et-cadence"
+                ariaLabel="How the reps may be done"
+                value={repCadence}
+                onChange={setRepCadence}
+                options={[
+                  { value: 'anytime', label: 'Any number in a day' },
+                  { value: 'daily', label: 'Once a day, no more' },
+                ]}
+              />
+            </label>
+          )}
 
           <label className="space-y-2">
             <Label className="text-[10px] font-bold text-white/60 tracking-widest uppercase">

@@ -179,10 +179,18 @@ dueDate        tasks only, YYYY-MM-DD from the anchors given. A stated day carri
                forward to later items until a different one appears. If no timing was
                stated at all, use today, someone speaking into a daily tracker means now.
 
+deadline       tasks only. Set ONLY when a DEADLINE was stated: "by Friday", "before the
+               weekend", "by the end of the week". This is the LAST day it may be done,
+               not the day it happens. null when no deadline was given.
+cadence        tasks with count>1. "daily" when the units are explicitly spread one per
+               day ("walk every day for a week", "one chapter a day"). "anytime" when
+               they can be done together ("read 5 pdfs"). null when it was not stated,
+               which asks the user rather than guessing.
+
 Never invent items. Never merge two distinct items.
 
 Respond with ONLY this JSON:
-{"items":[{"kind":"habit|task|new-habit|new-reward","text":string,"refId":string|null,"name":string|null,"polarity":"good|bad|null","count":number,"dailyAllowance":number|null,"targetReps":number,"targetPeriodWeeks":number,"damagePct":number,"dueDate":string|null}]}`;
+{"items":[{"kind":"habit|task|new-habit|new-reward","text":string,"refId":string|null,"name":string|null,"polarity":"good|bad|null","count":number,"dailyAllowance":number|null,"targetReps":number,"targetPeriodWeeks":number,"damagePct":number,"dueDate":string|null,"deadline":string|null,"cadence":"daily|anytime|null"}]}`;
 
 async function chatJSON(messages, model) {
   const res = await fetch(CHAT_ENDPOINT, {
@@ -293,6 +301,14 @@ function coerce(raw, ctx) {
       dueDate: /^\d{4}-\d{2}-\d{2}$/.test(r.dueDate || '')
         ? r.dueDate
         : new Date().toLocaleDateString('en-CA'),
+      /*
+       * A deadline is not a scheduled day. "Finish the report by Friday" means
+       * it is owed every day between now and Friday, so it is kept apart from
+       * the day the task starts on.
+       */
+      deadline: /^\d{4}-\d{2}-\d{2}$/.test(r.deadline || '') ? r.deadline : null,
+      // null means "they never said", which the preview turns into a question.
+      cadence: r.cadence === 'daily' || r.cadence === 'anytime' ? r.cadence : null,
     };
   });
 }

@@ -111,6 +111,11 @@ const VoiceModal = ({ habits = [], onClose, refreshData, showToast }) => {
     (i) => i.kind === 'new-habit' && i.polarity === 'bad' && i.dailyAllowance === null,
   );
 
+  /** Nor may a multi-unit task save without saying how its units are spread. */
+  const needsCadence = items.some(
+    (i) => i.kind === 'task' && i.count > 1 && !i.cadence,
+  );
+
   const commit = async () => {
     setPhase('saving');
     try {
@@ -136,6 +141,8 @@ const VoiceModal = ({ habits = [], onClose, refreshData, showToast }) => {
             targetCount: it.count,
             baseReward: 10,
             targetDate: it.dueDate,
+            dueDate: it.deadline,
+            repCadence: it.cadence ?? 'anytime',
           });
         }
       }
@@ -288,7 +295,10 @@ const VoiceModal = ({ habits = [], onClose, refreshData, showToast }) => {
 
                   <div className="flex flex-wrap items-center gap-2 text-[10px] text-white/50">
                     {it.count > 1 && <span>×{it.count}</span>}
-                    {it.kind === 'task' && <span>due {it.dueDate}</span>}
+                    {it.kind === 'task' && <span>from {it.dueDate}</span>}
+                    {it.kind === 'task' && it.deadline && (
+                      <span className="text-[#c0b3a5]">by {it.deadline}</span>
+                    )}
                     {it.kind === 'new-habit' && (
                       <span className={it.polarity === 'bad' ? 'text-focus-red' : 'text-[#c0b3a5]'}>
                         {it.polarity === 'bad' ? 'break' : 'build'}
@@ -316,10 +326,38 @@ const VoiceModal = ({ habits = [], onClose, refreshData, showToast }) => {
                         />
                       </span>
                     )}
+
+                    {/* Also never guessed. "Five pdfs" and "one a day for five
+                        days" sound alike and are not the same commitment. */}
+                    {it.kind === 'task' && it.count > 1 && (
+                      <span className="flex items-center gap-1.5">
+                        {it.cadence === null && <span className="text-[#c0b3a5]">how?</span>}
+                        <select
+                          data-testid={`vcadence-${it.id}`}
+                          value={it.cadence ?? ''}
+                          onChange={(e) => setItem(it.id, {
+                            cadence: e.target.value === '' ? null : e.target.value,
+                          })}
+                          className={`bg-[#0d0f12] border rounded px-1.5 py-0.5 text-white text-[10px] ${
+                            it.cadence === null ? 'border-[#c0b3a5]' : 'border-white/10'
+                          }`}
+                        >
+                          <option value="">choose...</option>
+                          <option value="anytime">any number a day</option>
+                          <option value="daily">once a day</option>
+                        </select>
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
+
+            {needsCadence && (
+              <p className="text-[11px] text-[#c0b3a5] mt-4" data-testid="voice-needscadence">
+                Say how the units are done, all in one day, or one a day?
+              </p>
+            )}
 
             {needsLimit && (
               <p className="text-[11px] text-focus-red mt-4" data-testid="voice-needslimit">
@@ -329,7 +367,7 @@ const VoiceModal = ({ habits = [], onClose, refreshData, showToast }) => {
 
             <Button
               type="button"
-              disabled={items.length === 0 || needsLimit || phase === 'saving'}
+              disabled={items.length === 0 || needsLimit || needsCadence || phase === 'saving'}
               onClick={commit}
               data-testid="voice-ok"
               className="w-full h-12 mt-6 bg-[#c0b3a5] hover:bg-[#cfc4b8] text-black font-bold tracking-widest text-xs rounded-xl disabled:opacity-40"
