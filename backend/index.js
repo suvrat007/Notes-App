@@ -58,7 +58,7 @@ const User = require('./models/user.model.js');
 const Task = require('./models/task.model.js');
 const Log = require('./models/log.model.js');
 const BreakDay = require('./models/breakday.model.js');
-const { authenticateToken, COOKIE_NAME, cookieOptions } = require('./utilities.js');
+const { authenticateToken, COOKIE_NAME, cookieOptionsFor } = require('./utilities.js');
 const stars = require('./engine/stars.js');
 const { rateLimit } = require('./lib/ratelimit.js');
 const { OAuth2Client } = require('google-auth-library');
@@ -131,7 +131,7 @@ app.post("/create-account", async(req, res) => {
         const user = new User({ fullName, email, password, totalStars: 0 });
         await user.save();
 
-        res.cookie(COOKIE_NAME, issueToken(user._id), cookieOptions);
+        res.cookie(COOKIE_NAME, issueToken(user._id), cookieOptionsFor(req));
         return res.json({ error: false, user, message: "Registration Successful" });
     } catch (e) {
         return res.status(500).json({ error: true, message: "Internal Server Error" });
@@ -157,7 +157,7 @@ app.post("/login", loginLimit, async(req, res) => {
         const isMatch = await userInfo.comparePassword(password);
         if (!isMatch) return res.status(400).json({ error: true, message: "Invalid Credentials" });
 
-        res.cookie(COOKIE_NAME, issueToken(userInfo._id), cookieOptions);
+        res.cookie(COOKIE_NAME, issueToken(userInfo._id), cookieOptionsFor(req));
         return res.json({ error:false, message:"Login Successful", email });
     } catch (e) {
         return res.status(500).json({ error: true, message: "Internal Server Error" });
@@ -265,7 +265,7 @@ app.post("/auth/google", async (req, res) => {
             await user.save();
         }
 
-        res.cookie(COOKIE_NAME, issueToken(user._id), cookieOptions);
+        res.cookie(COOKIE_NAME, issueToken(user._id), cookieOptionsFor(req));
         return res.json({ error: false, message: "Login Successful", email: user.email });
     } catch (e) {
         return res.status(401).json({ error: true, message: "Google rejected that sign-in. Try again." });
@@ -279,7 +279,7 @@ app.post("/logout", (req, res) => {
      * quietly keeps the original, leaving the user still logged in. maxAge is
      * dropped because Express 5 ignores it here and warns about it.
      */
-    const { maxAge, ...clearOptions } = cookieOptions;
+    const { maxAge, ...clearOptions } = cookieOptionsFor(req);
     res.clearCookie(COOKIE_NAME, clearOptions);
     return res.json({ error: false, message: "Logged out" });
 });
