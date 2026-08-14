@@ -27,3 +27,6 @@ dist-ssr
 .env
 .env.*
 !.env.example
+# The API URL is not a secret: it ships in the bundle either way, and
+# committing it stops a build silently falling back to localhost.
+!.env.production
