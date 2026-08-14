@@ -58,9 +58,14 @@ const AddFab = ({ onPick }) => {
       ref={rootRef}
       data-testid="add-fab"
       /* Clears the bottom nav and the phone's own gesture bar. */
-      className={`fixed z-[120] flex flex-col gap-2.5 ${
-        dock.side === 'right' ? 'items-end' : 'items-start'
-      } ${dock.vertical === 'bottom' ? 'flex-col' : 'flex-col-reverse'}`}
+      /*
+        Exactly the size of the button. The menu is positioned against it
+        rather than laid out beside it — as a flex column it was confined to
+        whatever space was left between the button and the screen edge, which
+        parked on the right meant about 70px, and "Say your whole day" wrapped
+        onto four lines.
+      */
+      className="fixed z-[120] w-[60px] h-[60px]"
       style={{
         left: dock.pos?.x ?? 0,
         top: dock.pos?.y ?? 0,
@@ -73,7 +78,14 @@ const AddFab = ({ onPick }) => {
       <AnimatePresence>
         {open && (
           <motion.div
-            className={`flex flex-col gap-2 ${dock.side === 'right' ? 'items-end' : 'items-start'}`}
+            /*
+              Anchored to the button's inner edge so it always opens AWAY from
+              the side it is parked on, and given a real width so the cards
+              never have to squeeze.
+            */
+            className={`absolute w-[210px] flex flex-col gap-2 ${
+              dock.side === 'right' ? 'right-0 items-end' : 'left-0 items-start'
+            } ${dock.vertical === 'bottom' ? 'bottom-[70px]' : 'top-[70px] flex-col-reverse'}`}
             data-testid="fab-menu"
             data-step={step}
             initial={{ opacity: 0 }}
@@ -88,7 +100,7 @@ const AddFab = ({ onPick }) => {
                 onClick={() => setStep('how')}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="text-[10px] font-bold tracking-widest uppercase text-white/50 hover:text-white px-2 py-1"
+                className="text-[10px] font-bold tracking-widest uppercase text-white/50 hover:text-white px-2 py-1 shrink-0"
               >
                 ← Back
               </motion.button>
@@ -109,10 +121,12 @@ const AddFab = ({ onPick }) => {
                   delay: reduce ? 0 : (options.length - 1 - i) * 0.05,
                   ease: [0.34, 1.4, 0.64, 1],
                 }}
-                className="flex flex-col items-end bg-[#16191e] border border-white/10 rounded-2xl px-4 py-2.5 shadow-lg hover:border-[#c0b3a5]/50 transition-colors"
+                className={`w-full flex flex-col bg-[#16191e] border border-white/10 rounded-2xl px-4 py-2.5 shadow-lg hover:border-[#c0b3a5]/50 transition-colors ${
+                  dock.side === 'right' ? 'items-end text-right' : 'items-start text-left'
+                }`}
               >
-                <span className="text-sm font-bold text-white leading-tight">{a.label}</span>
-                <span className="text-[10px] text-white/45 leading-tight">{a.hint}</span>
+                <span className="text-sm font-bold text-white leading-tight whitespace-nowrap">{a.label}</span>
+                <span className="text-[10px] text-white/45 leading-tight whitespace-nowrap">{a.hint}</span>
               </motion.button>
             ))}
           </motion.div>
