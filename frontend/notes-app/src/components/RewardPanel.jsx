@@ -93,9 +93,14 @@ const RewardPanel = ({ rewards = [], lifetime = 0, refreshData, showToast }) => 
       className="bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6"
       data-testid="rewards-panel"
     >
-      <div className="flex items-center justify-between mb-5">
-        <h3 className="font-heading font-black text-white text-xl">Rewards</h3>
-        <span className="text-[10px] font-bold text-white/40 tracking-wider">
+      <div className="mb-5">
+        <div className="flex items-baseline justify-between gap-3">
+          <h3 className="font-heading font-black text-white text-xl shrink-0">Rewards</h3>
+          <span className="hidden sm:block text-[10px] font-bold text-white/40 tracking-wider text-right">
+            PRICED AS A SHARE OF YOUR TOTAL
+          </span>
+        </div>
+        <span className="sm:hidden block mt-1 text-[10px] font-bold text-white/40 tracking-wider">
           PRICED AS A SHARE OF YOUR TOTAL
         </span>
       </div>
@@ -104,13 +109,13 @@ const RewardPanel = ({ rewards = [], lifetime = 0, refreshData, showToast }) => 
         {rewards.map((r) => (
           <div
             key={r._id}
-            className="flex items-center gap-3 bg-black/40 border border-white/5 rounded-2xl px-4 py-3"
+className="flex flex-wrap items-center gap-x-3 gap-y-2 bg-black/40 border border-white/5 rounded-2xl px-3 sm:px-4 py-3"
             data-testid={`reward-${r._id}`}
           >
             <div className="w-10 h-10 rounded-xl bg-[#1e232b] flex items-center justify-center shrink-0">
               <Gift size={17} className="text-purple-400" />
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-[7rem]">
               <p className="text-sm font-bold text-white truncate">{r.name}</p>
               <p className="text-[11px] text-white/50">
                 <span data-testid={`cost-${r._id}`}>{r.cost}★</span>
@@ -125,7 +130,7 @@ const RewardPanel = ({ rewards = [], lifetime = 0, refreshData, showToast }) => 
               disabled={busy}
               onClick={() => setConfirming(r)}
               data-testid={`redeem-${r._id}`}
-              className="px-4 py-1.5 bg-[#c0b3a5] text-black rounded-lg text-[10px] font-bold hover:scale-105 transition-transform disabled:opacity-40"
+className="px-3 sm:px-4 h-8 bg-[#c0b3a5] text-black rounded-lg text-[10px] font-bold hover:scale-105 transition-transform disabled:opacity-40 shrink-0"
             >
               Redeem
             </button>
@@ -133,7 +138,7 @@ const RewardPanel = ({ rewards = [], lifetime = 0, refreshData, showToast }) => 
               type="button"
               onClick={() => remove(r)}
               aria-label={`Remove ${r.name}`}
-              className="text-white/30 hover:text-focus-red transition-colors"
+className="text-white/30 hover:text-focus-red transition-colors shrink-0"
             >
               <Trash2 size={15} />
             </button>
@@ -171,7 +176,7 @@ const RewardPanel = ({ rewards = [], lifetime = 0, refreshData, showToast }) => 
 
         {/* The system opens with a guess so nobody prices a cheesecake from
             first principles; picking any tier overrides it for good. */}
-        <div className="flex gap-1.5 mt-3" data-testid="reward-tiers">
+        <div className="grid grid-cols-5 gap-1 sm:gap-1.5 mt-3" data-testid="reward-tiers">
           {TIERS.map((t) => (
             <button
               key={t.pct}

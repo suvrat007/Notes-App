@@ -23,7 +23,7 @@ const HORIZONS = [
  */
 const Panel = ({ title, count, children, testid, paneRef, armedHere }) => (
   <div
-    className={`bg-[#16191e] border rounded-3xl p-5 md:p-6 md:flex md:flex-col md:min-h-0 transition-colors ${
+    className={`bg-[#16191e] border rounded-3xl p-4 sm:p-5 md:p-6 md:flex md:flex-col md:min-h-0 transition-colors ${
       armedHere ? 'border-[#c0b3a5]/60' : 'border-white/5'
     }`}
     data-testid={testid}
@@ -50,7 +50,7 @@ const Row = ({ value, children, onDrop, onStart }) => {
       dragListener={false}
       dragControls={controls}
       onDragEnd={(e, info) => onDrop(e, info)}
-      className="flex items-center gap-2 bg-black/40 border border-white/5 rounded-2xl px-3 py-2.5"
+      className="flex items-center gap-1.5 sm:gap-2 bg-black/40 border border-white/5 rounded-2xl px-2 sm:px-3 py-2.5"
     >
       <button
         type="button"
@@ -217,7 +217,7 @@ const Manage = ({ refreshData, showToast }) => {
 
 
   return (
-    <div className="space-y-5 md:h-full md:flex md:flex-col md:min-h-0" data-testid="screen-manage">
+    <div className="space-y-5 pb-24 md:pb-0 md:h-full md:flex md:flex-col md:min-h-0" data-testid="screen-manage">
       <header className="md:shrink-0">
         <h1 className="text-2xl font-bold font-heading text-white tracking-wide">MANAGE</h1>
         <p className="text-sm text-white/40 mt-1">
@@ -236,7 +236,7 @@ const Manage = ({ refreshData, showToast }) => {
               <Row key={h._id} value={h}
                    onStart={() => setArmed('tasks')}
                    onDrop={(e, info) => dropped('habit', h, info)}>
-                <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${
+                <span className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg grid place-items-center shrink-0 ${
                   h.polarity === 'bad' ? 'bg-[#2a1a1a] text-focus-red' : 'bg-[#241f19] text-[#c0b3a5]'
                 }`}>
                   {h.polarity === 'bad' ? <Ban size={14} /> : <Flame size={14} />}
@@ -302,7 +302,7 @@ const Manage = ({ refreshData, showToast }) => {
               <Row key={t._id} value={t}
                    onStart={() => setArmed('habits')}
                    onDrop={(e, info) => dropped('task', t, info)}>
-                <span className="w-8 h-8 rounded-lg grid place-items-center shrink-0 bg-[#1e232b] text-white/60">
+                <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg grid place-items-center shrink-0 bg-[#1e232b] text-white/60">
                   <CheckSquare size={14} />
                 </span>
 

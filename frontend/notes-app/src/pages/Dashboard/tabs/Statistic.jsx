@@ -41,7 +41,7 @@ const heatColor = (v, max) => {
 const CardBox = ({ title, right, children, delay = 0, className = '' }) => (
   <motion.div
     initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}
-    className={`bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6 md:flex md:flex-col md:min-h-0 ${className}`}
+    className={`bg-[#16191e] border border-white/5 rounded-3xl p-4 sm:p-5 md:p-6 md:flex md:flex-col md:min-h-0 ${className}`}
   >
     <div className="flex items-center justify-between mb-4 md:shrink-0">
       <h3 className="font-heading font-black text-white text-lg tracking-wide">{title}</h3>
@@ -88,9 +88,41 @@ const Statistic = () => {
         <p className="text-sm text-white/40 mt-1">Everything below is summed from your ledger.</p>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 md:flex-1 md:min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 md:flex-1 md:min-h-0 pb-24 md:pb-0">
       <CardBox title="This Week" delay={0.05}>
-        <div className="h-52 md:h-full md:min-h-[160px]" data-testid="week-chart">
+        {/*
+          On a phone the chart is the wrong shape for the data.
+          Seven bars, two axes and a grid inside 300px leaves each bar a few
+          pixels wide with the numbers pushed off to a tick label — so a day
+          with 63 stars and a day with 3 look nearly identical. The same seven
+          numbers as rows are legible at any width and say the figure outright.
+        */}
+        <ul className="sm:hidden space-y-1.5" data-testid="week-strip">
+          {data.week.map((p) => {
+            const peak = Math.max(...data.week.map((d) => Math.abs(d.value)), 1);
+            const width = `${Math.round((Math.abs(p.value) / peak) * 100)}%`;
+            return (
+              <li key={p.label} className="flex items-center gap-2.5">
+                <span className="w-9 shrink-0 text-[10px] font-bold tracking-wider text-white/40">
+                  {p.label}
+                </span>
+                <span className="flex-1 h-5 rounded-md bg-white/[0.04] overflow-hidden">
+                  <span
+                    className="block h-full rounded-md"
+                    style={{ width, background: p.value >= 0 ? GOOD : BAD }}
+                  />
+                </span>
+                <span className={`w-10 shrink-0 text-right text-[11px] font-bold tabular-nums ${
+                  p.value > 0 ? 'text-[#3ecf8e]' : p.value < 0 ? 'text-focus-red' : 'text-white/25'
+                }`}>
+                  {p.value > 0 ? `+${p.value}` : p.value}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+
+        <div className="hidden sm:block h-52 md:h-full md:min-h-[160px]" data-testid="week-chart">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data.week} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />

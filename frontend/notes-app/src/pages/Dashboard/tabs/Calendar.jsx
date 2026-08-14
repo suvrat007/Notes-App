@@ -72,8 +72,23 @@ const Calendar = ({ tasks, logs, refreshData, showToast }) => {
    * that ignores the day. Daily tasks are the one exception: they are due
    * every day by definition.
    */
-  const tasksForSelected = tasks.filter((t) =>
-    t.type === 'daily' || (t.targetDate && toKey(new Date(t.targetDate)) === selected));
+  const tasksForSelected = tasks.filter((t) => {
+    if (t.type === 'daily') return true;
+    if (!t.targetDate) return false;
+    const start = toKey(new Date(t.targetDate));
+
+    /*
+     * A task with a deadline belongs to every day between its start and that
+     * date, so picking Wednesday shows what is still owed by Friday rather
+     * than only what happens to be dated Wednesday. Once it is finished it
+     * leaves the run, staying only on the day it was scheduled.
+     */
+    if (t.dueDate) {
+      const due = toKey(new Date(t.dueDate));
+      if (selected >= start && selected <= due) return !t.done || start === selected;
+    }
+    return start === selected;
+  });
 
   const submitLog = async (taskId, completedCount) => {
     try {

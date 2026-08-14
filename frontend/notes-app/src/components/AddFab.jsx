@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Plus } from 'lucide-react';
+import useDockedPosition from '../utils/useDockedPosition';
 
 const HOW = [
   { key: 'speak', label: 'Audio', hint: 'Say your whole day' },
@@ -25,6 +26,8 @@ const AddFab = ({ onPick }) => {
   const [step, setStep] = useState('how');
   const rootRef = useRef(null);
   const reduce = useReducedMotion();
+  // Wherever the user has parked it. Snaps to an edge, and is remembered.
+  const dock = useDockedPosition({ size: 60, bottomInset: 84 });
 
   const close = () => { setOpen(false); setStep('how'); };
 
@@ -55,13 +58,22 @@ const AddFab = ({ onPick }) => {
       ref={rootRef}
       data-testid="add-fab"
       /* Clears the bottom nav and the phone's own gesture bar. */
-      className="fixed right-4 md:right-7 z-[120] flex flex-col items-end gap-2.5"
-      style={{ bottom: 'calc(84px + env(safe-area-inset-bottom))' }}
+      className={`fixed z-[120] flex flex-col gap-2.5 ${
+        dock.side === 'right' ? 'items-end' : 'items-start'
+      } ${dock.vertical === 'bottom' ? 'flex-col' : 'flex-col-reverse'}`}
+      style={{
+        left: dock.pos?.x ?? 0,
+        top: dock.pos?.y ?? 0,
+        // Hidden until measured, or it flashes in the default corner first.
+        visibility: dock.pos ? 'visible' : 'hidden',
+        touchAction: 'none',
+        transition: dock.dragging ? 'none' : 'left .22s cubic-bezier(.2,.8,.2,1), top .22s cubic-bezier(.2,.8,.2,1)',
+      }}
     >
       <AnimatePresence>
         {open && (
           <motion.div
-            className="flex flex-col items-end gap-2"
+            className={`flex flex-col gap-2 ${dock.side === 'right' ? 'items-end' : 'items-start'}`}
             data-testid="fab-menu"
             data-step={step}
             initial={{ opacity: 0 }}
@@ -112,8 +124,15 @@ const AddFab = ({ onPick }) => {
         data-testid="fab-toggle"
         aria-label={open ? 'Close' : 'Add'}
         aria-expanded={open}
-        onClick={() => (open ? close() : setOpen(true))}
-        className="relative w-[60px] h-[60px] rounded-full bg-[#c0b3a5] text-[#0d0f12] grid place-items-center shadow-xl active:scale-95 transition-transform"
+        {...dock.handlers}
+        /* A drag that ends on the button must not also count as a tap. */
+        onClick={() => {
+          if (dock.didDrag()) return;
+          if (open) close(); else setOpen(true);
+        }}
+        className={`relative w-[60px] h-[60px] rounded-full bg-[#c0b3a5] text-[#0d0f12] grid place-items-center shadow-xl transition-transform touch-none ${
+          dock.dragging ? 'scale-110 cursor-grabbing' : 'active:scale-95 cursor-grab'
+        }`}
       >
         {/* Two rings on a slow offset pulse, alive without being a spinner,
             which would imply the app is busy. Purely decorative, so they must

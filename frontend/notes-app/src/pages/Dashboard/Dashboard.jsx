@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import { Menu } from 'lucide-react';
 
 import api from '../../utils/api';
 import { useToast } from '../../utils/ToastContext';
@@ -117,14 +118,34 @@ const Dashboard = () => {
           
           {/* Mobile Header */}
           <header className="md:hidden flex items-center justify-between px-6 py-5 sticky top-0 bg-[#0d0f12]/80 backdrop-blur-md z-40 border-b border-white/5">
-            <div className="flex items-center gap-4">
-              <button className="text-white/80 hover:text-white"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+            {/*
+              Both of these were decoration: a hamburger with no handler and an
+              avatar that was a div. A control that looks pressable and does
+              nothing is worse than no control, so they now go somewhere.
+            */}
+            <div className="flex items-center gap-3">
               <span className="font-heading font-bold text-white tracking-widest text-lg">FOCUS</span>
             </div>
-            <div className="w-8 h-8 rounded-full overflow-hidden border border-white/10 bg-[#16191e]">
-              {/* Dummy avatar as seen in screenshot */}
-              <div className="w-full h-full flex items-center justify-center text-[10px] text-white/40">{user?.fullName?.charAt(0)}</div>
-            </div>
+            <button
+              type="button"
+              aria-label="Your profile"
+              data-testid="mobile-avatar"
+              onClick={() => setActiveTab('more')}
+              className="w-10 h-10 grid place-items-center rounded-full hover:bg-white/5 transition-colors"
+            >
+              {user?.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  className="w-8 h-8 rounded-full object-cover border border-white/10"
+                />
+              ) : (
+                <span className="w-8 h-8 rounded-full border border-white/10 bg-[#16191e] grid place-items-center text-[11px] font-bold text-white/60">
+                  {user?.fullName?.charAt(0)?.toUpperCase()}
+                </span>
+              )}
+            </button>
           </header>
 
           {/*
@@ -132,7 +153,7 @@ const Dashboard = () => {
 , Home, Calendar, Stats, fill the height and stay still; a long
             settings list is allowed to scroll rather than be cut off.
           */}
-          <div className="p-6 md:px-8 md:py-7 flex-1 md:min-h-0 md:overflow-y-auto">
+          <div className="p-4 sm:p-6 md:px-8 md:py-7 flex-1 md:min-h-0 md:overflow-y-auto">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}

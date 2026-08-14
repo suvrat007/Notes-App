@@ -2,11 +2,13 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Star, Moon, Shield, Bell, Globe, Database, HelpCircle, ChevronRight, LogOut, Edit2 } from 'lucide-react';
+import { usePref, SHOW_BACKLOG } from '../../../utils/prefs';
+import { Star, Moon, Shield, Bell, Globe, Database, HelpCircle, ChevronRight, LogOut, Edit2, History } from 'lucide-react';
 import { useAuth } from '../../../utils/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const More = ({ user, theme, toggleTheme, showToast, onNavigate }) => {
+  const [showBacklog, setShowBacklog] = usePref(SHOW_BACKLOG, true);
   const { logout } = useAuth();
   const navigate = useNavigate();
   const isDark = theme === 'dark';
@@ -68,6 +70,34 @@ const More = ({ user, theme, toggleTheme, showToast, onNavigate }) => {
             </div>
             <h3 className="text-base font-bold text-white mb-1">Appearance</h3>
             <p className="text-xs text-white/60">Currently set to <span className="text-white font-bold">{isDark ? 'Dark' : 'Light'}</span></p>
+          </Card>
+        </motion.div>
+
+        {/*
+          Yesterday's unfinished work, on the home screen.
+          Kept optional because the same list is a useful nudge to one person
+          and a running tally of failure to another, and neither is wrong.
+        */}
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.075 }}>
+          <Card className="bg-[#16191e] border-white/5 rounded-xl p-5">
+            <div className="flex justify-between items-start mb-4">
+              <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center text-white/40">
+                <History size={16} />
+              </div>
+              <Switch
+                checked={showBacklog}
+                onCheckedChange={setShowBacklog}
+                data-testid="pref-backlog"
+                aria-label="Show unfinished work from earlier days"
+                className="data-[state=checked]:bg-[#c0b3a5]"
+              />
+            </div>
+            <h3 className="text-base font-bold text-white mb-1">Carry over</h3>
+            <p className="text-xs text-white/60">
+              {showBacklog
+                ? 'Unfinished work from earlier days stays on your home screen.'
+                : "Earlier days are left behind. Today's list only."}
+            </p>
           </Card>
         </motion.div>
 

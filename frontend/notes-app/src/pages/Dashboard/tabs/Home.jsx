@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Star, ArrowRight, Sun, Calendar, Ban, Coffee, Check, X, Plus, Clock } from 'lucide-react';
+import { Star, ArrowRight, Plus, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import api from '../../../utils/api';
@@ -10,12 +10,15 @@ import RewardPanel from '../../../components/RewardPanel';
 import WeekTargets from '../../../components/WeekTargets';
 import RankBadge from '../../../components/RankBadge';
 import TaskRow from '../../../components/TaskRow';
+import { usePref, SHOW_BACKLOG } from '../../../utils/prefs';
 
 const todayKey = () => new Date().toLocaleDateString('en-CA');
 
 const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) => {
   const [habitBusy, setHabitBusy] = useState(false);
   const [showHabitModal, setShowHabitModal] = useState(false);
+  // Some people want yesterday in front of them; some find it discouraging.
+  const [showBacklog] = usePref(SHOW_BACKLOG, true);
 
   const habits = state?.habits ?? [];
   const carried = state?.carriedTasks ?? [];
@@ -63,9 +66,6 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
 
   const todaysLogs = logs.filter((l) => new Date(l.date).toLocaleDateString('en-CA') === todayKey());
 
-  const goalTasks = tasks.filter((t) => t.type === 'daily' || t.type === 'occasional');
-  const maxToday = goalTasks.reduce((sum, t) => sum + t.baseReward, 0) || 1;
-  const earnedToday = todaysLogs.reduce((sum, l) => sum + Math.max((l.starsDelta ?? 0), 0), 0);
   const netToday = todaysLogs.reduce((sum, l) => sum + (l.starsDelta ?? 0), 0);
 
   /*
@@ -124,15 +124,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
     await refreshData();
   };
 
-  const getTaskVisuals = (type) => {
-    switch (type) {
-      case 'daily': return { icon: Sun, color: 'text-focus-teal', bg: 'bg-[#241f19]', border: 'border-l-focus-teal' };
-      case 'occasional': return { icon: Calendar, color: 'text-purple-400', bg: 'bg-[#1e232b]', border: 'border-l-purple-400' };
-      case 'avoid': return { icon: Ban, color: 'text-focus-red', bg: 'bg-[#2a1a1a]', border: 'border-l-focus-red' };
-      case 'break_day': return { icon: Coffee, color: 'text-white/60', bg: 'bg-white/5', border: 'border-l-white/20' };
-      default: return { icon: Sun, color: 'text-focus-teal', bg: 'bg-[#241f19]', border: 'border-l-focus-teal' };
-    }
-  };
+
 
   return (
     <div className="space-y-4 md:space-y-5 md:h-full md:flex md:flex-col md:min-h-0">
@@ -174,13 +166,13 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
                 <div className="absolute inset-0 flex flex-col items-center justify-center mt-1">
                   <span className="text-3xl font-heading font-black text-white">{progressPercent}%</span>
                   <div className="flex gap-1 mt-1 text-white/40">
-                    {Array.from({ length: Math.min(goalTasks.length, 4) || 1 }).map((_, i) => (
+                    {Array.from({ length: Math.min(dueToday, 4) || 1 }).map((_, i) => (
                       <Star key={i} size={10} fill="currentColor" className={i < goalsAchievedToday ? 'text-white' : 'text-white/10'} />
                     ))}
                   </div>
                 </div>
               </div>
-              <span className="text-[10px] font-bold text-white/40">{goalsAchievedToday}/{goalTasks.length} Daily Goals Achieved</span>
+              <span className="text-[10px] font-bold text-white/40">{goalsAchievedToday}/{dueToday} due today</span>
             </CardContent>
           </Card>
         </motion.div>
@@ -202,7 +194,10 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
 
               {stars?.rank && (
                 <div className="mb-5" data-testid="rank">
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                  {/* Wraps rather than crushes. In the three-column grid this
+                      card is ~230px wide, and "RECRUIT 1" was being squeezed to
+                      18px next to the badge and the star count. */}
+                  <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 mb-1.5">
                     <span className="flex items-center gap-2 min-w-0">
                       <RankBadge
                         badge={stars.rank.badge}
@@ -211,7 +206,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
                         title={stars.rank.title}
                       />
                       <span
-                        className="text-[10px] font-black tracking-[0.15em] uppercase px-2 py-0.5 rounded-full border truncate"
+                        className="text-[10px] font-black tracking-[0.15em] uppercase px-2 py-0.5 rounded-full border whitespace-nowrap"
                         style={{ color: stars.rank.color, borderColor: stars.rank.color }}
                       >
                         {stars.rank.title} {stars.rank.level}
@@ -318,7 +313,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
         {/* Work that did not stop being owed at midnight. Shown with the day's
             own list, so it is something to do today rather than a wall of
             shame parked somewhere else. */}
-        {carried.length > 0 && (
+        {showBacklog && carried.length > 0 && (
           <div className="mb-6" data-testid="carried-section">
             <h4 className="text-[11px] font-bold text-focus-red tracking-widest uppercase mb-3">
               Still owed
