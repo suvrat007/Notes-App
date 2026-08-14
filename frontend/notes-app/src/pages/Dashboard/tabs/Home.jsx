@@ -15,7 +15,6 @@ import { usePref, SHOW_BACKLOG } from '../../../utils/prefs';
 const todayKey = () => new Date().toLocaleDateString('en-CA');
 
 const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) => {
-  const [habitBusy, setHabitBusy] = useState(false);
   const [showHabitModal, setShowHabitModal] = useState(false);
   // Some people want yesterday in front of them; some find it discouraging.
   const [showBacklog] = usePref(SHOW_BACKLOG, true);
@@ -26,39 +25,40 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
   const stars = state?.stars;
 
   /**
-   * Log a rep. The SERVER works out what it is worth — a bad habit's penalty
-   * escalates past its allowance, so the number depends on how many reps
-   * already exist today, which only the server can know for certain.
+   * Apply a habit change the card has already shown.
+   *
+   * The card debounces, so this arrives ONCE with the net delta rather than
+   * per tap. A positive delta is a single request carrying the amount; the
+   * server still decides what it is worth, since a bad habit escalates past
+   * its allowance and a goal pays less once beaten. A negative delta removes
+   * that many of the most recent reps.
+   *
+   * It deliberately does NOT catch: the card needs the rejection to put its
+   * own number back.
    */
-  const logHabit = async (habit, amount = 1) => {
-    setHabitBusy(true);
-    try {
-      const { data } = await api.post(`/habits/${habit._id}/log`, { amount });
-      await refreshData();
+  const changeHabit = async (habit, delta) => {
+    if (delta > 0) {
+      /*
+       * The DAY is the user's, not the server's. Without it the entry is
+       * dated by the box's UTC clock, which is still on yesterday until the
+       * morning in India — so a rep logged now lands on a day the dashboard
+       * is not looking at, and the card silently springs back to zero.
+       */
+      const { data } = await api.post(`/habits/${habit._id}/log`, {
+        amount: delta,
+        date: todayKey(),
+      });
       const d = data.starsDelta;
-      const much = amount > 1 ? ` ${amount}${habit.unit ? ' ' + habit.unit : ''}` : '';
+      const unit = habit.unit ? ` ${habit.unit}` : '';
+      const much = delta > 1 ? ` ${delta}${unit}` : '';
       showToast?.(`${habit.name}${much} ${d >= 0 ? '+' : ''}${d}★`);
-    } catch (err) {
-      // Hitting the rate limit is not a failure of theirs, so it is said
-      // plainly rather than dressed as an error.
-      const d = err.response?.data;
-      showToast?.(d?.message || 'Could not log that', d?.rateLimited ? 'info' : 'error');
-    } finally {
-      setHabitBusy(false);
+    } else {
+      for (let i = 0; i < -delta; i++) {
+        await api.delete(`/habits/${habit._id}/log`, { params: { date: todayKey() } });
+      }
+      showToast?.(`Undid ${-delta} × ${habit.name}`);
     }
-  };
-
-  const undoHabit = async (habit) => {
-    setHabitBusy(true);
-    try {
-      await api.delete(`/habits/${habit._id}/log`);
-      await refreshData();
-      showToast?.(`Undid one ${habit.name}`);
-    } catch (err) {
-      showToast?.(err.response?.data?.message || 'Nothing to undo', 'error');
-    } finally {
-      setHabitBusy(false);
-    }
+    await refreshData();
   };
 
   const todayStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
@@ -325,9 +325,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
             <HabitCard
               key={h._id}
               habit={h}
-              busy={habitBusy}
-              onLog={logHabit}
-              onUndo={undoHabit}
+              onChange={changeHabit}
             />
           ))}
           {habits.length === 0 && (

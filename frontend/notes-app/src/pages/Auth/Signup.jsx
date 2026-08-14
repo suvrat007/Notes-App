@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import api from '../../utils/api';
 import { useAuth } from '../../utils/AuthContext';
+import { useToast } from '../../utils/ToastContext';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -12,16 +13,16 @@ const Signup = () => {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
   const googleReady = isGoogleConfigured();
   const navigate = useNavigate();
   const { setAuthenticated } = useAuth();
+  const showToast = useToast();
 
   /** Same route the Login page uses; the server issues the same cookie. */
   const handleGoogle = async () => {
-    setError('');
+    
     setGoogleBusy(true);
     try {
       const accessToken = await requestGoogleAccessToken();
@@ -29,7 +30,10 @@ const Signup = () => {
       setAuthenticated();
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Google sign-in failed. Try again.');
+      showToast(
+        err.response?.data?.message || err.message || 'Google sign-in failed. Try again.',
+        'error',
+      );
     } finally {
       setGoogleBusy(false);
     }
@@ -37,9 +41,9 @@ const Signup = () => {
 
   const handleSignup = async (e) => {
     e.preventDefault();
-    setError('');
+    
     if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+      showToast('Password must be at least 8 characters', 'error');
       return;
     }
     setSubmitting(true);
@@ -48,7 +52,7 @@ const Signup = () => {
       setAuthenticated();
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || 'An error occurred. Please try again.');
+      showToast(err.response?.data?.message || 'An error occurred. Please try again.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -70,7 +74,7 @@ const Signup = () => {
           <p className="text-white/60 text-sm">Create an account to begin</p>
         </div>
         
-        {error && <p className="text-focus-red text-sm mb-4 text-center">{error}</p>}
+        {/* Failures go to the toast stack, not inline. */}
         
         <form onSubmit={handleSignup} className="space-y-5">
           <div className="space-y-1.5">

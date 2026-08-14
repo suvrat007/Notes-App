@@ -22,9 +22,49 @@
     <meta name="format-detection" content="telephone=no" />
     <meta name="msapplication-TileColor" content="#0a0a0c" />
     <title>Focus — Productivity Tracker</title>
+
+    <!--
+      The first paint, before React or any stylesheet has loaded.
+
+      Vite injects the CSS as a <link>, so between the HTML arriving and that
+      stylesheet applying there is a gap the browser fills with its own default
+      white. On a reload of a dark app that reads as a flash of the wrong app.
+      Inline, in the head, is the only thing that is already there.
+
+      The spinner lives in #root and is thrown away the moment React renders
+      into it, so there is nothing to tear down.
+    -->
+    <style>
+      html, body { margin: 0; background: #0d0f12; color: #e6e8eb; }
+      #boot {
+        position: fixed; inset: 0;
+        display: grid; place-items: center; gap: 18px;
+        grid-auto-flow: row; align-content: center;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      #boot .mark {
+        font-weight: 800; font-size: 15px; letter-spacing: .32em;
+        color: #c0b3a5;
+      }
+      #boot .ring {
+        width: 26px; height: 26px; border-radius: 50%;
+        border: 2px solid rgba(255,255,255,.10);
+        border-top-color: #c0b3a5;
+        animation: boot-spin .7s linear infinite;
+      }
+      @keyframes boot-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) {
+        #boot .ring { animation-duration: 2.4s; }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="boot">
+        <span class="mark">FOCUS</span>
+        <span class="ring"></span>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

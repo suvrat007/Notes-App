@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import api from '../../utils/api';
 import { useAuth } from '../../utils/AuthContext';
+import { useToast } from '../../utils/ToastContext';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -13,12 +14,12 @@ import { requestGoogleAccessToken, isGoogleConfigured } from '../../utils/google
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
   const navigate = useNavigate();
   const { setAuthenticated } = useAuth();
+  const showToast = useToast();
   const googleReady = isGoogleConfigured();
 
   /**
@@ -27,7 +28,7 @@ const Login = () => {
    * privileged, and nothing downstream can tell them apart.
    */
   const handleGoogle = async () => {
-    setError('');
+    
     setGoogleBusy(true);
     try {
       const accessToken = await requestGoogleAccessToken();
@@ -35,10 +36,11 @@ const Login = () => {
       setAuthenticated();
       navigate('/');
     } catch (err) {
-      setError(
+      showToast(
         err.response?.data?.message
         || err.message
         || 'Google sign-in failed. Try again.',
+        'error',
       );
     } finally {
       setGoogleBusy(false);
@@ -47,14 +49,14 @@ const Login = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError('');
+    
     setSubmitting(true);
     try {
       await api.post('/login', { email, password });
       setAuthenticated();
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || 'An error occurred. Please try again.');
+      showToast(err.response?.data?.message || 'An error occurred. Please try again.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -90,9 +92,10 @@ const Login = () => {
         <div className="px-6 sm:px-8 py-7">
           <h2 className="font-heading text-3xl font-bold text-white tracking-tight mb-2">WELCOME BACK</h2>
           <p className="text-white/60 text-sm mb-7">Continue your productivity journey.</p>
-          
-          {error && <p className="text-focus-red text-sm mb-6 text-center">{error}</p>}
-          
+
+          {/* Failures go to the toast stack with everything else, rather than
+              appearing inline and shoving the form down as they arrive. */}
+
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-2">
               <Label className="text-[10px] font-bold tracking-widest text-white/70 uppercase">Email</Label>

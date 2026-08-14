@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Plus, Minus, Check, Flame, Ban } from 'lucide-react';
 
 /**
@@ -19,7 +19,10 @@ import { Plus, Minus, Check, Flame, Ban } from 'lucide-react';
  */
 const PERIOD_WORD = { 1: 'this week', 4: 'this month', 12: 'this quarter' };
 
-const HabitCard = ({ habit, onLog, onUndo, busy }) => {
+/** How long to wait after the last tap before telling the server. */
+const FLUSH_MS = 600;
+
+const HabitCard = ({ habit, onChange }) => {
   const isBad = habit.polarity === 'bad';
   /*
    * A habit measured in something needs to say HOW MUCH, not just that it
@@ -35,15 +38,72 @@ const HabitCard = ({ habit, onLog, onUndo, busy }) => {
   const goalOnly = !isBad && quota === 0 && periodTarget > 0;
   const counted = quota > 0 || isBad || goalOnly;
 
-  const reps = habit.repsToday ?? 0;
-  const period = habit.repsThisPeriod ?? 0;
-  const goalMet = !!habit.goalMet;
+  /*
+   * Taps land instantly; the server hears the total once.
+   *
+   * Every tap used to POST and then reload the entire dashboard, with all
+   * the cards disabled until it came back — so the number could not move
+   * until a full round trip finished, and holding + felt broken. The count
+   * shown is the server's plus whatever is still pending locally.
+   */
+  const [pending, setPending] = useState(0);
+  /*
+   * The same number, readable synchronously.
+   *
+   * The flush cannot ask setPending for the current value: React does not run
+   * the updater before the next statement, so the timer read 0 every time and
+   * returned without sending anything. The screen still showed the taps, so it
+   * looked like it had worked while nothing at all was written.
+   */
+  const pendingRef = useRef(0);
+  const timer = useRef(null);
+  const inFlight = useRef(false);
+
+  // A refresh from elsewhere wins, unless our own flush is still running —
+  // that would snap the number back under the user's finger.
+  useEffect(() => {
+    if (!inFlight.current) { pendingRef.current = 0; setPending(0); }
+  }, [habit.repsToday, habit.repsThisPeriod]);
+
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  const reps = Math.max(0, (habit.repsToday ?? 0) + pending);
+  const period = Math.max(0, (habit.repsThisPeriod ?? 0) + pending);
   const met = quota > 0 ? reps >= quota : reps > 0;
 
   const countText = quota > 0
     ? `${reps}/${quota}`
     : goalOnly ? `${period}/${periodTarget}` : String(reps);
 
+
+  /**
+   * Send the NET change once the tapping stops.
+   *
+   * Four taps become one request carrying +4, not four requests racing each
+   * other into the wrong order. onChange resolves to the server refresh, so
+   * the pending offset is only dropped once the real numbers have landed.
+   */
+  const queue = (delta) => {
+    pendingRef.current += delta;
+    setPending(pendingRef.current);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(async () => {
+      const net = pendingRef.current;
+      if (net === 0) return;
+      inFlight.current = true;
+      try {
+        await onChange(habit, net);
+      } catch {
+        // Put the number back; the server never took it.
+      } finally {
+        inFlight.current = false;
+        pendingRef.current = 0;
+        setPending(0);
+      }
+    }, FLUSH_MS);
+  };
+
+  const step = unit ? Math.max(1, Number(amount) || 1) : 1;
   const Icon = isBad ? Ban : Flame;
   const accent = isBad ? 'text-focus-red' : 'text-[#c0b3a5]';
   const tileBg = isBad ? 'bg-[#2a1a1a]' : 'bg-[#241f19]';
@@ -117,8 +177,8 @@ const HabitCard = ({ habit, onLog, onUndo, busy }) => {
 
         <button
           type="button"
-          disabled={reps === 0 || busy}
-          onClick={() => onUndo(habit)}
+          disabled={reps === 0}
+          onClick={() => queue(-step)}
           aria-label={`Remove one ${habit.name}`}
           data-testid={`undo-${habit._id}`}
           className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-white/60 grid place-items-center disabled:opacity-30 hover:text-white transition-colors shrink-0"
@@ -127,11 +187,10 @@ const HabitCard = ({ habit, onLog, onUndo, busy }) => {
         </button>
         <button
           type="button"
-          disabled={busy}
-          onClick={() => onLog(habit, unit ? Math.max(1, Number(amount) || 1) : 1)}
+          onClick={() => queue(step)}
           aria-label={`Log ${habit.name}`}
           data-testid={`log-${habit._id}`}
-          className={`w-8 h-8 rounded-lg ${tileBg} border border-white/10 ${accent} grid place-items-center disabled:opacity-40 hover:scale-105 active:scale-95 transition-transform shrink-0`}
+          className={`w-8 h-8 rounded-lg ${tileBg} border border-white/10 ${accent} grid place-items-center hover:scale-105 active:scale-95 transition-transform shrink-0`}
         >
           <Plus size={15} />
         </button>

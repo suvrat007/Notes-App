@@ -153,10 +153,10 @@ const VoiceModal = ({ habits = [], tasks = [], onClose, refreshData, showToast }
            */
           const measured = habits.find((h) => String(h._id) === String(it.refId))?.unit;
           if (measured) {
-            await api.post(`/habits/${it.refId}/log`, { amount: it.count });
+            await api.post(`/habits/${it.refId}/log`, { amount: it.count, date: today });
           } else {
             for (let i = 0; i < it.count; i++) {
-              await api.post(`/habits/${it.refId}/log`, {});
+              await api.post(`/habits/${it.refId}/log`, { date: today });
             }
           }
         } else if (it.kind === 'progress' && it.refId) {

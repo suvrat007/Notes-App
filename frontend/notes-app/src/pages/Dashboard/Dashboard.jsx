@@ -74,9 +74,16 @@ const Dashboard = () => {
   }, [fetchData]);
 
   if (!user) {
+    /*
+       Matches the pre-mount spinner in index.html, so the handover from static
+       HTML to React is invisible. The old one leaned on --text-secondary and a
+       .app-shell class, which resolve against the LIGHT palette until the theme
+       attribute is set — a white panel in the middle of a dark app.
+    */
     return (
-      <div className="app-shell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-        <p style={{ color: 'var(--text-secondary)' }}>Loading...</p>
+      <div className="min-h-[100dvh] grid place-content-center justify-items-center gap-[18px] bg-[#0d0f12]">
+        <span className="text-[15px] font-extrabold tracking-[0.32em] text-[#c0b3a5]">FOCUS</span>
+        <span className="w-[26px] h-[26px] rounded-full border-2 border-white/10 border-t-[#c0b3a5] animate-spin motion-reduce:[animation-duration:2.4s]" />
       </div>
     );
   }

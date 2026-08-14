@@ -119,8 +119,17 @@ const logLimit = rateLimit({
 router.post('/:habitId/log', logLimit, async (req, res) => {
   const { key, at } = resolveDate(req.body.date);
 
+  /*
+   * A day AHEAD of this box is not the future, it is a different timezone.
+   *
+   * The caller sends its own calendar day. A user east of UTC is already on
+   * tomorrow by the server's reckoning — in India that is every evening — and
+   * rejecting it as a future date meant every rep logged after half past five
+   * came back 400 while the card had already shown it as done. No timezone is
+   * more than a day ahead, so one day of slack covers all of them.
+   */
   const age = e.daysBetween(key, e.dayKey(new Date()));
-  if (age < 0 || age > MAX_BACKFILL_DAYS) {
+  if (age < -1 || age > MAX_BACKFILL_DAYS) {
     return res.status(400).json({
       error: true,
       message: `You can only fill in the last ${MAX_BACKFILL_DAYS} days.`,
@@ -179,16 +188,55 @@ router.post('/:habitId/log', logLimit, async (req, res) => {
 });
 
 /** Undo the most recent rep for a day. The only sanctioned delete. */
+/**
+ * Take units back off a day, newest first.
+ *
+ * A row is no longer one rep. Since a measured habit logs "4km" as a single
+ * row of four, and a burst of taps is debounced into one row of five, deleting
+ * the newest row removed everything it carried — one undo on a five-tap row
+ * took the count from five to zero.
+ *
+ * So this decrements. A row is only deleted once nothing is left of it, and
+ * its stars are reduced in proportion to what remains, which is exact for the
+ * flat rates and close enough for the tapered one.
+ */
 router.delete('/:habitId/log', async (req, res) => {
   const { at } = resolveDate(req.query.date);
+  const asked = Number(req.query.amount);
+  let remaining = Number.isFinite(asked) ? Math.max(1, Math.round(asked)) : 1;
+
   try {
-    const last = await Log.findOne({
+    const rows = await Log.find({
       userId: req.userId, refId: req.params.habitId, date: at,
     }).sort({ createdAt: -1 });
 
-    if (!last) return res.status(404).json({ error: true, message: 'Nothing to undo' });
-    await Log.deleteOne({ _id: last._id });
-    return res.json({ error: false, removed: last.starsDelta });
+    if (rows.length === 0) {
+      return res.status(404).json({ error: true, message: 'Nothing to undo' });
+    }
+
+    let removedStars = 0;
+    let removedUnits = 0;
+
+    for (const row of rows) {
+      if (remaining <= 0) break;
+      const have = Math.max(1, row.count || 1);
+      const take = Math.min(have, remaining);
+
+      if (take >= have) {
+        removedStars += row.starsDelta;
+        await Log.deleteOne({ _id: row._id });
+      } else {
+        const left = have - take;
+        const keptStars = Math.round(row.starsDelta * (left / have));
+        removedStars += row.starsDelta - keptStars;
+        await Log.updateOne({ _id: row._id }, { count: left, starsDelta: keptStars });
+      }
+
+      removedUnits += take;
+      remaining -= take;
+    }
+
+    return res.json({ error: false, removed: removedStars, units: removedUnits });
   } catch {
     return res.status(500).json({ error: true, message: 'Internal Server Error' });
   }
