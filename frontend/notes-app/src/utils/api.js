@@ -1,7 +1,23 @@
 import axios from 'axios';
 
+/*
+ * Where the API lives.
+ *
+ * In a built app this is "/api", which vercel.json rewrites to the backend —
+ * so the browser only ever talks to the origin it is already on. That is not
+ * a preference: calling the backend's own domain makes every request
+ * cross-site and every auth cookie third-party, which Brave blocks outright
+ * and Safari drops, with no error anywhere to explain it.
+ *
+ * It is a constant of the deployment rather than configuration, so it lives
+ * here rather than in an env file. VITE_API_URL still overrides it, which is
+ * what local development uses and what a different host would need.
+ */
+const baseURL = import.meta.env.VITE_API_URL
+  || (import.meta.env.PROD ? '/api' : 'http://localhost:8000');
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+  baseURL,
   withCredentials: true, // send/receive the httpOnly auth cookie
 });
 

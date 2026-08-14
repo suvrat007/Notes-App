@@ -4,21 +4,23 @@ import { VitePWA } from 'vite-plugin-pwa'
 import path from "path"
 
 /**
- * Refuse to ship a build that cannot reach its own backend.
+ * Refuse to ship a build whose API URL cannot work.
  *
  * Vite replaces `import.meta.env.VITE_*` with string literals AT BUILD TIME,
  * so a variable missing from the build environment is not "unset at runtime" —
  * it is absent from the bundle for good, and no amount of setting it in a
  * dashboard afterwards changes the file already being served.
  *
- * That combined with `VITE_API_URL || 'http://localhost:8000'` shipped a
- * production bundle that told every phone to call itself. It failed as a
- * network error with nothing pointing at the cause. A build that cannot work
- * should not complete, so this stops it while someone is still watching.
+ * Leaving it unset is fine and is the normal case: the app falls back to
+ * "/api", which vercel.json rewrites to the backend. What is NOT fine is a
+ * value that cannot work — an http:// URL an HTTPS page is blocked from
+ * calling, or a trailing slash that produces //logs. Those fail as a plain
+ * network error with nothing pointing at the cause, so the build stops while
+ * someone is still watching.
  *
- * Only VITE_API_URL is fatal. The other two degrade VISIBLY — the app says
- * Google sign-in is unconfigured, and hides voice input — so they warn rather
- * than block, and a deploy that deliberately omits them still builds.
+ * The two keys only warn. They degrade VISIBLY — the app says Google sign-in
+ * is unconfigured, and hides voice input — so a deploy that omits them on
+ * purpose still builds.
  */
 function checkEnv(mode) {
   if (mode !== 'production') return;
@@ -30,11 +32,10 @@ function checkEnv(mode) {
   const problems = [];
 
   if (!url) {
-    problems.push(
-      'VITE_API_URL is not set.\n'
-      + '      Without it the bundle hard-codes http://localhost:8000, which on any\n'
-      + '      device other than the build machine means "call yourself".',
-    );
+    // Correct, and the normal case: the app falls back to "/api", which
+    // vercel.json rewrites to the backend. Said out loud so a build log shows
+    // which way it went.
+    console.log('  [env] VITE_API_URL unset - using /api via the vercel.json rewrite.');
   } else {
     // An HTTPS page cannot call an HTTP origin; the browser blocks it as mixed
     // content, and the failure again looks like a plain network error.
@@ -126,9 +127,9 @@ export default defineConfig(({ mode }) => {
          */
         navigateFallback: '/index.html',
         /**
-         * ...except for anything that is not a page. The API lives on another
-         * origin so it is untouched either way, but an OAuth round trip coming
-         * back through this origin must never be handed the shell instead.
+         * ...except for anything that is not a page. /api is proxied to the
+         * backend by vercel.json, so handing it the app shell would answer every
+         * API call with HTML; an OAuth round trip must not be swallowed either.
          */
         navigateFallbackDenylist: [/^\/api/, /^\/auth/, /^\/oauth/],
         cleanupOutdatedCaches: true,
