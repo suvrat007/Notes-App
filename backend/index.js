@@ -67,20 +67,49 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 app.use(express.json());
 app.use(cookieParser());
-// Cookie-based auth requires an explicit origin (not "*") plus credentials: true.
-const allowedOrigins = process.env.CORS_ORIGIN 
-  ? process.env.CORS_ORIGIN.split(',') 
-  : ["http://localhost:5173", "http://localhost:5174"];
+/*
+ * Cookie-based auth requires an explicit origin (not "*") plus credentials.
+ *
+ * Both sides are NORMALISED before comparing. An Origin header is scheme +
+ * host + port and never has a path, so a value pasted out of a browser bar
+ * ("https://app.vercel.app/") can never match one, and "a.com, b.com" typed
+ * with the natural space after the comma yields " b.com" which matches
+ * nothing either. Both are silent, and both look identical to a missing
+ * variable from the browser's side.
+ */
+const normaliseOrigin = (value) => String(value).trim().replace(/\/+$/, '');
 
-app.use(cors({ 
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  }, 
-  credentials: true 
+const allowedOrigins = (process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',')
+  : ['http://localhost:5173', 'http://localhost:5174']
+).map(normaliseOrigin).filter(Boolean);
+
+console.log('[cors] allowing:', allowedOrigins.join(', '));
+
+app.use(cors({
+  origin(origin, callback) {
+    // No Origin at all is a same-origin or non-browser caller (curl, a health
+    // check); there is nothing to police.
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(normaliseOrigin(origin))) return callback(null, true);
+
+    /*
+     * Say WHICH origin was turned away and what was on the list.
+     *
+     * Rejecting with an Error made this a generic 500 with no clue in it,
+     * while the browser only ever reports "blocked by CORS policy" — so the
+     * one machine that knows the answer was the one keeping it quiet.
+     * `false` omits the CORS headers instead, which is the honest rejection.
+     */
+    console.warn(
+      `[cors] refused ${origin}\n`
+      + `       allowed: ${allowedOrigins.join(', ') || '(none)'}\n`
+      + '       set CORS_ORIGIN to the exact scheme+host, comma separated.',
+    );
+    return callback(null, false);
+  },
+  credentials: true,
 }));
 
 const issueToken = (userId) =>

@@ -1,9 +1,76 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from "path"
 
-export default defineConfig({
+/**
+ * Refuse to ship a build that cannot reach its own backend.
+ *
+ * Vite replaces `import.meta.env.VITE_*` with string literals AT BUILD TIME,
+ * so a variable missing from the build environment is not "unset at runtime" —
+ * it is absent from the bundle for good, and no amount of setting it in a
+ * dashboard afterwards changes the file already being served.
+ *
+ * That combined with `VITE_API_URL || 'http://localhost:8000'` shipped a
+ * production bundle that told every phone to call itself. It failed as a
+ * network error with nothing pointing at the cause. A build that cannot work
+ * should not complete, so this stops it while someone is still watching.
+ *
+ * Only VITE_API_URL is fatal. The other two degrade VISIBLY — the app says
+ * Google sign-in is unconfigured, and hides voice input — so they warn rather
+ * than block, and a deploy that deliberately omits them still builds.
+ */
+function checkEnv(mode) {
+  if (mode !== 'production') return;
+
+  // The third argument lifts the VITE_ prefix filter, so a var set in the host's
+  // environment (Vercel, CI) is seen as well as one from a .env file.
+  const env = loadEnv(mode, process.cwd(), '');
+  const url = (env.VITE_API_URL || '').trim();
+  const problems = [];
+
+  if (!url) {
+    problems.push(
+      'VITE_API_URL is not set.\n'
+      + '      Without it the bundle hard-codes http://localhost:8000, which on any\n'
+      + '      device other than the build machine means "call yourself".',
+    );
+  } else {
+    // An HTTPS page cannot call an HTTP origin; the browser blocks it as mixed
+    // content, and the failure again looks like a plain network error.
+    if (url.startsWith('http://') && !/^http:\/\/localhost[:/]/.test(url)) {
+      problems.push(`VITE_API_URL is http:// (${url}).\n`
+        + '      A page served over HTTPS is blocked from calling it.');
+    }
+    if (url.endsWith('/')) {
+      problems.push(`VITE_API_URL ends with a slash (${url}).\n`
+        + '      Axios joins paths onto it directly, producing //logs.');
+    }
+  }
+
+  if (problems.length) {
+    throw new Error(
+      '\n\n  This build would not work once deployed:\n\n'
+      + problems.map((p) => `    - ${p}`).join('\n\n')
+      + '\n\n  Set it in your host\'s environment for the PRODUCTION scope, then\n'
+      + '  rebuild WITHOUT the build cache. These values are baked in at build\n'
+      + '  time, so a cached build keeps the old ones.\n',
+    );
+  }
+
+  for (const [name, what] of [
+    ['VITE_GOOGLE_CLIENT_ID', 'Google sign-in will be offered but disabled'],
+    ['VITE_GROQ_API_KEY', 'voice input will be hidden'],
+  ]) {
+    if (!(env[name] || '').trim()) {
+      console.warn(`  [env] ${name} is not set - ${what}.`);
+    }
+  }
+}
+
+export default defineConfig(({ mode }) => {
+  checkEnv(mode);
+  return {
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -79,4 +146,5 @@ export default defineConfig({
       },
     })
   ],
+  };
 })
