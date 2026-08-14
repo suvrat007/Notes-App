@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Moon, ClipboardList, CalendarPlus, Check, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Moon, ClipboardList, CalendarPlus, RefreshCw, Check, X } from 'lucide-react';
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
   addMonths, subMonths, isSameMonth, isToday, format,
 } from 'date-fns';
 import api from '../../../utils/api';
 import TaskModal from '../../../components/TaskModal';
+import { pushToGoogleCalendar } from '../../../utils/googleSync';
 import { Switch } from '@/components/ui/switch';
 
 const toKey = (d) => d.toLocaleDateString('en-CA');
@@ -18,6 +19,7 @@ const Calendar = ({ tasks, logs, refreshData, showToast }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loggingTaskId, setLoggingTaskId] = useState(null);
   const [count, setCount] = useState(1);
+  const [syncing, setSyncing] = useState(false);
 
   const gridStart = startOfWeek(startOfMonth(month));
   const gridEnd = endOfWeek(endOfMonth(month));
@@ -89,6 +91,44 @@ const Calendar = ({ tasks, logs, refreshData, showToast }) => {
     }
     return start === selected;
   });
+
+  /**
+   * Put this day's tasks on the user's own Google Calendar.
+   *
+   * Runs from the BROWSER with a token they grant in the moment, so the server
+   * never sees a Google credential. Already-synced tasks are skipped rather
+   * than duplicated, and a refusal on one does not stop the rest.
+   */
+  const syncDay = async () => {
+    const pending = tasksForSelected.filter((t) => !t.googleEventId);
+    if (pending.length === 0) {
+      showToast?.('Nothing new to send for this day');
+      return;
+    }
+    setSyncing(true);
+    let sent = 0;
+    try {
+      for (const t of pending) {
+        const eventId = await pushToGoogleCalendar({
+          title: t.title,
+          date: selected,
+          dueTime: t.dueTime,
+          horizon: t.horizon,
+        });
+        await api.patch(`/tasks/${t._id}`, { googleEventId: eventId }).catch(() => {});
+        sent += 1;
+      }
+      showToast?.(`Added ${sent} to Google Calendar`);
+      refreshData?.();
+    } catch (err) {
+      showToast?.(
+        sent > 0 ? `Added ${sent}, then Google stopped: ${err.message}` : (err.message || 'Google refused that'),
+        'error',
+      );
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const submitLog = async (taskId, completedCount) => {
     try {
@@ -273,13 +313,26 @@ const Calendar = ({ tasks, logs, refreshData, showToast }) => {
             
             {/* One button, one action. The icon beside it did exactly the same
                 thing, which only makes people wonder what the difference is. */}
-            <div className="mt-8">
+            <div className="mt-8 space-y-2">
               <button
                 type="button"
                 className="w-full h-12 rounded-xl bg-[#c0b3a5] text-black font-bold text-xs flex items-center justify-center gap-2 hover:bg-[#cfc4b8] transition-colors"
                 onClick={() => setIsModalOpen(true)}
               >
                 <CalendarPlus size={16} /> Add a task on this day
+              </button>
+
+              {/* Sends this day to the user's own Google Calendar, from their
+                  own browser. Nothing already sent is sent twice. */}
+              <button
+                type="button"
+                disabled={syncing || tasksForSelected.length === 0}
+                onClick={syncDay}
+                data-testid="sync-day"
+                className="w-full h-11 rounded-xl bg-transparent border border-white/10 text-white/70 font-bold text-[11px] tracking-wider flex items-center justify-center gap-2 hover:bg-white/5 hover:text-white transition-colors disabled:opacity-40"
+              >
+                <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
+                {syncing ? 'SENDING...' : 'SYNC THIS DAY TO GOOGLE'}
               </button>
             </div>
           </div>

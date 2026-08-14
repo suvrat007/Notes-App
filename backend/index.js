@@ -345,6 +345,8 @@ app.patch('/tasks/:taskId', authenticateToken, async (req, res) => {
                 title, targetCount, baseReward, penaltyIntensity,
                 targetDate: dayOnly(targetDate),
                 ...(dueDate !== undefined ? { dueDate: dayOnly(dueDate) || null } : {}),
+                ...(req.body.googleEventId !== undefined ? { googleEventId: req.body.googleEventId } : {}),
+                ...(req.body.googleTaskId !== undefined ? { googleTaskId: req.body.googleTaskId } : {}),
                 ...(repCadence !== undefined
                     ? { repCadence: repCadence === 'daily' ? 'daily' : 'anytime' }
                     : {}),
