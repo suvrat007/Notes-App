@@ -144,14 +144,14 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
         <p className="text-xs text-focus-teal mt-1">{todayStr}</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:shrink-0">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 md:shrink-0 items-stretch">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
           <Card className="bg-[#16191e] border-white/5 h-full rounded-2xl md:rounded-xl">
-            <CardHeader className="pb-2 px-5 pt-5">
+            <CardHeader className="pb-2 px-4 sm:px-5 pt-4 sm:pt-5">
               <CardTitle className="text-[11px] font-bold text-white/60 tracking-wide">Today's Progress</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col items-center justify-center pb-6">
-              <div className="relative w-36 h-36 flex items-center justify-center mb-2 mt-2">
+            <CardContent className="flex flex-col items-center justify-center pb-4 sm:pb-6 px-2">
+              <div className="relative w-[104px] h-[104px] sm:w-32 sm:h-32 md:w-36 md:h-36 flex items-center justify-center mb-2 mt-2">
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                   <circle cx="50" cy="50" r="40" stroke="rgba(255,255,255,0.05)" strokeWidth="8" fill="none" />
                   <circle
@@ -164,7 +164,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center mt-1">
-                  <span className="text-3xl font-heading font-black text-white">{progressPercent}%</span>
+                  <span className="text-2xl sm:text-3xl font-heading font-black text-white">{progressPercent}%</span>
                   <div className="flex gap-1 mt-1 text-white/40">
                     {Array.from({ length: Math.min(dueToday, 4) || 1 }).map((_, i) => (
                       <Star key={i} size={10} fill="currentColor" className={i < goalsAchievedToday ? 'text-white' : 'text-white/10'} />
@@ -176,15 +176,18 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
             </CardContent>
           </Card>
         </motion.div>
+        {/* Two small figures share the right half on a phone; on a desktop
+            this wrapper is display:contents and they become columns again. */}
+        <div className="flex flex-col gap-3 sm:gap-4 md:contents">
 
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card className="bg-[#16191e] border-white/5 h-full flex flex-col justify-between rounded-2xl md:rounded-xl p-5">
+          <Card className="bg-[#16191e] border-white/5 h-full flex flex-col justify-between rounded-2xl md:rounded-xl p-4 sm:p-5">
             <CardTitle className="text-[11px] font-bold text-white/60 tracking-wide mb-3">Total Stars</CardTitle>
             <div>
               <div className="flex items-end gap-3 mb-2">
                 {/* Summed from the ledger by the server, so this is the number
                     the database agrees with rather than a client tally. */}
-                <span className="text-4xl font-heading font-black text-white leading-none" data-testid="lifetime">
+                <span className="text-3xl sm:text-4xl font-heading font-black text-white leading-none" data-testid="lifetime">
                   {(stars?.lifetime ?? user?.totalStars ?? 0).toLocaleString()}
                 </span>
                 <span className="bg-[#241f19] text-[#c0b3a5] px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 mb-1">
@@ -241,7 +244,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <Card className="bg-[#16191e] border-white/5 h-full flex flex-col justify-between rounded-2xl md:rounded-xl p-5">
+          <Card className="bg-[#16191e] border-white/5 h-full flex flex-col justify-between rounded-2xl md:rounded-xl p-4 sm:p-5">
             <CardTitle className="text-[11px] font-bold text-white/60 tracking-wide mb-3">Tasks Done Today</CardTitle>
             <div>
               <div className="flex items-baseline gap-2 mb-4">
@@ -259,6 +262,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
             </div>
           </Card>
         </motion.div>
+        </div>
       </div>
 
       {/*
