@@ -185,3 +185,55 @@ body[data-theme='light'] video {
 @media (prefers-reduced-motion: reduce) {
   .shimmer { animation: none; }
 }
+
+/*
+ * A list that rolls, rather than one that is guillotined at the edge.
+ *
+ * A hard clip mid-card reads as a rendering fault: half a row, sliced. Here the
+ * row at the boundary is smaller, softer and dimmer, and resolves as it scrolls
+ * into the middle — the way a reel settles. It says "there is more" without a
+ * scrollbar having to say it.
+ *
+ * Driven by the SCROLLER, not by JavaScript. animation-timeline: view() ties
+ * each row's progress to its own position in the scrollport, so it stays exact
+ * during a fling and costs no main-thread work. Browsers without it simply get
+ * the plain list, which is the behaviour that was there before.
+ */
+.roll-list {
+  /* Softens the cut itself, and works everywhere regardless of the above. */
+  -webkit-mask-image: linear-gradient(
+    to bottom, transparent 0, #000 14px, #000 calc(100% - 30px), transparent 100%);
+  mask-image: linear-gradient(
+    to bottom, transparent 0, #000 14px, #000 calc(100% - 30px), transparent 100%);
+}
+
+@supports (animation-timeline: view()) {
+  .roll-list > * {
+    animation: roll-focus linear both;
+    animation-timeline: view(block);
+    /* The full pass: entering the top, through the middle, out of the bottom. */
+    animation-range: entry 0% exit 100%;
+    transform-origin: center;
+    will-change: transform, filter, opacity;
+  }
+
+  @keyframes roll-focus {
+    /* At either edge: small, soft, receding. */
+    0%, 100% {
+      opacity: 0.3;
+      filter: blur(2.5px);
+      transform: scale(0.88);
+    }
+    /* Settled in view, and holding there for most of the travel. */
+    16%, 84% {
+      opacity: 1;
+      filter: blur(0);
+      transform: scale(1);
+    }
+  }
+}
+
+/* A reel someone did not ask for is just motion sickness. */
+@media (prefers-reduced-motion: reduce) {
+  .roll-list > * { animation: none; }
+}

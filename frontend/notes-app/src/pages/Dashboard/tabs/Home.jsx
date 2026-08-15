@@ -367,7 +367,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
           </button>
         </div>
 
-        <div className="space-y-2 md:flex-1 md:min-h-0 md:overflow-y-auto md:pr-1">
+        <div className="roll-list space-y-2 md:flex-1 md:min-h-0 md:overflow-y-auto md:pr-1">
           {habits.map((h) => (
             <HabitCard
               key={h._id}
@@ -421,7 +421,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
           </button>
         </div>
 
-        <div className="space-y-2 md:flex-1 md:min-h-0 md:overflow-y-auto md:pr-1">
+        <div className="roll-list space-y-2 md:flex-1 md:min-h-0 md:overflow-y-auto md:pr-1">
           {/* Logged where it sits: a one-off is a checkbox, a multi-unit job
               is a counter. Neither opens a form to describe an action the
               user could simply have performed. */}
