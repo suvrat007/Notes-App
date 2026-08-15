@@ -145,7 +145,7 @@ router.post('/:habitId/log', logLimit, async (req, res) => {
      * '4', not as four separate runs, so the amount rides on the log's count
      * and every total in the app sums it already.
      */
-    const amount = Number.isFinite(Number(req.body.amount))
+    let amount = Number.isFinite(Number(req.body.amount))
       ? Math.max(1, Math.min(10000, Math.round(Number(req.body.amount))))
       : 1;
 
@@ -172,6 +172,36 @@ router.post('/:habitId/log', logLimit, async (req, res) => {
         date: { $gte: e.dayStart(pDays[0]), $lte: e.dayStart(pDays[pDays.length - 1]) },
       }).lean();
       const doneInPeriod = rows.reduce((sum, r) => sum + (r.count || 1), 0);
+
+      /*
+       * A daily target is a CAP, not just a label.
+       *
+       * It was stored and displayed and never checked, so five taps on a
+       * once-a-day habit paid five times and pushed the week past its own
+       * goal. Doing the thing twice does not make it twice done.
+       *
+       * Bad habits are deliberately uncapped below: every slip has to be
+       * recordable, and each one costs more than the last.
+       */
+      const cap = habit.dailyTarget || 0;
+      if (cap > 0) {
+        const doneToday = e.repsOn(
+          await Log.find({ userId: req.userId, kind: 'habit', refId: habit._id, date: at }).lean(),
+          habit._id,
+          key,
+        );
+        if (doneToday >= cap) {
+          return res.status(409).json({
+            error: true,
+            atDailyCap: true,
+            message: cap === 1
+              ? 'Already done today.'
+              : `Already done ${cap} today, which is the daily target.`,
+          });
+        }
+        // A debounced burst must not carry past the cap either.
+        amount = Math.min(amount, cap - doneToday);
+      }
 
       starsDelta = e.goodHabitDelta(habit, amount, doneInPeriod, pStart);
     }

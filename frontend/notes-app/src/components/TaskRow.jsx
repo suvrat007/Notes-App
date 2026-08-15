@@ -85,10 +85,10 @@ const TaskRow = ({ task, onLog, showToast }) => {
         <Icon size={14} className={v.colour} />
       </span>
 
-      <span className="flex-1 min-w-0">
+      <span className="flex-1 min-w-0 py-0.5">
         {/* Struck through, never removed. A finished task is evidence the day
             went well; deleting it makes the list look like nothing happened. */}
-        <span className={`block text-sm font-bold truncate ${
+        <span className={`block text-sm font-bold leading-snug break-words ${
           done ? 'text-white/35 line-through' : 'text-white'
         }`}>
           {task.title}

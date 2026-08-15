@@ -401,7 +401,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
                 >
                   <Clock size={15} className="text-focus-red shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-white truncate">{t.title}</p>
+                    <p className="text-sm font-bold text-white leading-snug break-words">{t.title}</p>
                     <p className="text-[10px] text-white/50">
                       {t.targetCount > 1 && `${t.targetCount - t.doneCount} left · `}
                       {t.lateBy === 1 ? 'since yesterday' : `${t.lateBy} days late`}

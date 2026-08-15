@@ -58,7 +58,20 @@ function goodHabitDelta(habit, amount = 1, done = 0, periodStart = null) {
  */
 function shortfallDelta(habit, achieved, periodStart = null) {
   const target = effectiveTarget(habit, periodStart);
-  const rate = habit.shortfallPenalty || 0;
+
+  /*
+   * Missing a rep costs what doing it would have paid.
+   *
+   * shortfallPenalty defaulted to zero, so a weekly goal could be missed
+   * entirely at no cost and the target meant nothing at all. Falling back to
+   * starsPerRep makes the two sides symmetric and needs no explaining: four
+   * gym sessions promised and one done costs three times the rep value.
+   * An explicit 0 still disables it, for a goal someone wants without teeth.
+   */
+  const rate = habit.shortfallPenalty > 0
+    ? habit.shortfallPenalty
+    : (habit.starsPerRep || 0);
+
   if (target <= 0 || rate <= 0) return 0;
   const missing = Math.max(0, target - Math.max(0, achieved));
   return -Math.round(missing * rate);

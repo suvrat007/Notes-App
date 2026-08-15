@@ -57,8 +57,8 @@ async function settleShortfalls(userId, todayKey) {
     userId,
     archived: false,
     polarity: 'good',
+    // A goal is a goal: any habit with one is judged when its period closes.
     targetReps: { $gt: 0 },
-    shortfallPenalty: { $gt: 0 },
   }).lean();
 
   if (habits.length === 0) return [];
