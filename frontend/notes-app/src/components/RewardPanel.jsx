@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Gift, Trash2 } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Gift, Trash2, ChevronDown } from 'lucide-react';
 import api from '../utils/api';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,7 @@ const TIERS = [
  * The server prices and charges; nothing here sends a number it made up.
  */
 const RewardPanel = ({ rewards = [], lifetime = 0, refreshData, showToast }) => {
+  const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [pick, setPick] = useState(null);
   const [confirming, setConfirming] = useState(null);
@@ -93,18 +94,45 @@ const RewardPanel = ({ rewards = [], lifetime = 0, refreshData, showToast }) => 
       className="bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6"
       data-testid="rewards-panel"
     >
-      <div className="mb-5">
-        <div className="flex items-baseline justify-between gap-3">
-          <h3 className="font-heading font-black text-white text-xl shrink-0">Rewards</h3>
-          <span className="hidden sm:block text-[10px] font-bold text-white/40 tracking-wider text-right">
-            PRICED AS A SHARE OF YOUR TOTAL
+      {/*
+        Folded away by default.
+        A reward is something to work TOWARDS, so the list is not information
+        the day needs — it is checked when there is enough to spend. The header
+        keeps the one number that might change your mind: how many there are.
+      */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        data-testid="rewards-toggle"
+        className="w-full flex items-center gap-3 text-left"
+      >
+        <h3 className="font-heading font-black text-white text-xl">Rewards</h3>
+        {rewards.length > 0 && (
+          <span className="text-[11px] font-bold text-white/35 tabular-nums">
+            {rewards.length}
           </span>
-        </div>
-        <span className="sm:hidden block mt-1 text-[10px] font-bold text-white/40 tracking-wider">
-          PRICED AS A SHARE OF YOUR TOTAL
-        </span>
-      </div>
+        )}
+        <span className="flex-1" />
+        <ChevronDown
+          size={18}
+          className={`text-white/35 shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
 
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="body"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
+            className="overflow-hidden"
+          >
+          <p className="mt-4 mb-4 text-[10px] font-bold text-white/40 tracking-wider">
+            PRICED AS A SHARE OF YOUR TOTAL
+          </p>
       <div className="space-y-3">
         {rewards.map((r) => (
           <div
@@ -202,8 +230,12 @@ className="text-white/30 hover:text-focus-red transition-colors shrink-0"
             : 'Name it and the cost is worked out as a share of your total.'}
         </p>
       </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* ---- redeem confirmation ---- */}
+      {/* Outside the fold: a confirmation opened from an expanded panel must
+          not vanish if the panel is collapsed behind it. */}
       {confirming && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[1000] p-5"
              data-testid="redeem-confirm"
