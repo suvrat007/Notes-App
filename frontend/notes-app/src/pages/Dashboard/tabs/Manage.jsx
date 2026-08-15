@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Reorder, useDragControls } from 'framer-motion';
 import { useDataVersion } from '../../../utils/DataContext';
+import { Skeleton, SkeletonCard, SkeletonHeader, SkeletonRows } from '../../../components/Skeleton';
 import RowMenu from '../../../components/RowMenu';
 import { GripVertical, Flame, Ban, CheckSquare, Trash2, Map, ListChecks, CalendarPlus, ArrowLeftRight, Pencil, Repeat, Share2 } from 'lucide-react';
 import api from '../../../utils/api';
@@ -73,6 +74,7 @@ const Manage = ({ refreshData, showToast }) => {
   const [armed, setArmed] = useState(null);
   const [habits, setHabits] = useState([]);
   const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [editHabit, setEditHabit] = useState(null);
   const [editTask, setEditTask] = useState(null);
   const [error, setError] = useState('');
@@ -89,6 +91,8 @@ const Manage = ({ refreshData, showToast }) => {
       setError('');
     } catch (err) {
       setError(err.response?.data?.message || 'Could not load your lists');
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -215,6 +219,25 @@ const Manage = ({ refreshData, showToast }) => {
 
   if (error) return <p className="text-focus-red text-sm">{error}</p>;
 
+
+  if (loading) {
+    return (
+      <div className="space-y-5" data-testid="manage-loading">
+        <SkeletonHeader />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+          {[0, 1].map((i) => (
+            <SkeletonCard key={i}>
+              <div className="flex items-center justify-between mb-4">
+                <Skeleton className="h-5 w-20" />
+                <Skeleton className="h-4 w-6" />
+              </div>
+              <SkeletonRows rows={4} height="h-[52px]" />
+            </SkeletonCard>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5 md:h-full md:flex md:flex-col md:min-h-0" data-testid="screen-manage">

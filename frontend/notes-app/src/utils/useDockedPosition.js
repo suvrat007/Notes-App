@@ -19,6 +19,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 const KEY = 'fab-dock';
 const EDGE_GAP = 16;
+/** The header owns the top of the screen; the button stays below it. */
+const HEADER_SAFE = 96;
 /* Below this, a press is a tap that wobbled rather than a drag. */
 const DRAG_SLOP = 8;
 
@@ -51,7 +53,7 @@ export default function useDockedPosition({ size = 60, bottomInset = 84 } = {}) 
     const start = saved ?? fallback();
     setPos({
       x: clamp(start.x, EDGE_GAP, window.innerWidth - size - EDGE_GAP),
-      y: clamp(start.y, EDGE_GAP, window.innerHeight - size - EDGE_GAP),
+      y: clamp(start.y, HEADER_SAFE, window.innerHeight - size - EDGE_GAP),
     });
   }, [fallback, size]);
 
@@ -77,7 +79,6 @@ export default function useDockedPosition({ size = 60, bottomInset = 84 } = {}) 
     const gaps = {
       left: x - EDGE_GAP,
       right: maxX - x,
-      top: y - EDGE_GAP,
       bottom: maxY - y,
     };
     const nearest = Object.keys(gaps).reduce((a, b) => (gaps[a] <= gaps[b] ? a : b));
@@ -85,8 +86,9 @@ export default function useDockedPosition({ size = 60, bottomInset = 84 } = {}) 
     const docked = { x, y };
     if (nearest === 'left') docked.x = EDGE_GAP;
     else if (nearest === 'right') docked.x = maxX;
-    else if (nearest === 'top') docked.y = EDGE_GAP;
     else docked.y = maxY;
+    // Never over the header, wherever it was dropped.
+    docked.y = Math.max(docked.y, HEADER_SAFE);
 
     try {
       localStorage.setItem(KEY, JSON.stringify(docked));

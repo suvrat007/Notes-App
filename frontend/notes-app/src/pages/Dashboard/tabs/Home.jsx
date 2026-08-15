@@ -349,7 +349,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
         the answer to the third is always below the fold. On a phone the
         single column stays, because side-by-side at 390px is unreadable.
       */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5 md:flex-1 md:min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5 md:flex-1 md:min-h-[22rem]">
       {/* ---- Habits: the things you repeat, as opposed to finish ---- */}
       <motion.div
         variants={rise}
