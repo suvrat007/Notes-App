@@ -90,6 +90,7 @@ const HabitCard = ({ habit, onChange }) => {
     timer.current = setTimeout(async () => {
       const net = pendingRef.current;
       if (net === 0) return;
+
       inFlight.current = true;
       try {
         await onChange(habit, net);
@@ -97,8 +98,16 @@ const HabitCard = ({ habit, onChange }) => {
         // Put the number back; the server never took it.
       } finally {
         inFlight.current = false;
-        pendingRef.current = 0;
-        setPending(0);
+        /*
+         * SUBTRACT what was sent, never reset.
+         *
+         * A tap landing while the request is in flight adds to the ref, and
+         * zeroing afterwards counted it a second time on the next flush -
+         * three taps wrote four reps. Taking off exactly what went leaves any
+         * later tap intact and counted once.
+         */
+        pendingRef.current -= net;
+        setPending(pendingRef.current);
       }
     }, FLUSH_MS);
   };

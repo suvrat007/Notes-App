@@ -121,20 +121,23 @@ router.get('/', async (req, res) => {
      * of you for the whole window it was given, and leaves the moment it is
      * finished rather than when the calendar says so.
      */
-    const spanning = await Task.find({
+    const spanningRaw = await Task.find({
       userId: req.userId,
       dueDate: { $gte: activeDate },
       targetDate: { $lt: activeDate },
       /*
-       * Unfinished, or finished TODAY. A task completed this morning stays on
-       * the list struck through until the day is over — vanishing the instant
-       * it is ticked takes away the only evidence the work happened.
+       * Unfinished, or finished TODAY. Both are fetched and the second is
+       * decided below: doneAt is a real instant in UTC while dateKey is the
+       * CALLER's calendar day, and between local midnight and UTC midnight
+       * those disagree — a task ticked at half past midnight in India has a
+       * doneAt that sits before the day it belongs to.
        */
-      $or: [
-        { done: false },
-        { doneAt: { $gte: activeDate, $lt: e.dayStart(e.addDays(dateKey, 1)) } },
-      ],
+      $or: [{ done: false }, { doneAt: { $ne: null } }],
     }).sort({ dueDate: 1, order: 1 }).lean();
+
+    const spanning = spanningRaw.filter(
+      (t) => !t.done || e.dayKey(t.doneAt) === dateKey,
+    );
 
     const dayTasks = [...ownTasks, ...spanning];
     const spanningIds = new Set(spanning.map((t) => String(t._id)));
