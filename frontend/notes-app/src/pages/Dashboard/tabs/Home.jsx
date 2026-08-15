@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Star, ArrowRight, Plus, Clock } from 'lucide-react';
+import { Star, ArrowRight, Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import api from '../../../utils/api';
@@ -10,7 +10,7 @@ import RewardPanel from '../../../components/RewardPanel';
 import WeekTargets from '../../../components/WeekTargets';
 import RankBadge from '../../../components/RankBadge';
 import TaskRow from '../../../components/TaskRow';
-import { usePref, SHOW_BACKLOG } from '../../../utils/prefs';
+import { usePref, SHOW_BACKLOG, CARRY_DAYS } from '../../../utils/prefs';
 
 /*
  * One rhythm for the whole screen.
@@ -39,9 +39,12 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
   const [showHabitModal, setShowHabitModal] = useState(false);
   // Some people want yesterday in front of them; some find it discouraging.
   const [showBacklog] = usePref(SHOW_BACKLOG, true);
+  const [carryDays] = usePref(CARRY_DAYS, 2);
 
   const habits = state?.habits ?? [];
-  const carried = state?.carriedTasks ?? [];
+  // Owed work, but only while it is still worth chasing. Past the window it
+  // drops off the home screen; it is not deleted, and Manage still has it.
+  const carried = (state?.carriedTasks ?? []).filter((t) => t.lateBy <= carryDays);
   const rewards = state?.rewards ?? [];
   const stars = state?.stars;
 
@@ -392,22 +395,14 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
             <h4 className="text-[11px] font-bold text-focus-red tracking-widest uppercase mb-3">
               Still owed
             </h4>
+            {/* Owed work you can actually finish. These were plain text: you
+                could see what was outstanding but had no way to tick it off,
+                so the only route to clearing it was to go back to the day it
+                was set. Same row as everything else, same controls. */}
             <div className="space-y-2">
               {carried.map((t) => (
-                <div
-                  key={t._id}
-                  className="flex items-center gap-3 bg-black/40 border border-white/5 border-l-[3px] border-l-focus-red rounded-2xl px-4 py-3"
-                  data-testid={`carried-${t._id}`}
-                >
-                  <Clock size={15} className="text-focus-red shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-white leading-snug break-words">{t.title}</p>
-                    <p className="text-[10px] text-white/50">
-                      {t.targetCount > 1 && `${t.targetCount - t.doneCount} left · `}
-                      {t.lateBy === 1 ? 'since yesterday' : `${t.lateBy} days late`}
-                    </p>
-                  </div>
-                  <span className="text-[10px] font-bold text-white/40 tabular-nums">+{t.baseReward}★</span>
+                <div key={t._id} data-testid={`carried-${t._id}`}>
+                  <TaskRow task={t} onLog={logTask} showToast={showToast} lateBy={t.lateBy} />
                 </div>
               ))}
             </div>

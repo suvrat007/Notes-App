@@ -54,3 +54,13 @@ export function usePref(key, fallback) {
 
 /** Yesterday's unfinished work, shown on the home screen. On by default. */
 export const SHOW_BACKLOG = 'show-backlog';
+/**
+ * How many days past its due date owed work stays on the home screen.
+ *
+ * Two by default: long enough that something missed on a busy day is still
+ * there to finish, short enough that the list does not turn into a fortnight
+ * of accumulated guilt. The server sends up to CARRY_MAX days, so this only
+ * narrows what is already there.
+ */
+export const CARRY_DAYS = 'carry-days';
+export const CARRY_MAX = 14;

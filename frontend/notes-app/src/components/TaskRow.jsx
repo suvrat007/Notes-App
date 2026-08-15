@@ -27,7 +27,7 @@ const VISUALS = {
  * chances to arrive out of order and leave the count wrong. The screen updates
  * instantly and the server hears the final number once.
  */
-const TaskRow = ({ task, onLog, showToast }) => {
+const TaskRow = ({ task, onLog, showToast, lateBy }) => {
   const target = Math.max(1, task.targetCount || 1);
   const isMulti = target > 1;
 
@@ -75,7 +75,10 @@ const TaskRow = ({ task, onLog, showToast }) => {
     : target;
   const ceiling = Math.min(target, perDayCap);
   const spentToday = task.repCadence === 'daily' && count >= ceiling && !done;
-  const v = VISUALS[task.type] ?? VISUALS.daily;
+  // Late work borrows the red edge, so the list reads at a glance.
+  const v = lateBy > 0
+    ? { ...VISUALS.occasional, edge: 'border-l-focus-red' }
+    : (VISUALS[task.type] ?? VISUALS.daily);
 
   const terms = (
     <>
@@ -92,6 +95,11 @@ const TaskRow = ({ task, onLog, showToast }) => {
         </span>
       )}
       {spentToday && <span className="text-white/30"> · done for today</span>}
+      {lateBy > 0 && (
+        <span className="text-focus-red">
+          {lateBy === 1 ? ' · since yesterday' : ` · ${lateBy} days late`}
+        </span>
+      )}
     </>
   );
 

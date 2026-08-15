@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import api from '../../../utils/api';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { usePref, SHOW_BACKLOG } from '../../../utils/prefs';
+import { usePref, SHOW_BACKLOG, CARRY_DAYS } from '../../../utils/prefs';
 import InstallApp from '../../../components/InstallApp';
 import { Star, Moon, Shield, Bell, Globe, Database, HelpCircle, ChevronRight, LogOut, Edit2, History, Check, X } from 'lucide-react';
 import { useAuth } from '../../../utils/AuthContext';
@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 
 const More = ({ user, theme, toggleTheme, showToast, refreshData }) => {
   const [showBacklog, setShowBacklog] = usePref(SHOW_BACKLOG, true);
+  const [carryDays, setCarryDays] = usePref(CARRY_DAYS, 2);
   const { logout } = useAuth();
   const navigate = useNavigate();
   const isDark = theme === 'dark';
@@ -168,9 +169,42 @@ const More = ({ user, theme, toggleTheme, showToast, refreshData }) => {
             <h3 className="text-base font-bold text-white mb-1">Carry over</h3>
             <p className="text-xs text-white/60">
               {showBacklog
-                ? 'Unfinished work from earlier days stays on your home screen.'
+                ? 'Unfinished work stays on your home screen, where you can still finish it.'
                 : "Earlier days are left behind. Today's list only."}
             </p>
+
+            {/* How long a debt stays chaseable. Only worth asking once the
+                list is switched on at all. */}
+            {showBacklog && (
+              <div className="mt-4 pt-4 border-t border-white/5">
+                <p className="text-[10px] font-bold text-white/50 tracking-widest uppercase mb-2">
+                  Keep it for
+                </p>
+                <div className="flex gap-1.5 flex-wrap">
+                  {[1, 2, 3, 5, 7, 14].map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setCarryDays(d)}
+                      data-testid={`carry-${d}`}
+                      aria-pressed={carryDays === d}
+                      className={`h-8 min-w-[2.5rem] px-2.5 rounded-lg text-xs font-bold tabular-nums border transition-colors ${
+                        carryDays === d
+                          ? 'bg-[#c0b3a5] border-[#c0b3a5] text-black'
+                          : 'bg-white/5 border-white/10 text-white/60 hover:text-white'
+                      }`}
+                    >
+                      {d}d
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-white/40 mt-2">
+                  {carryDays === 1
+                    ? 'Yesterday only. After that it drops off the home screen.'
+                    : `Up to ${carryDays} days past the due date. After that it drops off the home screen — Manage still has it.`}
+                </p>
+              </div>
+            )}
           </Card>
         </motion.div>
 
