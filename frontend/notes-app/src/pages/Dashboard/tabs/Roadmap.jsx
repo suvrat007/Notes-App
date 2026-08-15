@@ -58,7 +58,7 @@ const Roadmap = () => {
   const { summary, nodes, daysLeft } = data;
 
   return (
-    <div className="space-y-5 pb-24 md:pb-0 md:h-full md:flex md:flex-col md:min-h-0" data-testid="screen-roadmap">
+    <div className="space-y-5 md:h-full md:flex md:flex-col md:min-h-0" data-testid="screen-roadmap">
       <header className="md:shrink-0">
         <h1 className="text-2xl font-bold font-heading text-white tracking-wide">ROADMAP</h1>
         <p className="text-sm text-white/40 mt-1">

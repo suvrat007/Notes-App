@@ -217,7 +217,7 @@ const Manage = ({ refreshData, showToast }) => {
 
 
   return (
-    <div className="space-y-5 pb-24 md:pb-0 md:h-full md:flex md:flex-col md:min-h-0" data-testid="screen-manage">
+    <div className="space-y-5 md:h-full md:flex md:flex-col md:min-h-0" data-testid="screen-manage">
       <header className="md:shrink-0">
         <h1 className="text-2xl font-bold font-heading text-white tracking-wide">MANAGE</h1>
         <p className="text-sm text-white/40 mt-1">

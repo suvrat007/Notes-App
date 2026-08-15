@@ -110,7 +110,7 @@ const Dashboard = () => {
         one column of cards on a small screen is a document.
       */}
       <div className="flex-1 min-w-0 flex justify-start md:h-screen md:overflow-hidden">
-        <div className="w-full flex flex-col h-full relative pb-28 md:pb-0">
+        <div className="w-full flex flex-col h-full relative">
           
           {/* Mobile Header */}
           <header className="md:hidden flex items-center justify-between px-6 py-5 sticky top-0 bg-[#0d0f12]/80 backdrop-blur-md z-40 border-b border-white/5">
@@ -149,7 +149,7 @@ const Dashboard = () => {
 , Home, Calendar, Stats, fill the height and stay still; a long
             settings list is allowed to scroll rather than be cut off.
           */}
-          <div className="p-4 pb-28 sm:p-6 sm:pb-28 md:px-8 md:pt-7 md:pb-24 flex-1 md:min-h-0 md:overflow-y-auto">
+          <div className="p-4 pb-24 sm:p-6 sm:pb-24 md:px-8 md:pt-7 md:pb-24 flex-1 md:min-h-0 md:overflow-y-auto">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}

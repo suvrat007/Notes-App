@@ -1,18 +1,41 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import api from '../../../utils/api';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { usePref, SHOW_BACKLOG } from '../../../utils/prefs';
 import InstallApp from '../../../components/InstallApp';
-import { Star, Moon, Shield, Bell, Globe, Database, HelpCircle, ChevronRight, LogOut, Edit2, History } from 'lucide-react';
+import { Star, Moon, Shield, Bell, Globe, Database, HelpCircle, ChevronRight, LogOut, Edit2, History, Check, X } from 'lucide-react';
 import { useAuth } from '../../../utils/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-const More = ({ user, theme, toggleTheme, showToast, onNavigate }) => {
+const More = ({ user, theme, toggleTheme, showToast, refreshData }) => {
   const [showBacklog, setShowBacklog] = usePref(SHOW_BACKLOG, true);
   const { logout } = useAuth();
   const navigate = useNavigate();
   const isDark = theme === 'dark';
+  const [editingName, setEditingName] = useState(false);
+  const [draftName, setDraftName] = useState('');
+  const [savingName, setSavingName] = useState(false);
+
+  const saveName = async (e) => {
+    e.preventDefault();
+    const name = draftName.trim();
+    if (!name || name === user?.fullName) { setEditingName(false); return; }
+    setSavingName(true);
+    try {
+      await api.patch('/update-user', { fullName: name });
+      // Everything showing the name reads it from the shared load.
+      await refreshData?.();
+      showToast?.('Name updated');
+      setEditingName(false);
+    } catch (err) {
+      showToast?.(err.response?.data?.message || 'Could not update your name', 'error');
+    } finally {
+      setSavingName(false);
+    }
+  };
+
 
   const handleLogout = async () => {
     await logout();
@@ -47,7 +70,56 @@ const More = ({ user, theme, toggleTheme, showToast, onNavigate }) => {
             </button>
           </div>
           
-          <h2 className="text-lg font-bold text-white mb-1">{user?.fullName || 'Operator'}</h2>
+          {/*
+            The name is editable in place. A whole modal for one short text
+            field is more ceremony than the change deserves, and the pencil
+            beside it says it can be changed without a label explaining so.
+          */}
+          {editingName ? (
+            <form
+              onSubmit={saveName}
+              className="flex items-center gap-2 mb-1"
+              data-testid="name-form"
+            >
+              <input
+                autoFocus
+                value={draftName}
+                maxLength={60}
+                onChange={(e) => setDraftName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Escape') setEditingName(false); }}
+                aria-label="Your name"
+                data-testid="name-input"
+                className="w-44 bg-[#0d0f12] border border-white/15 rounded-lg px-3 h-9 text-center text-white text-lg font-bold"
+              />
+              <button
+                type="submit"
+                disabled={savingName || !draftName.trim()}
+                aria-label="Save name"
+                data-testid="name-save"
+                className="w-9 h-9 grid place-items-center rounded-lg bg-[#c0b3a5] text-black disabled:opacity-40"
+              >
+                <Check size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingName(false)}
+                aria-label="Cancel"
+                className="w-9 h-9 grid place-items-center rounded-lg border border-white/10 text-white/50 hover:text-white"
+              >
+                <X size={15} />
+              </button>
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => { setDraftName(user?.fullName ?? ''); setEditingName(true); }}
+              data-testid="name-edit"
+              className="group flex items-center gap-2 mb-1 rounded-lg px-2 py-0.5 hover:bg-white/5 transition-colors"
+            >
+              <h2 className="text-lg font-bold text-white">{user?.fullName || 'Operator'}</h2>
+              <Edit2 size={13} className="text-white/25 group-hover:text-[#c0b3a5] transition-colors" />
+            </button>
+          )}
           <p className="text-sm text-focus-teal mb-4">{user?.email || 'operator@focus.io'}</p>
           
           <div className="bg-[#1e2a24] text-[#c0b3a5] px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2">

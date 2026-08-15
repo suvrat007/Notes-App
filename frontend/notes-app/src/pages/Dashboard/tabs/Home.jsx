@@ -196,29 +196,33 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
               </div>
 
               {stars?.rank && (
-                <div className="mb-5" data-testid="rank">
-                  {/* Wraps rather than crushes. In the three-column grid this
-                      card is ~230px wide, and "RECRUIT 1" was being squeezed to
-                      18px next to the badge and the star count. */}
-                  <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 mb-1.5">
-                    <span className="flex items-center gap-2 min-w-0">
-                      <RankBadge
-                        badge={stars.rank.badge}
-                        color={stars.rank.color}
-                        size="sm"
-                        title={stars.rank.title}
-                      />
+                <div className="mb-3" data-testid="rank">
+                  {/*
+                    The badge IS the rank marker, so the bordered pill beside it
+                    was a second one competing for the same job. Name in the
+                    rank colour, level after it, and the distance to the next on
+                    its own quiet line rather than wrapping against the title.
+                  */}
+                  <div className="flex items-center gap-2 mb-1.5 min-w-0">
+                    <RankBadge
+                      badge={stars.rank.badge}
+                      color={stars.rank.color}
+                      size="sm"
+                      title={stars.rank.title}
+                    />
+                    <span className="min-w-0 truncate">
                       <span
-                        className="text-[10px] font-black tracking-[0.15em] uppercase px-2 py-0.5 rounded-full border whitespace-nowrap"
-                        style={{ color: stars.rank.color, borderColor: stars.rank.color }}
+                        className="text-[12px] font-black tracking-wide uppercase"
+                        style={{ color: stars.rank.color }}
                       >
-                        {stars.rank.title} {stars.rank.level}
+                        {stars.rank.title}
+                      </span>
+                      <span className="text-[11px] font-bold text-white/35 ml-1.5">
+                        LVL {stars.rank.level}
                       </span>
                     </span>
-                    <span className="text-[10px] font-bold text-white/40 tabular-nums shrink-0">
-                      {stars.rank.nextAt === null ? 'MAX' : `${stars.rank.toNext}★ to next`}
-                    </span>
                   </div>
+
                   <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
@@ -228,16 +232,31 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
                       }}
                     />
                   </div>
+                  <p className="text-[10px] text-white/35 mt-1 tabular-nums">
+                    {stars.rank.nextAt === null
+                      ? 'Highest rank reached'
+                      : `${stars.rank.toNext}★ to ${stars.rank.nextTitle ?? 'the next level'}`}
+                  </p>
                 </div>
               )}
-              <div className="flex items-end gap-1.5 h-10 w-full" title="Stars earned each of the last 7 days">
-                {starsByDay.map((v, i) => (
-                  <div
-                    key={i}
-                    className={`flex-1 rounded-sm ${i === 6 ? 'bg-[#c0b3a5]' : 'bg-white/10'}`}
-                    style={{ height: `${Math.max(8, Math.round((Math.max(v, 0) / maxBar) * 100))}%` }}
-                  />
-                ))}
+              {/*
+                Seven days, on a baseline. Floating stubs of differing heights
+                with nothing to sit on read as damage rather than data, so the
+                bars grow from a line and today is the only one in colour.
+              */}
+              <div className="mt-auto pt-3">
+                <div
+                  className="flex items-end gap-1 h-9 w-full border-b border-white/10"
+                  title="Stars earned each of the last 7 days"
+                >
+                  {starsByDay.map((v, i) => (
+                    <div
+                      key={i}
+                      className={`flex-1 rounded-t-sm ${i === 6 ? 'bg-[#c0b3a5]' : 'bg-white/[0.14]'}`}
+                      style={{ height: `${Math.max(6, Math.round((Math.max(v, 0) / maxBar) * 100))}%` }}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           </Card>

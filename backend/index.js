@@ -284,6 +284,34 @@ app.post("/logout", (req, res) => {
     return res.json({ error: false, message: "Logged out" });
 });
 
+/**
+ * Change your display name.
+ *
+ * The ONLY field this accepts. Email identifies the account and is what a
+ * Google sign-in matches on, and totalStars is summed from the ledger — both
+ * would be nonsense to let a client set, so neither is read here even if sent.
+ */
+app.patch("/update-user", authenticateToken, async (req, res) => {
+    const name = String(req.body.fullName ?? '').trim();
+
+    if (!name) return res.status(400).json({ error: true, message: "Name cannot be empty" });
+    if (name.length > 60) {
+        return res.status(400).json({ error: true, message: "That name is too long" });
+    }
+
+    try {
+        const user = await User.findByIdAndUpdate(
+            req.userId,
+            { fullName: name },
+            { new: true, runValidators: true },
+        );
+        if (!user) return res.status(404).json({ error: true, message: "User not found" });
+        return res.json({ error: false, fullName: user.fullName, message: "Name updated" });
+    } catch (e) {
+        return res.status(400).json({ error: true, message: e.message || "Could not update name" });
+    }
+});
+
 app.get("/get-user", authenticateToken, async(req, res) => {
     const isUser = await User.findById(req.userId);
     if(!isUser) return res.status(404).json({error:true, message:"User not found"});

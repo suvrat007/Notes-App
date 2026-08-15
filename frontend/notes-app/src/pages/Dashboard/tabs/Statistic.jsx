@@ -104,7 +104,7 @@ const Statistic = () => {
         <p className="text-sm text-white/40 mt-1">Everything below is summed from your ledger.</p>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 md:flex-1 md:min-h-0 pb-24 md:pb-0">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 md:flex-1 md:min-h-0">
       <CardBox title="This Week" delay={0.05}>
         {/*
           On a phone the chart is the wrong shape for the data.
