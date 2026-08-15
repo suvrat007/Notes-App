@@ -82,7 +82,7 @@ const Dashboard = () => {
     */
     return (
       <div className="min-h-[100dvh] grid place-content-center justify-items-center gap-[18px] bg-[#0d0f12]">
-        <span className="text-[15px] font-extrabold tracking-[0.32em] text-[#c0b3a5]">FOCUS</span>
+        <span className="text-[15px] font-extrabold tracking-[0.32em] text-[#c0b3a5]">FORGE</span>
         <span className="w-[26px] h-[26px] rounded-full border-2 border-white/10 border-t-[#c0b3a5] animate-spin motion-reduce:[animation-duration:2.4s]" />
       </div>
     );
@@ -120,7 +120,7 @@ const Dashboard = () => {
               nothing is worse than no control, so they now go somewhere.
             */}
             <div className="flex items-center gap-3">
-              <span className="font-heading font-bold text-white tracking-widest text-lg">FOCUS</span>
+              <span className="font-heading font-bold text-white tracking-widest text-lg">FORGE</span>
             </div>
             <button
               type="button"

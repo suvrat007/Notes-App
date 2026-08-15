@@ -190,7 +190,7 @@ const HabitModal = ({ habit, onClose, refreshData, showToast }) => {
 
               <div className="space-y-2">
                 <Label className="text-[10px] font-bold text-white/60 tracking-widest uppercase">
-                  Goal (0 = no goal)
+                  Goal <span className="normal-case tracking-normal text-white/30">(0 = none)</span>
                 </Label>
                 <div className="flex gap-2 items-center">
                   <Input
@@ -201,12 +201,13 @@ const HabitModal = ({ habit, onClose, refreshData, showToast }) => {
                   />
                   <Input
                     type="text" data-testid="habit-unit" maxLength={16}
-                    placeholder="reps"
-                    className="bg-[#0d0f12] border-white/10 text-white h-11 w-24 text-center"
+                    placeholder="sessions"
+                    aria-label="What one counts as"
+                    className="bg-[#0d0f12] border-white/10 text-white h-11 flex-1 min-w-0 px-3"
                     value={unit}
                     onChange={(e) => setUnit(e.target.value)}
                   />
-                  <span className="text-[10px] text-white/40 tracking-wider">PER</span>
+                  <span className="text-[10px] text-white/40 tracking-wider shrink-0">PER</span>
                   <Select
                     testId="habit-period"
                     ariaLabel="Goal period"
@@ -217,9 +218,9 @@ const HabitModal = ({ habit, onClose, refreshData, showToast }) => {
                   />
                 </div>
                 <p className="text-[10px] text-white/40">
-                  {unit.trim()
-                    ? `Logged in ${unit.trim()}, so ${starsPerRep}★ per ${unit.trim()} and going over still earns.`
-                    : 'Counted across the whole period, several in one day is fine.'}
+                  {Number(targetReps) > 0
+                    ? `${targetReps} ${unit.trim() || 'sessions'} a ${(PERIODS.find((x) => x.weeks === Number(targetPeriodWeeks))?.label ?? 'week').toLowerCase()}, at ${starsPerRep}★ each. Miss any and they cost the same at the end.`
+                    : 'No goal, so nothing to fall short of. Each one still earns.'}
                 </p>
               </div>
 

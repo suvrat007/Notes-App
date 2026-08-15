@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Plus, Minus, Check, Flame, Ban } from 'lucide-react';
+import EntryRow from './EntryRow';
 
 /**
  * One habit row, built for a NARROW column.
@@ -131,80 +132,71 @@ const HabitCard = ({ habit, onChange }) => {
         habit.targetReps > 0 && habit.dailyTarget === 0 && reps > 0 && `${reps} today`,
       ].filter(Boolean).join(' · ');
 
+  const controls = (
+    <>
+      {/* How much of it. Only for habits that measure something; a plain rep
+          has nothing to type. */}
+      {unit && (
+        <span className="flex items-center gap-1 shrink-0">
+          <input
+            type="number"
+            min={1}
+            value={amount}
+            onChange={(ev) => setAmount(ev.target.value)}
+            aria-label={`How many ${unit} of ${habit.name}`}
+            data-testid={`amount-${habit._id}`}
+            className="w-12 h-7 bg-[#0d0f12] border border-white/10 rounded-lg px-1.5 text-center text-white text-[11px] tabular-nums"
+          />
+          <span className="text-[10px] text-white/35">{unit}</span>
+        </span>
+      )}
+
+      <button
+        type="button"
+        disabled={reps === 0}
+        onClick={() => queue(-step)}
+        aria-label={`Remove one ${habit.name}`}
+        data-testid={`undo-${habit._id}`}
+        className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-white/60 grid place-items-center disabled:opacity-30 hover:text-white transition-colors shrink-0"
+      >
+        <Minus size={13} />
+      </button>
+      <button
+        type="button"
+        onClick={() => queue(step)}
+        aria-label={`Log ${habit.name}`}
+        data-testid={`log-${habit._id}`}
+        className={`w-8 h-8 rounded-lg ${tileBg} border border-white/10 ${accent} grid place-items-center hover:scale-105 active:scale-95 transition-transform shrink-0`}
+      >
+        <Plus size={15} />
+      </button>
+    </>
+  );
+
   return (
-    <div
-      className={`bg-black/40 border border-white/5 rounded-xl ${edge} border-l-[3px] px-3 py-2`}
-      data-testid={`habit-${habit._id}`}
-    >
-      <div className="flex items-center gap-2.5">
-        <span className={`w-8 h-8 rounded-lg ${tileBg} grid place-items-center shrink-0`}>
-          <Icon size={14} className={accent} />
-        </span>
-
-        <h4 className="flex-1 min-w-0 text-sm font-bold text-white truncate">{habit.name}</h4>
-
-        {/* The glyph reads at a glance; data-reps carries the exact number for
-            anything that needs it, screen readers included. */}
-        <span
-          className={`font-heading font-black text-base leading-none tabular-nums shrink-0 ${
-            met ? accent : 'text-white/30'
-          }`}
-          data-testid={`count-${habit._id}`}
-          data-reps={reps}
-          aria-label={`${reps} today`}
-        >
-          {counted ? countText : (met ? <Check size={17} /> : '-')}
-        </span>
-      </div>
-
-      <div className="flex items-center gap-2 mt-1.5">
-        <p className="flex-1 min-w-0 text-[11px] text-white/45 truncate" title={terms}>
+    <EntryRow
+      testId={`habit-${habit._id}`}
+      icon={Icon}
+      accent={accent}
+      tile={tileBg}
+      edge={edge}
+      title={habit.name}
+      figure={counted ? countText : (met ? <Check size={17} /> : null)}
+      figureLit={met}
+      figureTestId={`count-${habit._id}`}
+      figureAttrs={{ 'data-reps': reps, 'aria-label': `${reps} today` }}
+      terms={(
+        <>
           {terms}
           {/* Being past the allowance changes what the NEXT tap costs, so it
-              has to be said on the card and not left to be discovered. */}
+              has to be said on the card, not left to be discovered. */}
           {isBad && reps > habit.dailyAllowance && (
             <span className="text-focus-red font-bold"> · over</span>
           )}
-        </p>
-
-        {/* How much of it. Only for habits that measure something; a plain
-            rep has nothing to type. */}
-        {unit && (
-          <span className="flex items-center gap-1 shrink-0">
-            <input
-              type="number"
-              min={1}
-              value={amount}
-              onChange={(ev) => setAmount(ev.target.value)}
-              aria-label={`How many ${unit} of ${habit.name}`}
-              data-testid={`amount-${habit._id}`}
-              className="w-12 h-7 bg-[#0d0f12] border border-white/10 rounded-lg px-1.5 text-center text-white text-[11px] tabular-nums"
-            />
-            <span className="text-[10px] text-white/35">{unit}</span>
-          </span>
-        )}
-
-        <button
-          type="button"
-          disabled={reps === 0}
-          onClick={() => queue(-step)}
-          aria-label={`Remove one ${habit.name}`}
-          data-testid={`undo-${habit._id}`}
-          className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-white/60 grid place-items-center disabled:opacity-30 hover:text-white transition-colors shrink-0"
-        >
-          <Minus size={13} />
-        </button>
-        <button
-          type="button"
-          onClick={() => queue(step)}
-          aria-label={`Log ${habit.name}`}
-          data-testid={`log-${habit._id}`}
-          className={`w-8 h-8 rounded-lg ${tileBg} border border-white/10 ${accent} grid place-items-center hover:scale-105 active:scale-95 transition-transform shrink-0`}
-        >
-          <Plus size={15} />
-        </button>
-      </div>
-    </div>
+        </>
+      )}
+      controls={controls}
+    />
   );
 };
 

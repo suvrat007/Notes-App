@@ -120,7 +120,7 @@ const More = ({ user, theme, toggleTheme, showToast, refreshData }) => {
               <Edit2 size={13} className="text-white/25 group-hover:text-[#c0b3a5] transition-colors" />
             </button>
           )}
-          <p className="text-sm text-focus-teal mb-4">{user?.email || 'operator@focus.io'}</p>
+          <p className="text-sm text-focus-teal mb-4">{user?.email || 'operator@forge.io'}</p>
           
           <div className="bg-[#1e2a24] text-[#c0b3a5] px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2">
             <div className="bg-[#c0b3a5] text-black w-4 h-4 rounded-full flex items-center justify-center">

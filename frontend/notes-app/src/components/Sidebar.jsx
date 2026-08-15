@@ -7,7 +7,7 @@ import { TABS } from './navConfig';
 const Sidebar = ({ active, onChange, user, rank, lifetime }) => (
   <aside className="hidden md:flex flex-col w-64 shrink-0 bg-[#0d0f12] border-r border-white/5 p-6 h-screen sticky top-0">
     <div className="mb-10">
-      <h1 className="font-heading font-bold text-white text-xl tracking-widest">FOCUS</h1>
+      <h1 className="font-heading font-bold text-white text-xl tracking-widest">FORGE</h1>
       <p className="text-[10px] text-white/40 font-mono tracking-widest uppercase mt-1">Productivity Workspace</p>
     </div>
 

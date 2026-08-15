@@ -80,7 +80,7 @@ const Login = () => {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 sm:px-8 pt-6 pb-4 border-b border-white/5">
-          <span className="font-heading font-bold text-white tracking-widest text-sm">FOCUS</span>
+          <span className="font-heading font-bold text-white tracking-widest text-sm">FORGE</span>
           <div className="flex items-center gap-3">
             <span className="text-[10px] font-mono text-focus-teal font-semibold tracking-wider">V2.4.0</span>
             <div className="p-1.5 border border-white/20 rounded bg-black/40">

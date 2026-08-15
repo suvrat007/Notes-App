@@ -141,7 +141,7 @@ export async function transcribe(clip) {
   return text;
 }
 
-const SYSTEM = `You turn a spoken daily log into JSON for Focus, a habit + task tracker.
+const SYSTEM = `You turn a spoken daily log into JSON for Forge, a habit + task tracker.
 
 Two kinds of sentence arrive together and must be told apart:
 an UPDATE reports what already happened; a PLAN sets something up for later.

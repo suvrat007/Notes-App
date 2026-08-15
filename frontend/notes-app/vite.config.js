@@ -98,8 +98,8 @@ export default defineConfig(({ mode }) => {
          * existing install.
          */
         id: '/',
-        name: 'Focus - Productivity Tracker',
-        short_name: 'Focus',
+        name: 'Forge - Productivity Tracker',
+        short_name: 'Forge - Productivity Tracker',
         description: 'Gamified productivity and habit tracker',
         theme_color: '#0a0a0c',
         background_color: '#0a0a0c',

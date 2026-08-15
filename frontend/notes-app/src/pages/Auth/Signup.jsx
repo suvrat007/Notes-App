@@ -65,9 +65,7 @@ const Signup = () => {
         animate={{ opacity: 1, y: 0 }} 
         className="w-full max-w-[420px] bg-[#16191e] border border-white/5 rounded-3xl overflow-hidden py-6 px-6 sm:px-10 relative"
       >
-        <h2 className="font-heading text-center text-xl font-medium tracking-widest text-white/80 mb-5">
-          FOCUS
-        </h2>
+        <h2 className="font-heading text-center text-xl font-medium tracking-widest text-white/80 mb-5">FORGE</h2>
         
         <div className="text-center mb-5">
           <h1 className="font-sans text-2xl font-bold text-white mb-1.5">Start Tracking</h1>
