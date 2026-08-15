@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Star, ArrowRight, Plus, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -12,9 +12,30 @@ import RankBadge from '../../../components/RankBadge';
 import TaskRow from '../../../components/TaskRow';
 import { usePref, SHOW_BACKLOG } from '../../../utils/prefs';
 
+/*
+ * One rhythm for the whole screen.
+ *
+ * Five hand-written delays drift apart the moment anything is added or
+ * reordered, and they all used framer's default easing, which starts at full
+ * speed and stops dead. A container that staggers its own children keeps the
+ * sequence right by itself, and the curve below eases in AND out so the cards
+ * settle instead of snapping.
+ */
+const EASE = [0.4, 0, 0.2, 1];
+
+const screen = {
+  hidden: {},
+  shown: { transition: { staggerChildren: 0.07, delayChildren: 0.04 } },
+};
+
+const rise = {
+  hidden: { opacity: 0, y: 16 },
+  shown: { opacity: 1, y: 0, transition: { duration: 0.45, ease: EASE } },
+};
 const todayKey = () => new Date().toLocaleDateString('en-CA');
 
 const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) => {
+  const reduce = useReducedMotion();
   const [showHabitModal, setShowHabitModal] = useState(false);
   // Some people want yesterday in front of them; some find it discouraging.
   const [showBacklog] = usePref(SHOW_BACKLOG, true);
@@ -127,7 +148,12 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
 
 
   return (
-    <div className="space-y-4 md:space-y-5 md:h-full md:flex md:flex-col md:min-h-0">
+    <motion.div
+      className="space-y-4 md:space-y-5 md:h-full md:flex md:flex-col md:min-h-0"
+      variants={screen}
+      initial={reduce ? false : 'hidden'}
+      animate="shown"
+    >
       <header className="hidden md:block">
         <motion.h1
           initial={{ x: -16, opacity: 0 }}
@@ -145,7 +171,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 md:shrink-0 items-stretch">
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+        <motion.div variants={rise}>
           <Card className="bg-[#16191e] border-white/5 h-full rounded-2xl md:rounded-xl">
             <CardHeader className="pb-2 px-4 sm:px-5 pt-4 sm:pt-5">
               <CardTitle className="text-[11px] font-bold text-white/60 tracking-wide">Today's Progress</CardTitle>
@@ -180,7 +206,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
             this wrapper is display:contents and they become columns again. */}
         <div className="flex flex-col gap-3 sm:gap-4 md:contents">
 
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        <motion.div variants={rise}>
           <Card className="bg-[#16191e] border-white/5 h-full flex flex-col justify-between rounded-2xl md:rounded-xl p-4 sm:p-5">
             <CardTitle className="text-[11px] font-bold text-white/60 tracking-wide mb-3">Total Stars</CardTitle>
             <div>
@@ -262,7 +288,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
           </Card>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+        <motion.div variants={rise}>
           <Card className="bg-[#16191e] border-white/5 h-full flex flex-col justify-between rounded-2xl md:rounded-xl p-4 sm:p-5">
             <CardTitle className="text-[11px] font-bold text-white/60 tracking-wide mb-3">Tasks Done Today</CardTitle>
             <div>
@@ -328,7 +354,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5 md:flex-1 md:min-h-0">
       {/* ---- Habits: the things you repeat, as opposed to finish ---- */}
       <motion.div
-        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
+        variants={rise}
         className="bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6 md:flex md:flex-col md:min-h-0 md:overflow-hidden"
         data-testid="habits-section"
       >
@@ -359,7 +385,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
         </div>
       </motion.div>
 
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6 md:flex md:flex-col md:min-h-0 md:overflow-hidden" data-testid="plan-section">
+      <motion.div variants={rise} className="bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6 md:flex md:flex-col md:min-h-0 md:overflow-hidden" data-testid="plan-section">
         {/* Work that did not stop being owed at midnight. Shown with the day's
             own list, so it is something to do today rather than a wall of
             shame parked somewhere else. */}
@@ -431,7 +457,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
           showToast={showToast}
         />
       )}
-    </div>
+    </motion.div>
   );
 };
 
