@@ -171,7 +171,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 md:shrink-0 items-stretch">
-        <motion.div variants={rise}>
+        <motion.div variants={rise} className="order-1 md:order-none">
           <Card className="bg-[#16191e] border-white/5 h-full rounded-2xl md:rounded-xl">
             <CardHeader className="pb-2 px-4 sm:px-5 pt-4 sm:pt-5">
               <CardTitle className="text-[11px] font-bold text-white/60 tracking-wide">Today's Progress</CardTitle>
@@ -204,9 +204,8 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
         </motion.div>
         {/* Two small figures share the right half on a phone; on a desktop
             this wrapper is display:contents and they become columns again. */}
-        <div className="flex flex-col gap-3 sm:gap-4 md:contents">
 
-        <motion.div variants={rise}>
+        <motion.div variants={rise} className="order-3 col-span-2 md:order-none md:col-span-1">
           <Card className="bg-[#16191e] border-white/5 h-full flex flex-col justify-between rounded-2xl md:rounded-xl p-4 sm:p-5">
             <CardTitle className="text-[11px] font-bold text-white/60 tracking-wide mb-3">Total Stars</CardTitle>
             <div>
@@ -288,7 +287,7 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
           </Card>
         </motion.div>
 
-        <motion.div variants={rise}>
+        <motion.div variants={rise} className="order-2 md:order-none">
           <Card className="bg-[#16191e] border-white/5 h-full flex flex-col justify-between rounded-2xl md:rounded-xl p-4 sm:p-5">
             <CardTitle className="text-[11px] font-bold text-white/60 tracking-wide mb-3">Tasks Done Today</CardTitle>
             <div>
@@ -307,7 +306,6 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
             </div>
           </Card>
         </motion.div>
-        </div>
       </div>
 
       {/*
