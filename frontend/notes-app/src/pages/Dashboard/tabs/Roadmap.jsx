@@ -72,33 +72,33 @@ const Roadmap = () => {
         className="bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6 md:shrink-0"
         data-testid="roadmap-summary"
       >
-        <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-end gap-x-6 gap-y-3 sm:gap-x-8 sm:gap-y-4">
+        <div className="grid grid-cols-3 sm:flex sm:flex-wrap sm:items-end gap-x-2 gap-y-3 sm:gap-x-8 sm:gap-y-4">
           <div>
-            <p className="text-[10px] font-bold tracking-widest uppercase text-white/40">This week</p>
-            <p className="font-heading font-black text-3xl sm:text-4xl text-white leading-none mt-1.5 tabular-nums">
-              {summary.done}<span className="text-white/30 text-2xl"> / {summary.target}</span>
+            <p className="text-[9px] sm:text-[10px] font-bold tracking-wider sm:tracking-widest uppercase text-white/40 whitespace-nowrap">This week</p>
+            <p className="font-heading font-black text-2xl sm:text-4xl text-white leading-none mt-1.5 tabular-nums">
+              {summary.done}<span className="text-white/30 text-lg sm:text-2xl"> / {summary.target}</span>
             </p>
           </div>
 
           <div>
-            <p className="text-[10px] font-bold tracking-widest uppercase text-white/40">Days left</p>
-            <p className="font-heading font-black text-3xl sm:text-4xl text-white leading-none mt-1.5 tabular-nums">
+            <p className="text-[9px] sm:text-[10px] font-bold tracking-wider sm:tracking-widest uppercase text-white/40 whitespace-nowrap">Days left</p>
+            <p className="font-heading font-black text-2xl sm:text-4xl text-white leading-none mt-1.5 tabular-nums">
               {daysLeft}
             </p>
           </div>
 
           <div className="sm:flex-1 sm:min-w-[180px]">
-            <p className="text-[10px] font-bold tracking-widest uppercase text-white/40">
-              Still on the table
+            <p className="text-[9px] sm:text-[10px] font-bold tracking-wider sm:tracking-widest uppercase text-white/40 whitespace-nowrap">
+              On the table
             </p>
-            <p className="font-heading font-black text-3xl sm:text-4xl leading-none mt-1.5 tabular-nums text-[#c0b3a5]">
+            <p className="font-heading font-black text-2xl sm:text-4xl leading-none mt-1.5 tabular-nums text-[#c0b3a5]">
               {summary.starsOnTheTable}★
             </p>
           </div>
 
           <span
             data-testid="roadmap-verdict"
-            className={`col-span-2 sm:col-auto flex items-center justify-center sm:justify-start gap-2 px-3 py-2 rounded-xl border text-[11px] font-bold tracking-wider ${
+            className={`col-span-3 sm:col-auto flex items-center justify-center sm:justify-start gap-2 px-3 py-2 rounded-xl border text-[11px] font-bold tracking-wider ${
               summary.onTrack
                 ? 'border-[#3ecf8e]/40 text-[#3ecf8e]'
                 : 'border-focus-red/40 text-focus-red'
