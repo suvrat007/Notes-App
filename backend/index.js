@@ -339,6 +339,7 @@ app.use('/ledger', require('./routes/ledger.js'));
 app.use('/manage', require('./routes/manage.js'));
 app.use('/roadmap', require('./routes/roadmap.js'));
 app.use('/rank', require('./routes/rank.js'));
+app.use('/social', require('./routes/social.js'));
 
 /*
  * A day is stored as midnight UTC, and the whole app looks tasks up by exact

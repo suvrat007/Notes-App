@@ -17,8 +17,9 @@ import Data from './tabs/Data';
 import More from './tabs/More';
 import Manage from './tabs/Manage';
 import Roadmap from './tabs/Roadmap';
+import Squad from './tabs/Squad';
 
-const TABS = { home: Home, statistic: Statistic, calendar: Calendar, data: Data, more: More, manage: Manage, roadmap: Roadmap };
+const TABS = { home: Home, statistic: Statistic, calendar: Calendar, data: Data, more: More, manage: Manage, roadmap: Roadmap, squad: Squad };
 
 const Dashboard = () => {
   const [user, setUser] = useState(null);

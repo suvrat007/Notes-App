@@ -84,6 +84,15 @@ const TaskSchema = new Schema({
     googleEventId: { type: String, default: null },
 
     /** Manual sort position within its day. */
+    /*
+     * Set when this task was stamped out of a crew's shared assignment. The
+     * task behaves exactly like any other; the tag is what lets the weekly
+     * crew board find the work and score it.
+     */
+    groupId: { type: Schema.Types.ObjectId, ref: 'Group', default: null, index: true },
+    /** Which shared task it is a copy of, so all copies can be found together. */
+    groupTaskId: { type: Schema.Types.ObjectId, default: null },
+
     order: { type: Number, default: 0 },
     createdAt: { type: Date, default: Date.now }
 });

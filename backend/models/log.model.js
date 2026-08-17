@@ -22,7 +22,7 @@ const LogSchema = new Schema({
     /** What kind of thing this entry is about, and therefore what refId means. */
     kind: {
         type: String,
-        enum: ['habit', 'task', 'redeem', 'missed-task'],
+        enum: ['habit', 'task', 'redeem', 'missed-task', 'crew-podium'],
         required: true,
     },
     /** The habit / task / reward this refers to. */

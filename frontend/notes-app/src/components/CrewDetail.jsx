@@ -1,0 +1,226 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { X, Copy, Plus, Trash2, LogOut, Trophy } from 'lucide-react';
+import api from '../utils/api';
+import RankBadge from './RankBadge';
+import { SkeletonRows } from './Skeleton';
+
+const todayKey = () => new Date().toLocaleDateString('en-CA');
+
+const MEDAL = { 1: '#e0b062', 2: '#c8ccd4', 3: '#c08457' };
+
+/**
+ * One crew: who is winning, and what everyone agreed to do.
+ *
+ * The board is scored on shared tasks ONLY. Counting members' personal work
+ * would rank whoever set themselves the most generous rewards, which measures
+ * self-assessment rather than effort — so the tasks listed underneath are
+ * exactly the tasks the numbers above came from, and that is worth being able
+ * to see on the same screen.
+ */
+const CrewDetail = ({ crewId, onClose, onChanged, showToast }) => {
+  const [crew, setCrew] = useState(null);
+  const [title, setTitle] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await api.get(`/social/crews/${crewId}`, { params: { date: todayKey() } });
+      setCrew(res.data.crew);
+    } catch (err) {
+      showToast?.(err.response?.data?.message || 'Could not load that crew', 'error');
+      onClose();
+    }
+  }, [crewId, showToast, onClose]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const act = async (fn, msg) => {
+    if (busy) return false;
+    setBusy(true);
+    try {
+      const res = await fn();
+      showToast?.(msg ?? res?.data?.message ?? 'Done');
+      onChanged?.();
+      return true;
+    } catch (err) {
+      showToast?.(err.response?.data?.message || 'That did not work', 'error');
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(crew.inviteCode);
+      showToast?.('Code copied');
+    } catch {
+      // A device that will not allow the copy still shows the code on screen.
+      showToast?.(`Invite code: ${crew.inviteCode}`);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center z-[1000] sm:p-5"
+         onClick={onClose}>
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ ease: 'easeOut' }}
+        onClick={(ev) => ev.stopPropagation()}
+        data-testid="crew-detail"
+        className="bg-[#16191e] border border-white/10 rounded-t-2xl sm:rounded-2xl p-5 sm:p-6 w-full sm:max-w-[440px] relative max-h-[88vh] overflow-y-auto"
+      >
+        <button onClick={onClose} aria-label="Close"
+          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/5 grid place-items-center text-white/60 hover:text-white">
+          <X size={16} />
+        </button>
+
+        {!crew ? (
+          <SkeletonRows rows={4} />
+        ) : (
+          <>
+            <h2 className="font-heading font-black text-lg text-white pr-10">{crew.name}</h2>
+
+            <button
+              onClick={copyCode}
+              data-testid="copy-code"
+              className="mt-2 inline-flex items-center gap-2 h-8 px-3 rounded-lg bg-white/5 border border-white/10 text-white/70 hover:text-white transition-colors"
+            >
+              <span className="font-mono text-sm tracking-[0.25em]">{crew.inviteCode}</span>
+              <Copy size={13} />
+            </button>
+
+            {/* ---- the board ---- */}
+            <div className="flex items-center justify-between mt-6 mb-2">
+              <h3 className="text-[11px] font-bold text-white/50 tracking-widest uppercase">This week</h3>
+              {/* A solo crew pays nothing, and "1st takes +0★" reads as a bug
+                  rather than as a rule. The line under the board explains it. */}
+              {crew.topPrize > 0 && (
+                <span className="text-[10px] text-[#e0b062] font-bold">1st takes +{crew.topPrize}★</span>
+              )}
+            </div>
+
+            <div className="space-y-2" data-testid="crew-board">
+              {crew.board.map((m) => (
+                <div
+                  key={m.userId}
+                  data-testid={`board-${m.userId}`}
+                  data-place={m.place}
+                  className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 border ${
+                    m.isMe ? 'bg-white/[0.07] border-white/20' : 'bg-black/40 border-white/5'
+                  }`}
+                >
+                  <span className="w-5 text-center font-heading font-black text-sm tabular-nums shrink-0"
+                        style={{ color: MEDAL[m.place] ?? 'rgba(255,255,255,0.3)' }}>
+                    {m.place}
+                  </span>
+                  <RankBadge badge={m.rank.badge} color={m.rank.color} size="sm" title={m.rank.title} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-white truncate">
+                      {m.fullName}{m.isMe && <span className="text-white/40 font-normal"> · you</span>}
+                    </p>
+                    <p className="text-[11px] text-white/45 truncate">{m.rank.title} · Level {m.rank.level}</p>
+                  </div>
+                  <span className="font-heading font-black text-base tabular-nums shrink-0"
+                        style={{ color: MEDAL[m.place] ?? 'rgba(255,255,255,0.3)' }}>
+                    {m.stars}★
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {crew.board.length < 2 && (
+              <p className="text-[11px] text-white/35 mt-2">
+                Nothing is paid out until someone else joins — a crew of one has no contest to win.
+              </p>
+            )}
+
+            {/* ---- shared assignment ---- */}
+            <div className="flex items-center justify-between mt-6 mb-2">
+              <h3 className="text-[11px] font-bold text-white/50 tracking-widest uppercase">Shared tasks</h3>
+              <span className="text-[10px] text-white/30">what the board scores</span>
+            </div>
+
+            <div className="space-y-2" data-testid="shared-tasks">
+              {crew.sharedTasks.map((s) => (
+                <div key={s._id} data-testid={`shared-${s._id}`}
+                  className="flex items-center gap-2.5 bg-black/40 border border-white/5 border-l-[3px] border-l-[#e0b062] rounded-xl px-3 py-2.5">
+                  <span className="w-8 h-8 rounded-lg bg-[#2a2419] grid place-items-center shrink-0">
+                    <Trophy size={13} className="text-[#e0b062]" />
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-white truncate">{s.title}</p>
+                    <p className="text-[11px] text-white/45 truncate">
+                      {s.type} · +{s.baseReward}★{s.targetCount > 1 && ` · ${s.targetCount}×`}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => act(async () => {
+                      const r = await api.delete(`/social/crews/${crewId}/tasks/${s._id}`);
+                      await load();
+                      return r;
+                    })}
+                    aria-label={`Remove ${s.title}`}
+                    className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-[#e5484d] grid place-items-center shrink-0 transition-colors"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))}
+
+              {crew.sharedTasks.length === 0 && (
+                <p className="text-xs text-white/35 bg-black/20 border border-white/5 rounded-xl px-3 py-4 text-center">
+                  Nothing shared yet. Add a task and everyone gets it on their own list.
+                </p>
+              )}
+            </div>
+
+            <form
+              className="flex gap-2 mt-3"
+              onSubmit={async (ev) => {
+                ev.preventDefault();
+                if (!title.trim()) return;
+                const done = await act(async () => {
+                  const r = await api.post(`/social/crews/${crewId}/tasks`,
+                    { title: title.trim(), date: todayKey() });
+                  await load();
+                  return r;
+                });
+                if (done) setTitle('');
+              }}
+            >
+              <input
+                value={title}
+                onChange={(ev) => setTitle(ev.target.value)}
+                placeholder="Everyone does..."
+                maxLength={120}
+                aria-label="New shared task"
+                data-testid="shared-title"
+                className="flex-1 min-w-0 h-10 bg-[#0d0f12] border border-white/10 rounded-xl px-3 text-sm text-white placeholder:text-white/25"
+              />
+              <button type="submit" disabled={busy || !title.trim()} data-testid="shared-add"
+                aria-label="Add shared task"
+                className="w-10 h-10 rounded-xl bg-[#e0b062] text-black grid place-items-center disabled:opacity-30 shrink-0">
+                <Plus size={17} />
+              </button>
+            </form>
+
+            <button
+              onClick={async () => {
+                if (await act(() => api.post(`/social/crews/${crewId}/leave`))) onClose();
+              }}
+              data-testid="crew-leave"
+              className="w-full h-10 mt-5 rounded-xl border border-[#e5484d]/30 text-[#e5484d] text-xs font-bold tracking-widest flex items-center justify-center gap-2 hover:bg-[#e5484d]/10 transition-colors"
+            >
+              <LogOut size={14} /> LEAVE CREW
+            </button>
+          </>
+        )}
+      </motion.div>
+    </div>
+  );
+};
+
+export default CrewDetail;
