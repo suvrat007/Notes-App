@@ -1,10 +1,13 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Copy, Plus, Trash2, LogOut, Trophy, Repeat, Ban, Loader2 } from 'lucide-react';
+import { X, Copy, Plus, Trash2, LogOut, Trophy, Repeat, Ban, Loader2, Mic, Square } from 'lucide-react';
 import api from '../utils/api';
 import RankBadge from './RankBadge';
 import { SkeletonRows } from './Skeleton';
-import { parseSpokenDay, isGroqConfigured } from '../utils/voice';
+import {
+  parseSpokenDay, transcribe, startRecording,
+  isGroqConfigured, isRecordingSupported,
+} from '../utils/voice';
 import { toCrewItem, describeCrewItem } from '../utils/crewItem';
 
 const todayKey = () => new Date().toLocaleDateString('en-CA');
@@ -25,6 +28,8 @@ const CrewDetail = ({ crewId, onClose, onChanged, showToast }) => {
   const [title, setTitle] = useState('');
   const [busy, setBusy] = useState(false);
   const [parsing, setParsing] = useState(false);
+  /** The live recorder, when one is running. */
+  const [recording, setRecording] = useState(null);
   /** What the parser made of the sentence, held until it is confirmed. */
   const [draft, setDraft] = useState(null);
 
@@ -55,6 +60,81 @@ const CrewDetail = ({ crewId, onClose, onChanged, showToast }) => {
       setBusy(false);
     }
   };
+
+  /**
+   * A sentence becomes a draft.
+   *
+   * Typed and spoken input converge here on purpose: the microphone only
+   * saves someone the typing, and everything after — the parse, the readback,
+   * the confirmation — should be identical either way.
+   */
+  const makeDraft = async (said) => {
+    if (!said?.trim()) return;
+    setTitle(said);
+
+    if (!isGroqConfigured()) {
+      // No parser configured: take it at face value as a plain daily habit
+      // rather than refusing the whole feature.
+      setDraft({ kind: 'habit', title: said.trim(), polarity: 'good',
+        starsPerRep: 10, dailyTarget: 0, targetReps: 0,
+        targetPeriodWeeks: 1, unit: '', shortfallPenalty: 10 });
+      return;
+    }
+
+    setParsing(true);
+    try {
+      const items = await parseSpokenDay(said, { habits: [], tasks: [] });
+      const first = (items || []).map(toCrewItem).find(Boolean);
+      if (!first) showToast?.('Could not make an assignment out of that', 'error');
+      else setDraft(first);
+    } catch (err) {
+      showToast?.(err.message || 'Could not read that', 'error');
+    } finally {
+      setParsing(false);
+    }
+  };
+
+  /** Tap to start, tap to stop. Held recordings lose whatever was said. */
+  const toggleMic = async () => {
+    if (recording) {
+      const rec = recording;
+      setRecording(null);
+      setParsing(true);
+      try {
+        const clip = await rec.stop();
+        const text = await transcribe(clip);
+        await makeDraft(text);
+      } catch (err) {
+        showToast?.(err.message || 'Could not hear that', 'error');
+      } finally {
+        setParsing(false);
+      }
+      return;
+    }
+    try {
+      const rec = await startRecording({
+        onAutoStop: () => showToast?.('Stopped at the 60s limit.'),
+      });
+      setRecording(rec);
+    } catch (err) {
+      showToast?.(err.message || 'No microphone available', 'error');
+    }
+  };
+
+  /*
+   * A recorder left running when the sheet closes keeps the mic light on, so
+   * it is cancelled on unmount — but ONLY on unmount.
+   *
+   * Depending on `recording` instead meant the cleanup fired every time the
+   * value changed, including the setRecording(null) at the top of the stop
+   * path. That cancelled the recorder a line before it was read, and cancel()
+   * detaches onstop, so the promise being awaited never resolved: the spinner
+   * ran forever and not one request was ever sent. A ref keeps the latest
+   * recorder reachable without making the effect depend on it.
+   */
+  const recRef = useRef(null);
+  useEffect(() => { recRef.current = recording; }, [recording]);
+  useEffect(() => () => recRef.current?.cancel?.(), []);
 
   const copyCode = async () => {
     try {
@@ -202,46 +282,40 @@ const CrewDetail = ({ crewId, onClose, onChanged, showToast }) => {
             */}
             <form
               className="flex gap-2 mt-3"
-              onSubmit={async (ev) => {
-                ev.preventDefault();
-                const said = title.trim();
-                if (!said || parsing) return;
-
-                if (!isGroqConfigured()) {
-                  // No parser available: take it at face value as a plain
-                  // daily habit rather than refusing the whole feature.
-                  setDraft({ kind: 'habit', title: said, polarity: 'good',
-                    starsPerRep: 10, dailyTarget: 0, targetReps: 0,
-                    targetPeriodWeeks: 1, unit: '', shortfallPenalty: 10 });
-                  return;
-                }
-
-                setParsing(true);
-                try {
-                  const items = await parseSpokenDay(said, { habits: [], tasks: [] });
-                  const first = (items || []).map(toCrewItem).find(Boolean);
-                  if (!first) {
-                    showToast?.('Could not make an assignment out of that', 'error');
-                  } else {
-                    setDraft(first);
-                  }
-                } catch (err) {
-                  showToast?.(err.message || 'Could not read that', 'error');
-                } finally {
-                  setParsing(false);
-                }
-              }}
+              onSubmit={(ev) => { ev.preventDefault(); makeDraft(title); }}
             >
               <input
                 value={title}
                 onChange={(ev) => { setTitle(ev.target.value); setDraft(null); }}
-                placeholder="Everyone does gym 5 times a week, once a day"
+                placeholder={recording ? 'Listening…' : 'Everyone does gym 5 times a week, once a day'}
                 maxLength={160}
+                disabled={!!recording}
                 aria-label="What everyone is doing"
                 data-testid="shared-title"
-                className="flex-1 min-w-0 h-10 bg-[#0d0f12] border border-white/10 rounded-xl px-3 text-sm text-white placeholder:text-white/25"
+                className="flex-1 min-w-0 h-10 bg-[#0d0f12] border border-white/10 rounded-xl px-3 text-sm text-white placeholder:text-white/25 disabled:opacity-60"
               />
-              <button type="submit" disabled={busy || parsing || !title.trim()} data-testid="shared-add"
+
+              {/* Say it instead of typing it. Same parse, same readback. */}
+              {isRecordingSupported() && (
+                <button
+                  type="button"
+                  onClick={toggleMic}
+                  disabled={parsing}
+                  data-testid="shared-mic"
+                  aria-label={recording ? 'Stop recording' : 'Say what everyone is doing'}
+                  aria-pressed={!!recording}
+                  className={`w-10 h-10 rounded-xl grid place-items-center shrink-0 border transition-colors disabled:opacity-30 ${
+                    recording
+                      ? 'bg-[#e5484d] border-[#e5484d] text-white animate-pulse'
+                      : 'bg-white/5 border-white/10 text-white/70 hover:text-white'
+                  }`}
+                >
+                  {recording ? <Square size={14} fill="currentColor" /> : <Mic size={16} />}
+                </button>
+              )}
+
+              <button type="submit" disabled={busy || parsing || !!recording || !title.trim()}
+                data-testid="shared-add"
                 aria-label="Add to the assignment"
                 className="w-10 h-10 rounded-xl bg-[#e0b062] text-black grid place-items-center disabled:opacity-30 shrink-0">
                 {parsing ? <Loader2 size={16} className="animate-spin" /> : <Plus size={17} />}

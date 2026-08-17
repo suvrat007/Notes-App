@@ -16,8 +16,14 @@ const STT_ENDPOINT = 'https://api.groq.com/openai/v1/audio/transcriptions';
 
 const STT_MODEL = 'whisper-large-v3-turbo';
 /** Best quality; the 8b model is the fallback when this one is rate-limited. */
-const CHAT_MODEL = 'llama-3.3-70b-versatile';
-const FALLBACK_MODEL = 'llama-3.1-8b-instant';
+/*
+ * Groq retires models, and when it does the old id stops existing rather than
+ * degrading — the request 404s and every spoken update fails at once. The
+ * llama pair that used to be here went exactly that way. If parsing suddenly
+ * stops working, check this against the account's /v1/models list first.
+ */
+const CHAT_MODEL = 'openai/gpt-oss-120b';
+const FALLBACK_MODEL = 'openai/gpt-oss-20b';
 
 /** A forgotten recording should not run forever. Shown as a countdown. */
 export const MAX_RECORDING_MS = 60_000;
@@ -290,11 +296,19 @@ export async function parseSpokenDay(text, ctx) {
   ];
 
   let res = await chatJSON(messages, CHAT_MODEL);
-  if (res.status === 429) res = await chatJSON(messages, FALLBACK_MODEL);
+  // 404 means the model is gone, not that the sentence was bad, so the
+  // smaller one is worth trying before giving up on the whole feature.
+  if (res.status === 429 || res.status === 404) res = await chatJSON(messages, FALLBACK_MODEL);
 
   if (!res.ok) {
     if (res.status === 401) throw new VoiceError('auth', 'The Groq API key was rejected.');
     if (res.status === 429) throw new VoiceError('rate-limit', 'AI parsing is rate-limited. Try again shortly.');
+    // Naming the cause, because "could not understand that" sends people
+    // looking at their own sentence for a fault that is not there.
+    if (res.status === 404) {
+      throw new VoiceError('model-gone',
+        `The AI model "${CHAT_MODEL}" is no longer available on this Groq account.`);
+    }
     throw new VoiceError('parse-failed', `Could not understand that (${res.status}).`);
   }
 

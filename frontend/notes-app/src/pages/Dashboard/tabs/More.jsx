@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../../utils/api';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { usePref, SHOW_BACKLOG, CARRY_DAYS } from '../../../utils/prefs';
 import InstallApp from '../../../components/InstallApp';
-import { Star, Moon, Shield, Bell, Globe, Database, HelpCircle, ChevronRight, LogOut, Edit2, History, Check, X } from 'lucide-react';
+import { Star, Moon, Shield, Bell, Globe, Database, HelpCircle, ChevronRight, ChevronDown, LogOut, Edit2, History, Check, X } from 'lucide-react';
 import { useAuth } from '../../../utils/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const More = ({ user, theme, toggleTheme, showToast, refreshData }) => {
   const [showBacklog, setShowBacklog] = usePref(SHOW_BACKLOG, true);
   const [carryDays, setCarryDays] = usePref(CARRY_DAYS, 2);
+  const [carryOpen, setCarryOpen] = useState(false);
   const { logout } = useAuth();
   const navigate = useNavigate();
   const isDark = theme === 'dark';
@@ -173,38 +174,87 @@ const More = ({ user, theme, toggleTheme, showToast, refreshData }) => {
                 : "Earlier days are left behind. Today's list only."}
             </p>
 
-            {/* How long a debt stays chaseable. Only worth asking once the
-                list is switched on at all. */}
-            {showBacklog && (
-              <div className="mt-4 pt-4 border-t border-white/5">
-                <p className="text-[10px] font-bold text-white/50 tracking-widest uppercase mb-2">
-                  Keep it for
-                </p>
-                <div className="flex gap-1.5 flex-wrap">
-                  {[1, 2, 3, 5, 7, 14].map((d) => (
+            {/*
+              How long a debt stays chaseable.
+              Only asked once the list is switched on at all, and folded away
+              the rest of the time: it is set once and then never touched, so
+              six buttons permanently on the card give a rare decision the
+              same weight as the switch itself.
+            */}
+            <AnimatePresence initial={false}>
+              {showBacklog && (
+                <motion.div
+                  key="carry"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-4 pt-4 border-t border-white/5">
                     <button
-                      key={d}
                       type="button"
-                      onClick={() => setCarryDays(d)}
-                      data-testid={`carry-${d}`}
-                      aria-pressed={carryDays === d}
-                      className={`h-8 min-w-[2.5rem] px-2.5 rounded-lg text-xs font-bold tabular-nums border transition-colors ${
-                        carryDays === d
-                          ? 'bg-[#c0b3a5] border-[#c0b3a5] text-black'
-                          : 'bg-white/5 border-white/10 text-white/60 hover:text-white'
-                      }`}
+                      onClick={() => setCarryOpen((o) => !o)}
+                      data-testid="carry-toggle"
+                      aria-expanded={carryOpen}
+                      className="w-full flex items-center justify-between gap-3 h-9 px-3 rounded-lg bg-white/5 border border-white/10 text-left hover:border-white/20 transition-colors"
                     >
-                      {d}d
+                      <span className="text-[10px] font-bold text-white/50 tracking-widest uppercase">
+                        Keep it for
+                      </span>
+                      <span className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-xs font-bold text-white tabular-nums">
+                          {carryDays === 1 ? '1 day' : `${carryDays} days`}
+                        </span>
+                        <ChevronDown
+                          size={14}
+                          className={`text-white/40 transition-transform ${carryOpen ? 'rotate-180' : ''}`}
+                        />
+                      </span>
                     </button>
-                  ))}
-                </div>
-                <p className="text-[11px] text-white/40 mt-2">
-                  {carryDays === 1
-                    ? 'Yesterday only. After that it drops off the home screen.'
-                    : `Up to ${carryDays} days past the due date. After that it drops off the home screen — Manage still has it.`}
-                </p>
-              </div>
-            )}
+
+                    <AnimatePresence initial={false}>
+                      {carryOpen && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
+                          className="overflow-hidden"
+                        >
+                          <div className="flex gap-1.5 flex-wrap pt-2.5">
+                            {[1, 2, 3, 5, 7, 14].map((d) => (
+                              <button
+                                key={d}
+                                type="button"
+                                // Choosing is the end of the interaction, so it
+                                // closes itself rather than waiting to be dismissed.
+                                onClick={() => { setCarryDays(d); setCarryOpen(false); }}
+                                data-testid={`carry-${d}`}
+                                aria-pressed={carryDays === d}
+                                className={`h-8 min-w-[2.5rem] px-2.5 rounded-lg text-xs font-bold tabular-nums border transition-colors ${
+                                  carryDays === d
+                                    ? 'bg-[#c0b3a5] border-[#c0b3a5] text-black'
+                                    : 'bg-white/5 border-white/10 text-white/60 hover:text-white'
+                                }`}
+                              >
+                                {d}d
+                              </button>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    <p className="text-[11px] text-white/40 mt-2">
+                      {carryDays === 1
+                        ? 'Yesterday only. After that it drops off the home screen.'
+                        : `Up to ${carryDays} days past the due date. After that it drops off the home screen — Manage still has it.`}
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </Card>
         </motion.div>
 
