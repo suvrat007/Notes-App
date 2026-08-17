@@ -3,16 +3,13 @@ import Login from './pages/Auth/Login';
 import Signup from './pages/Auth/Signup';
 import Dashboard from './pages/Dashboard/Dashboard';
 import { useAuth } from './utils/AuthContext';
+import ColdStart from './components/ColdStart';
 
 const PrivateRoute = ({ children }) => {
   const { status } = useAuth();
-  if (status === 'loading') {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: 'var(--text-secondary)' }}>
-        Loading...
-      </div>
-    );
-  }
+  // The backend sleeps when idle and can take most of a minute to wake, so
+  // this gate is the longest wait in the app, not the shortest.
+  if (status === 'loading') return <ColdStart />;
   return status === 'authenticated' ? children : <Navigate to="/login" />;
 };
 
