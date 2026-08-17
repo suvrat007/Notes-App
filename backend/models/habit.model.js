@@ -87,6 +87,16 @@ const HabitSchema = new Schema({
     isRecurringTask: { type: Boolean, default: false },
 
     /** Manual sort position; ties fall back to createdAt. */
+    /*
+     * Set when this habit was stamped out of a crew's shared assignment. It
+     * behaves exactly like any other habit — it shows on Home, counts on the
+     * Roadmap, settles its own shortfall. The tag is only what lets the crew
+     * board find the work and score it.
+     */
+    groupId: { type: Schema.Types.ObjectId, ref: 'Group', default: null, index: true },
+    /** Which shared item it is a copy of, so all copies can be found together. */
+    groupItemId: { type: Schema.Types.ObjectId, default: null },
+
     order: { type: Number, default: 0 },
     /** Archived habits keep their history but leave the list. */
     archived: { type: Boolean, default: false },

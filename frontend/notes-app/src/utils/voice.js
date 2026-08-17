@@ -185,6 +185,11 @@ count          habit: reps done ("smoked twice"=2). task: units to finish. Defau
 polarity       new-habit only: "good" or "bad".
 dailyAllowance new-habit + bad: per-day limit before the extra penalty. null if unstated. NEVER guess.
 targetReps     new-habit + good: reps per targetPeriodWeeks (1=week 4=month 12=quarter).
+dailyTarget    new-habit + good: reps expected in ONE DAY, when the sentence caps or
+  sets a per-day amount. "gym 5 times a week, once a day" => targetReps 5,
+  dailyTarget 1. "2 leetcode questions every day" => dailyTarget 2, targetReps 14.
+  "8 hours of work a day" => dailyTarget 8, unit "hours", targetReps 56.
+  0 when no per-day amount was stated.
                "five times a week"=5/1. No goal => 0/1.
 damagePct      new-reward only: 20, 40, 60, 80 or 100 by how big a deal it is.
                a coffee=20, a night out=40, a day off=60-80, a whole week off=100.
@@ -230,7 +235,7 @@ MORE is never a swap.
 Never invent items. Never merge two distinct items.
 
 Respond with ONLY this JSON:
-{"items":[{"kind":"habit|progress|skipped|task|new-habit|new-reward","text":string,"refId":string|null,"name":string|null,"polarity":"good|bad|null","count":number,"dailyAllowance":number|null,"targetReps":number,"targetPeriodWeeks":number,"unit":string,"damagePct":number,"dueDate":string|null,"deadline":string|null,"cadence":"daily|anytime|null","newTarget":number|null}]}`;
+{"items":[{"kind":"habit|progress|skipped|task|new-habit|new-reward","text":string,"refId":string|null,"name":string|null,"polarity":"good|bad|null","count":number,"dailyAllowance":number|null,"targetReps":number,"dailyTarget":number,"targetPeriodWeeks":number,"unit":string,"damagePct":number,"dueDate":string|null,"deadline":string|null,"cadence":"daily|anytime|null","newTarget":number|null}]}`;
 
 async function chatJSON(messages, model) {
   const res = await fetch(CHAT_ENDPOINT, {
@@ -360,6 +365,11 @@ function coerce(raw, ctx) {
         : null,
       targetReps: Number.isFinite(r.targetReps)
         ? Math.max(0, Math.min(500, Math.round(r.targetReps)))
+        : 0,
+      // Reps expected in a single day, which is a different promise from the
+      // period goal: "5 a week, once a day" is both, and means neither alone.
+      dailyTarget: Number.isFinite(r.dailyTarget)
+        ? Math.max(0, Math.min(99, Math.round(r.dailyTarget)))
         : 0,
       targetPeriodWeeks: [1, 2, 4, 12].includes(Number(r.targetPeriodWeeks))
         ? Number(r.targetPeriodWeeks) : 1,

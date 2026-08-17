@@ -4,6 +4,7 @@ const User = require('../models/user.model.js');
 const Group = require('../models/group.model.js');
 const Friendship = require('../models/friendship.model.js');
 const Task = require('../models/task.model.js');
+const Habit = require('../models/habit.model.js');
 const { authenticateToken } = require('../utilities.js');
 const { rateLimit } = require('../lib/ratelimit.js');
 const { lifetimeStarsFor } = require('../lib/totals.js');
@@ -110,7 +111,7 @@ router.get('/', async (req, res) => {
         inviteCode: g.inviteCode,
         isOwner: String(g.ownerId) === me,
         memberCount: g.members.length,
-        sharedCount: g.sharedTasks.length,
+        sharedCount: g.sharedItems.length,
         weekStart,
         myPlace: mine?.place ?? null,
         myStars: mine?.stars ?? 0,
@@ -213,7 +214,7 @@ router.post('/crews', inviteLimit, async (req, res) => {
       ownerId: req.userId,
       inviteCode: await freshCode(),
       members: [{ userId: req.userId }],
-      sharedTasks: [],
+      sharedItems: [],
     });
     res.json({ error: false, crew: { _id: group._id, name: group.name, inviteCode: group.inviteCode } });
   } catch (err) {
@@ -284,9 +285,13 @@ router.get('/crews/:id', async (req, res) => {
         isOwner: String(group.ownerId) === String(req.userId),
         weekStart,
         topPrize: crewEngine.topPrize(group.members.length),
-        sharedTasks: group.sharedTasks.map((s) => ({
-          _id: s._id, title: s.title, type: s.type,
-          baseReward: s.baseReward, targetCount: s.targetCount, repCadence: s.repCadence,
+        sharedItems: group.sharedItems.map((s) => ({
+          _id: s._id, kind: s.kind, title: s.title,
+          polarity: s.polarity, starsPerRep: s.starsPerRep,
+          dailyTarget: s.dailyTarget, targetReps: s.targetReps,
+          targetPeriodWeeks: s.targetPeriodWeeks, unit: s.unit,
+          dailyAllowance: s.dailyAllowance,
+          type: s.type, baseReward: s.baseReward, targetCount: s.targetCount,
         })),
         board,
       },
@@ -297,8 +302,14 @@ router.get('/crews/:id', async (req, res) => {
   }
 });
 
-/** Add a shared task, and stamp it onto every member's list. */
-router.post('/crews/:id/tasks', inviteLimit, async (req, res) => {
+/**
+ * Add a shared item, and stamp it onto every member's list.
+ *
+ * Takes the same shape the personal forms and the voice parser already
+ * produce, so "gym 5 times a week, once a day" arrives as a habit with a
+ * goal rather than being flattened into a checkbox.
+ */
+router.post('/crews/:id/items', inviteLimit, async (req, res) => {
   try {
     const date = todayKey(req.body.date);
     const group = await Group.findById(req.params.id);
@@ -306,55 +317,71 @@ router.post('/crews/:id/tasks', inviteLimit, async (req, res) => {
       return res.status(404).json({ error: true, message: 'No such crew' });
     }
 
-    const title = String(req.body.title || '').trim();
-    if (!title) return res.status(400).json({ error: true, message: 'Give the task a name' });
+    const title = String(req.body.title || req.body.name || '').trim();
+    if (!title) return res.status(400).json({ error: true, message: 'Give it a name' });
 
-    group.sharedTasks.push({
+    const kind = req.body.kind === 'task' ? 'task' : 'habit';
+    const polarity = req.body.polarity === 'bad' ? 'bad' : 'good';
+    const num = (v, fallback = 0) => {
+      const n = Number(v);
+      return Number.isFinite(n) && n >= 0 ? n : fallback;
+    };
+
+    group.sharedItems.push({
+      kind,
       title: title.slice(0, 120),
-      type: ['daily', 'occasional', 'avoid'].includes(req.body.type) ? req.body.type : 'daily',
-      baseReward: Math.max(0, Number(req.body.baseReward) || 10),
-      targetCount: Math.max(1, Number(req.body.targetCount) || 1),
+      polarity,
+      starsPerRep: num(req.body.starsPerRep, 10),
+      // A bad habit has no goal to reach and no daily quota to meet.
+      dailyTarget: polarity === 'bad' ? 0 : num(req.body.dailyTarget),
+      targetReps: polarity === 'bad' ? 0 : num(req.body.targetReps),
+      targetPeriodWeeks: Math.max(1, num(req.body.targetPeriodWeeks, 1)),
+      unit: String(req.body.unit || '').trim().slice(0, 16),
+      dailyAllowance: polarity === 'bad' ? num(req.body.dailyAllowance) : 0,
+      overagePenalty: polarity === 'bad' ? num(req.body.overagePenalty, 5) : 0,
+      freeWithinAllowance: polarity === 'bad' ? !!req.body.freeWithinAllowance : false,
+      shortfallPenalty: polarity === 'bad' ? 0 : num(req.body.shortfallPenalty),
+      type: ['daily', 'occasional', 'avoid'].includes(req.body.type) ? req.body.type : 'occasional',
+      baseReward: num(req.body.baseReward, 10),
+      targetCount: Math.max(1, num(req.body.targetCount, 1)),
       repCadence: req.body.repCadence === 'daily' ? 'daily' : 'anytime',
       createdBy: req.userId,
     });
     await group.save();
 
-    const shared = group.sharedTasks[group.sharedTasks.length - 1];
-    await crew.fanOutToMembers(group, shared, date);
+    const item = group.sharedItems[group.sharedItems.length - 1];
+    await crew.fanOutToMembers(group, item, date);
 
     res.json({ error: false, message: 'Everyone has it now' });
   } catch (err) {
-    console.error('POST /social/crews/:id/tasks', err);
-    res.status(500).json({ error: true, message: 'Could not add that task' });
+    console.error('POST /social/crews/:id/items', err);
+    res.status(500).json({ error: true, message: 'Could not add that' });
   }
 });
 
 /**
- * Drop a shared task.
+ * Drop a shared item.
  *
- * The copies go with it, but only the ones nobody has touched — deleting a
- * task someone already completed would take back stars they earned fairly.
- * Finished copies are cut loose from the crew and stay on the member's list
- * as ordinary work.
+ * Untouched copies go with it; anything a member has already worked on is cut
+ * loose and stays on their list as ordinary work. Deleting that would take
+ * back stars they earned fairly.
  */
-router.delete('/crews/:id/tasks/:sharedId', async (req, res) => {
+router.delete('/crews/:id/items/:itemId', async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
     if (!group || !membershipOf(group, req.userId)) {
       return res.status(404).json({ error: true, message: 'No such crew' });
     }
-    const shared = group.sharedTasks.id(req.params.sharedId);
-    if (!shared) return res.status(404).json({ error: true, message: 'No such shared task' });
+    const item = group.sharedItems.id(req.params.itemId);
+    if (!item) return res.status(404).json({ error: true, message: 'No such shared item' });
 
-    await Task.deleteMany({ groupTaskId: shared._id, doneCount: 0 });
-    await Task.updateMany({ groupTaskId: shared._id }, { groupId: null, groupTaskId: null });
-
-    shared.deleteOne();
+    await crew.releaseItem(item._id);
+    item.deleteOne();
     await group.save();
     res.json({ error: false, message: 'Removed from the crew' });
   } catch (err) {
-    console.error('DELETE /social/crews/:id/tasks', err);
-    res.status(500).json({ error: true, message: 'Could not remove that task' });
+    console.error('DELETE /social/crews/:id/items', err);
+    res.status(500).json({ error: true, message: 'Could not remove that' });
   }
 });
 

@@ -90,8 +90,8 @@ const TaskSchema = new Schema({
      * crew board find the work and score it.
      */
     groupId: { type: Schema.Types.ObjectId, ref: 'Group', default: null, index: true },
-    /** Which shared task it is a copy of, so all copies can be found together. */
-    groupTaskId: { type: Schema.Types.ObjectId, default: null },
+    /** Which shared item it is a copy of, so all copies can be found together. */
+    groupItemId: { type: Schema.Types.ObjectId, default: null },
 
     order: { type: Number, default: 0 },
     createdAt: { type: Date, default: Date.now }

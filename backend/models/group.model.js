@@ -2,19 +2,51 @@ const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
 /**
- * A shared assignment, held once at the group.
+ * One line of a crew's assignment.
  *
- * The actual work is a normal Task on each member's own list — see
- * `lib/crew.js` for the fan-out. This is the template it was stamped from,
- * kept so the group can show what it agreed to, and so removing a shared
- * task can find every copy.
+ * A crew agrees to things of BOTH shapes, and the difference matters:
+ *
+ *   "gym 5 times a week, once a day"      a habit with a weekly goal
+ *   "2 leetcode questions every day"      a habit with a daily quota
+ *   "no smoking, 2 max this week"         a bad habit with an allowance
+ *   "8 hours of work, every day"          a habit measured in hours
+ *   "ship the deck by Friday"             a task with a deadline
+ *
+ * Only the last is a task. Modelling the assignment as tasks alone would
+ * force every recurring promise into a checkbox and lose the goal, the
+ * period, the unit and the penalty — which is most of what makes them mean
+ * anything.
+ *
+ * This is the TEMPLATE. The real thing lives on each member's own list as an
+ * ordinary Habit or Task (see `lib/crew.js`), which is why crew work shows up
+ * on Home, the Roadmap, the Calendar and the stats with no extra plumbing.
  */
-const SharedTaskSchema = new Schema({
+const SharedItemSchema = new Schema({
+    kind: { type: String, enum: ['habit', 'task'], default: 'habit' },
     title: { type: String, required: true },
-    type: { type: String, enum: ['daily', 'occasional', 'avoid'], default: 'daily' },
+
+    /* ---- habit ---- */
+    polarity: { type: String, enum: ['good', 'bad'], default: 'good' },
+    starsPerRep: { type: Number, default: 10, min: 0 },
+    /** Reps expected in a single day. 0 means "just tick it off". */
+    dailyTarget: { type: Number, default: 0, min: 0 },
+    /** Reps expected across the period. 0 means no goal to fall short of. */
+    targetReps: { type: Number, default: 0, min: 0 },
+    targetPeriodWeeks: { type: Number, default: 1, min: 1 },
+    /** What one rep counts as: "km", "hours", "questions". */
+    unit: { type: String, default: '', maxlength: 16 },
+    /** Bad habits: how many are tolerated before the extra penalty bites. */
+    dailyAllowance: { type: Number, default: 0, min: 0 },
+    overagePenalty: { type: Number, default: 5, min: 0 },
+    freeWithinAllowance: { type: Boolean, default: false },
+    shortfallPenalty: { type: Number, default: 0, min: 0 },
+
+    /* ---- task ---- */
+    type: { type: String, enum: ['daily', 'occasional', 'avoid'], default: 'occasional' },
     baseReward: { type: Number, default: 10 },
     targetCount: { type: Number, default: 1, min: 1 },
     repCadence: { type: String, enum: ['anytime', 'daily'], default: 'anytime' },
+
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
     createdAt: { type: Date, default: Date.now },
 });
@@ -23,10 +55,9 @@ const SharedTaskSchema = new Schema({
  * A crew: a roster, a shared assignment, and a weekly scoreboard.
  *
  * Members keep their own tasks and habits exactly as before. What the group
- * adds is a set of tasks everyone carries, and a ranking over those tasks
- * ONLY — scoring a member's personal work would mean whoever set themselves
- * the most generous rewards wins, which measures self-assessment rather than
- * effort.
+ * adds is a set of promises everyone carries, and a ranking over those ONLY —
+ * scoring a member's personal work would mean whoever set themselves the most
+ * generous rewards wins, which measures self-assessment rather than effort.
  */
 const GroupSchema = new Schema({
     name: { type: String, required: true, trim: true, maxlength: 40 },
@@ -40,7 +71,7 @@ const GroupSchema = new Schema({
         joinedAt: { type: Date, default: Date.now },
     }],
 
-    sharedTasks: [SharedTaskSchema],
+    sharedItems: [SharedItemSchema],
 
     /**
      * The last week already paid out, as a yyyy-MM-dd Monday.

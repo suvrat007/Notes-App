@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Copy, Plus, Trash2, LogOut, Trophy } from 'lucide-react';
+import { X, Copy, Plus, Trash2, LogOut, Trophy, Repeat, Ban, Loader2 } from 'lucide-react';
 import api from '../utils/api';
 import RankBadge from './RankBadge';
 import { SkeletonRows } from './Skeleton';
+import { parseSpokenDay, isGroqConfigured } from '../utils/voice';
+import { toCrewItem, describeCrewItem } from '../utils/crewItem';
 
 const todayKey = () => new Date().toLocaleDateString('en-CA');
 
@@ -22,6 +24,9 @@ const CrewDetail = ({ crewId, onClose, onChanged, showToast }) => {
   const [crew, setCrew] = useState(null);
   const [title, setTitle] = useState('');
   const [busy, setBusy] = useState(false);
+  const [parsing, setParsing] = useState(false);
+  /** What the parser made of the sentence, held until it is confirmed. */
+  const [draft, setDraft] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -139,73 +144,146 @@ const CrewDetail = ({ crewId, onClose, onChanged, showToast }) => {
 
             {/* ---- shared assignment ---- */}
             <div className="flex items-center justify-between mt-6 mb-2">
-              <h3 className="text-[11px] font-bold text-white/50 tracking-widest uppercase">Shared tasks</h3>
+              <h3 className="text-[11px] font-bold text-white/50 tracking-widest uppercase">Shared assignment</h3>
               <span className="text-[10px] text-white/30">what the board scores</span>
             </div>
 
-            <div className="space-y-2" data-testid="shared-tasks">
-              {crew.sharedTasks.map((s) => (
-                <div key={s._id} data-testid={`shared-${s._id}`}
-                  className="flex items-center gap-2.5 bg-black/40 border border-white/5 border-l-[3px] border-l-[#e0b062] rounded-xl px-3 py-2.5">
-                  <span className="w-8 h-8 rounded-lg bg-[#2a2419] grid place-items-center shrink-0">
-                    <Trophy size={13} className="text-[#e0b062]" />
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-white truncate">{s.title}</p>
-                    <p className="text-[11px] text-white/45 truncate">
-                      {s.type} · +{s.baseReward}★{s.targetCount > 1 && ` · ${s.targetCount}×`}
-                    </p>
+            <div className="space-y-2" data-testid="shared-items">
+              {crew.sharedItems.map((s) => {
+                const isTask = s.kind === 'task';
+                const isBad = s.polarity === 'bad';
+                // A promise to stop is the opposite of a promise to do, and
+                // the row should not have to be read twice to tell which.
+                const Icon = isTask ? Trophy : isBad ? Ban : Repeat;
+                const accent = isBad ? 'text-[#e5484d]' : 'text-[#e0b062]';
+                const tile = isBad ? 'bg-[#2a1a1a]' : 'bg-[#2a2419]';
+                const edge = isBad ? 'border-l-[#e5484d]' : 'border-l-[#e0b062]';
+                return (
+                  <div key={s._id} data-testid={`shared-${s._id}`}
+                    className={`flex items-center gap-2.5 bg-black/40 border border-white/5 border-l-[3px] ${edge} rounded-xl px-3 py-2.5`}>
+                    <span className={`w-8 h-8 rounded-lg ${tile} grid place-items-center shrink-0`}>
+                      <Icon size={13} className={accent} />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-white truncate">{s.title}</p>
+                      <p className="text-[11px] text-white/45 truncate">{describeCrewItem(s)}</p>
+                    </div>
+                    <button
+                      onClick={() => act(async () => {
+                        const r = await api.delete(`/social/crews/${crewId}/items/${s._id}`);
+                        await load();
+                        return r;
+                      })}
+                      aria-label={`Remove ${s.title}`}
+                      className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-[#e5484d] grid place-items-center shrink-0 transition-colors"
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => act(async () => {
-                      const r = await api.delete(`/social/crews/${crewId}/tasks/${s._id}`);
-                      await load();
-                      return r;
-                    })}
-                    aria-label={`Remove ${s.title}`}
-                    className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-[#e5484d] grid place-items-center shrink-0 transition-colors"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              ))}
+                );
+              })}
 
-              {crew.sharedTasks.length === 0 && (
+              {crew.sharedItems.length === 0 && (
                 <p className="text-xs text-white/35 bg-black/20 border border-white/5 rounded-xl px-3 py-4 text-center">
-                  Nothing shared yet. Add a task and everyone gets it on their own list.
+                  Nothing agreed yet. Say what everyone is doing — "gym 5 times a week, once a day" —
+                  and it lands on every member's own list.
                 </p>
               )}
             </div>
 
+            {/*
+              One sentence in, a real habit or task out.
+              A crew agrees to things in sentences — "gym 5 times a week, once
+              a day", "no smoking, 2 max this week" — and asking for that
+              through eight numbered fields is how a good idea becomes
+              something nobody sets up. The same parser the voice flow already
+              runs does the work, and the readback below is confirmed before
+              anyone is committed to it.
+            */}
             <form
               className="flex gap-2 mt-3"
               onSubmit={async (ev) => {
                 ev.preventDefault();
-                if (!title.trim()) return;
-                const done = await act(async () => {
-                  const r = await api.post(`/social/crews/${crewId}/tasks`,
-                    { title: title.trim(), date: todayKey() });
-                  await load();
-                  return r;
-                });
-                if (done) setTitle('');
+                const said = title.trim();
+                if (!said || parsing) return;
+
+                if (!isGroqConfigured()) {
+                  // No parser available: take it at face value as a plain
+                  // daily habit rather than refusing the whole feature.
+                  setDraft({ kind: 'habit', title: said, polarity: 'good',
+                    starsPerRep: 10, dailyTarget: 0, targetReps: 0,
+                    targetPeriodWeeks: 1, unit: '', shortfallPenalty: 10 });
+                  return;
+                }
+
+                setParsing(true);
+                try {
+                  const items = await parseSpokenDay(said, { habits: [], tasks: [] });
+                  const first = (items || []).map(toCrewItem).find(Boolean);
+                  if (!first) {
+                    showToast?.('Could not make an assignment out of that', 'error');
+                  } else {
+                    setDraft(first);
+                  }
+                } catch (err) {
+                  showToast?.(err.message || 'Could not read that', 'error');
+                } finally {
+                  setParsing(false);
+                }
               }}
             >
               <input
                 value={title}
-                onChange={(ev) => setTitle(ev.target.value)}
-                placeholder="Everyone does..."
-                maxLength={120}
-                aria-label="New shared task"
+                onChange={(ev) => { setTitle(ev.target.value); setDraft(null); }}
+                placeholder="Everyone does gym 5 times a week, once a day"
+                maxLength={160}
+                aria-label="What everyone is doing"
                 data-testid="shared-title"
                 className="flex-1 min-w-0 h-10 bg-[#0d0f12] border border-white/10 rounded-xl px-3 text-sm text-white placeholder:text-white/25"
               />
-              <button type="submit" disabled={busy || !title.trim()} data-testid="shared-add"
-                aria-label="Add shared task"
+              <button type="submit" disabled={busy || parsing || !title.trim()} data-testid="shared-add"
+                aria-label="Add to the assignment"
                 className="w-10 h-10 rounded-xl bg-[#e0b062] text-black grid place-items-center disabled:opacity-30 shrink-0">
-                <Plus size={17} />
+                {parsing ? <Loader2 size={16} className="animate-spin" /> : <Plus size={17} />}
               </button>
             </form>
+
+            {/* What it understood, in words, before it is real. */}
+            {draft && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+                data-testid="draft-preview"
+                className="mt-2 bg-black/40 border border-[#e0b062]/30 rounded-xl px-3 py-2.5"
+              >
+                <p className="text-sm font-bold text-white">{draft.title}</p>
+                <p className="text-[11px] text-white/50 mt-0.5">{describeCrewItem(draft)}</p>
+                <div className="flex gap-2 mt-2.5">
+                  <button
+                    data-testid="draft-confirm"
+                    disabled={busy}
+                    onClick={async () => {
+                      const done = await act(async () => {
+                        const r = await api.post(`/social/crews/${crewId}/items`,
+                          { ...draft, date: todayKey() });
+                        await load();
+                        return r;
+                      });
+                      if (done) { setTitle(''); setDraft(null); }
+                    }}
+                    className="flex-1 h-9 rounded-lg bg-[#e0b062] text-black text-xs font-bold tracking-wider disabled:opacity-40"
+                  >
+                    EVERYONE GETS THIS
+                  </button>
+                  <button
+                    onClick={() => setDraft(null)}
+                    aria-label="Discard"
+                    className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white/50 grid place-items-center shrink-0"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              </motion.div>
+            )}
 
             <button
               onClick={async () => {
