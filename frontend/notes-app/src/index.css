@@ -199,41 +199,59 @@ body[data-theme='light'] video {
  * during a fling and costs no main-thread work. Browsers without it simply get
  * the plain list, which is the behaviour that was there before.
  */
-.roll-list {
-  /* Softens the cut itself, and works everywhere regardless of the above. */
-  -webkit-mask-image: linear-gradient(
-    to bottom, transparent 0, #000 14px, #000 calc(100% - 30px), transparent 100%);
-  mask-image: linear-gradient(
-    to bottom, transparent 0, #000 14px, #000 calc(100% - 30px), transparent 100%);
-}
-
-@supports (animation-timeline: view()) {
-  .roll-list > * {
-    animation: roll-focus linear both;
-    animation-timeline: view(block);
-    /* The full pass: entering the top, through the middle, out of the bottom. */
-    animation-range: entry 0% exit 100%;
-    transform-origin: center;
-    will-change: transform, filter, opacity;
+/*
+ * ONLY where a scroller actually exists.
+ *
+ * These lists get `overflow-y-auto` at the md breakpoint and not below it, so
+ * on a phone `view()` resolves against the PAGE instead. That made every row
+ * near the bottom of a short page sit permanently in the exit range — dimmed
+ * to 0.47, blurred, and scaled down, with no way to scroll it back into
+ * focus. The effect is for a list that rolls past a window; a list that is
+ * simply the page is not that, and the rows must render crisp.
+ */
+@media (min-width: 768px) {
+  .roll-list {
+    /* Softens the cut itself, and works everywhere regardless of the below. */
+    -webkit-mask-image: linear-gradient(
+      to bottom, transparent 0, #000 14px, #000 calc(100% - 30px), transparent 100%);
+    mask-image: linear-gradient(
+      to bottom, transparent 0, #000 14px, #000 calc(100% - 30px), transparent 100%);
   }
 
-  @keyframes roll-focus {
-    /* At either edge: small, soft, receding. */
-    0%, 100% {
-      opacity: 0.3;
-      filter: blur(2.5px);
-      transform: scale(0.88);
+  @supports (animation-timeline: view()) {
+    .roll-list > * {
+      animation: roll-focus linear both;
+      /* Scoped to this element's own scroller, which at this width exists. */
+      animation-timeline: view(block);
+      /* The full pass: entering the top, through the middle, out of the bottom. */
+      animation-range: entry 0% exit 100%;
+      transform-origin: center;
+      will-change: transform, filter, opacity;
     }
-    /* Settled in view, and holding there for most of the travel. */
-    16%, 84% {
+
+    @keyframes roll-focus {
+      /* At either edge: small, soft, receding. */
+      0%, 100% {
+        opacity: 0.3;
+        filter: blur(2.5px);
+        transform: scale(0.88);
+      }
+      /* Settled in view, and holding there for most of the travel. */
+      16%, 84% {
+        opacity: 1;
+        filter: blur(0);
+        transform: scale(1);
+      }
+    }
+  }
+
+  /* A reel someone did not ask for is just motion sickness. */
+  @media (prefers-reduced-motion: reduce) {
+    .roll-list > * {
+      animation: none;
       opacity: 1;
-      filter: blur(0);
-      transform: scale(1);
+      filter: none;
+      transform: none;
     }
   }
-}
-
-/* A reel someone did not ask for is just motion sickness. */
-@media (prefers-reduced-motion: reduce) {
-  .roll-list > * { animation: none; }
 }

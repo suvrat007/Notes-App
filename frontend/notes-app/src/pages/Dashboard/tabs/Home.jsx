@@ -32,6 +32,24 @@ const rise = {
   hidden: { opacity: 0, y: 16 },
   shown: { opacity: 1, y: 0, transition: { duration: 0.45, ease: EASE } },
 };
+
+/*
+ * The rows inside a list, dealt out rather than appearing at once.
+ *
+ * The card they sit in already eases in; without this the contents simply
+ * exist inside it, which reads as the list being painted rather than filled.
+ * A shorter travel than the cards so it stays subordinate to them, and a
+ * tight stagger so a long list still finishes quickly.
+ */
+const list = {
+  hidden: {},
+  shown: { transition: { staggerChildren: 0.045, delayChildren: 0.06 } },
+};
+
+const row = {
+  hidden: { opacity: 0, y: 10 },
+  shown: { opacity: 1, y: 0, transition: { duration: 0.35, ease: EASE } },
+};
 const todayKey = () => new Date().toLocaleDateString('en-CA');
 
 const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) => {
@@ -370,20 +388,21 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
           </button>
         </div>
 
-        <div className="roll-list space-y-2 md:flex-1 md:min-h-0 md:overflow-y-auto md:pr-1">
+        <motion.div
+          variants={list}
+          className="roll-list space-y-2 md:flex-1 md:min-h-0 md:overflow-y-auto md:pr-1"
+        >
           {habits.map((h) => (
-            <HabitCard
-              key={h._id}
-              habit={h}
-              onChange={changeHabit}
-            />
+            <motion.div key={h._id} variants={row}>
+              <HabitCard habit={h} onChange={changeHabit} />
+            </motion.div>
           ))}
           {habits.length === 0 && (
             <p className="text-center text-white/40 text-sm py-6" data-testid="habits-empty">
               No habits yet. Add the first thing you want to build, or break.
             </p>
           )}
-        </div>
+        </motion.div>
       </motion.div>
 
       <motion.div variants={rise} className="bg-[#16191e] border border-white/5 rounded-3xl p-5 md:p-6 md:flex md:flex-col md:min-h-0 md:overflow-hidden" data-testid="plan-section">
@@ -399,13 +418,13 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
                 could see what was outstanding but had no way to tick it off,
                 so the only route to clearing it was to go back to the day it
                 was set. Same row as everything else, same controls. */}
-            <div className="space-y-2">
+            <motion.div variants={list} className="space-y-2">
               {carried.map((t) => (
-                <div key={t._id} data-testid={`carried-${t._id}`}>
+                <motion.div key={t._id} variants={row} data-testid={`carried-${t._id}`}>
                   <TaskRow task={t} onLog={logTask} showToast={showToast} lateBy={t.lateBy} />
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           </div>
         )}
 
@@ -416,23 +435,23 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
           </button>
         </div>
 
-        <div className="roll-list space-y-2 md:flex-1 md:min-h-0 md:overflow-y-auto md:pr-1">
+        <motion.div
+          variants={list}
+          className="roll-list space-y-2 md:flex-1 md:min-h-0 md:overflow-y-auto md:pr-1"
+        >
           {/* Logged where it sits: a one-off is a checkbox, a multi-unit job
               is a counter. Neither opens a form to describe an action the
               user could simply have performed. */}
           {dayTasks.map((task) => (
-            <TaskRow
-              key={task._id}
-              task={task}
-              onLog={logTask}
-              showToast={showToast}
-            />
+            <motion.div key={task._id} variants={row}>
+              <TaskRow task={task} onLog={logTask} showToast={showToast} />
+            </motion.div>
           ))}
 
           {tasks.length === 0 && (
             <div className="p-8 text-center text-white/40 text-sm">No tasks scheduled for today.</div>
           )}
-        </div>
+        </motion.div>
       </motion.div>
 
       <RewardPanel
