@@ -167,6 +167,16 @@ task       a NEW one-off with a finish line
 new-habit  ongoing behaviour NOT in the list yet; refId null, set name + polarity
 new-reward a treat to work TOWARDS, not something done; set name + damagePct
 
+WHICH DAY IT HAPPENED
+Reps and progress land on TODAY unless the sentence says otherwise. When it
+does, set "on" to that calendar day from the anchors given:
+  "went to the gym yesterday"        => one habit item, on = yesterday
+  "went yesterday and today"         => TWO habit items, same refId, one per
+                                        day. One item cannot mean two days.
+  "did an hour on Monday and Tuesday" => likewise, one item per day.
+Only today, yesterday and the day before can be filled in. Anything older is
+NOT emitted at all - it would be refused - and a future day is never set.
+
 ONE SENTENCE THAT BOTH SETS UP AND REPORTS
 A sentence can create a thing and log work against it in the same breath:
 "start working 8 hours a day for a week, I did 6 today". The thing does not
@@ -200,6 +210,9 @@ count          habit: reps done ("smoked twice"=2). task: units to finish. Defau
 polarity       new-habit only: "good" or "bad".
 dailyAllowance new-habit + bad: per-day limit before the extra penalty. null if unstated. NEVER guess.
 targetReps     new-habit + good: reps per targetPeriodWeeks (1=week 4=month 12=quarter).
+on             habit/progress only: the calendar day it happened, YYYY-MM-DD, from
+  the anchors given. Omit or use today when the sentence does not say. Never
+  earlier than the oldest anchor, never later than today.
 logNow         new-habit only: how much of it was ALREADY DONE today, when the same
   sentence sets the thing up and reports against it. 0 when nothing was
   reported as done. Never larger than what was actually stated.
@@ -253,7 +266,7 @@ MORE is never a swap.
 Never invent items. Never merge two distinct items.
 
 Respond with ONLY this JSON:
-{"items":[{"kind":"habit|progress|skipped|task|new-habit|new-reward","text":string,"refId":string|null,"name":string|null,"polarity":"good|bad|null","count":number,"dailyAllowance":number|null,"targetReps":number,"dailyTarget":number,"logNow":number,"targetPeriodWeeks":number,"unit":string,"damagePct":number,"dueDate":string|null,"deadline":string|null,"cadence":"daily|anytime|null","newTarget":number|null}]}`;
+{"items":[{"kind":"habit|progress|skipped|task|new-habit|new-reward","text":string,"refId":string|null,"name":string|null,"polarity":"good|bad|null","count":number,"dailyAllowance":number|null,"targetReps":number,"dailyTarget":number,"logNow":number,"on":string|null,"targetPeriodWeeks":number,"unit":string,"damagePct":number,"dueDate":string|null,"deadline":string|null,"cadence":"daily|anytime|null","newTarget":number|null}]}`;
 
 async function chatJSON(messages, model) {
   const res = await fetch(CHAT_ENDPOINT, {
@@ -284,8 +297,21 @@ export async function parseSpokenDay(text, ctx) {
   if (!isGroqConfigured()) throw new VoiceError('no-key', 'AI parsing is not configured.');
 
   const today = new Date().toLocaleDateString('en-CA');
+  /*
+   * Spelled out rather than left to the model. Asking it to work out what
+   * "yesterday" is invites a wrong day, and a rep on the wrong day is a wrong
+   * entry in the ledger the whole game is scored on.
+   */
+  const dayNamed = (offset) => {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    return d.toLocaleDateString('en-CA');
+  };
+  const oldest = dayNamed(-2);
   const user = [
     `Today is ${today}.`,
+    `Yesterday was ${dayNamed(-1)}. The day before that was ${oldest}.`,
+    `Those three days are the ONLY ones that may appear in "on".`,
     `Existing habits (use these refIds): ${JSON.stringify(
       (ctx.habits || []).map((h) => ({ refId: h._id, name: h.name, polarity: h.polarity })),
     )}`,
@@ -333,7 +359,7 @@ export async function parseSpokenDay(text, ctx) {
     throw new VoiceError('parse-failed', 'The AI returned something unreadable. Try again.');
   }
 
-  return coerce(parsed, ctx);
+  return coerce(parsed, { ...ctx, today, oldest });
 }
 
 const KINDS = ['habit', 'progress', 'skipped', 'task', 'new-habit', 'new-reward'];
@@ -405,6 +431,18 @@ function coerce(raw, ctx) {
       logNow: Number.isFinite(r.logNow)
         ? Math.max(0, Math.min(999, Math.round(r.logNow)))
         : 0,
+      /*
+       * Which day this rep belongs to. Clamped here to the window the server
+       * accepts, so a mis-heard "last Tuesday" lands on the oldest allowed day
+       * instead of being rejected after the user already confirmed it.
+       */
+      on: (() => {
+        const raw = String(r.on || '');
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return ctx.today;
+        if (raw > ctx.today) return ctx.today;
+        if (raw < ctx.oldest) return ctx.oldest;
+        return raw;
+      })(),
       targetPeriodWeeks: [1, 2, 4, 12].includes(Number(r.targetPeriodWeeks))
         ? Number(r.targetPeriodWeeks) : 1,
       // Short, lowercase, and only ever a label: it is never parsed as a number.

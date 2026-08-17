@@ -40,6 +40,7 @@ const localDay = (offset = 0) => {
 const VoiceModal = ({ habits = [], tasks = [], onClose, refreshData, showToast }) => {
   const today = localDay(0);
   const tomorrow = localDay(1);
+  const yesterday = localDay(-1);
   const [phase, setPhase] = useState('idle'); // idle | listening | thinking | preview | saving
   const [transcript, setTranscript] = useState('');
   const [items, setItems] = useState([]);
@@ -160,11 +161,13 @@ const VoiceModal = ({ habits = [], tasks = [], onClose, refreshData, showToast }
            * which. Plain habits keep one row per rep.
            */
           const measured = habits.find((h) => String(h._id) === String(it.refId))?.unit;
+          // The day it HAPPENED, which is not always the day it is being told.
+          const on = it.on || today;
           if (measured) {
-            await api.post(`/habits/${it.refId}/log`, { amount: it.count, date: today });
+            await api.post(`/habits/${it.refId}/log`, { amount: it.count, date: on });
           } else {
             for (let i = 0; i < it.count; i++) {
-              await api.post(`/habits/${it.refId}/log`, { date: today });
+              await api.post(`/habits/${it.refId}/log`, { date: on });
             }
           }
         } else if (it.kind === 'progress' && it.refId) {
@@ -175,7 +178,7 @@ const VoiceModal = ({ habits = [], tasks = [], onClose, refreshData, showToast }
            */
           const target = it.taskTarget ?? 1;
           const next = Math.min(target, (it.taskBefore ?? 0) + it.count);
-          await api.post('/logs', { taskId: it.refId, date: today, completedCount: next });
+          await api.post('/logs', { taskId: it.refId, date: it.on || today, completedCount: next });
         } else if (it.kind === 'new-habit') {
           const made = await api.post('/habits', {
             name: it.text,
@@ -383,6 +386,14 @@ const VoiceModal = ({ habits = [], tasks = [], onClose, refreshData, showToast }
                     {it.kind === 'habit' && it.newTarget !== null && it.newTarget !== undefined && (
                       <span className="text-[#c0b3a5]" data-testid={`vswap-${it.id}`}>
                         this period's target drops to {it.newTarget}
+                      </span>
+                    )}
+
+                    {/* A rep being filled in for an earlier day must say so,
+                        or it is indistinguishable from work done today. */}
+                    {(it.kind === 'habit' || it.kind === 'progress') && it.on && it.on !== today && (
+                      <span className="text-[#c0b3a5]" data-testid={`von-${it.id}`}>
+                        {it.on === yesterday ? 'for yesterday' : `for ${it.on}`}
                       </span>
                     )}
 
