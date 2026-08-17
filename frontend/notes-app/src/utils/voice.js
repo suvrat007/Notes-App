@@ -167,6 +167,15 @@ task       a NEW one-off with a finish line
 new-habit  ongoing behaviour NOT in the list yet; refId null, set name + polarity
 new-reward a treat to work TOWARDS, not something done; set name + damagePct
 
+ONE SENTENCE THAT BOTH SETS UP AND REPORTS
+A sentence can create a thing and log work against it in the same breath:
+"start working 8 hours a day for a week, I did 6 today". The thing does not
+exist yet, so there is no refId to point a separate habit item at. Emit ONE
+new-habit and put the work already done in logNow:
+  targetReps 56, targetPeriodWeeks 1, dailyTarget 8, unit "hours", logNow 6.
+Never emit a second item for the same work - that would create it twice or
+log against nothing. Only the amount stated as ALREADY DONE goes in logNow.
+
 HABIT vs TASK
 - Explicit wins: "as a habit", "daily", "every day" => habit. Always honour it.
 - Never-finished (eat healthy, gym, quit smoking) => habit.
@@ -191,6 +200,9 @@ count          habit: reps done ("smoked twice"=2). task: units to finish. Defau
 polarity       new-habit only: "good" or "bad".
 dailyAllowance new-habit + bad: per-day limit before the extra penalty. null if unstated. NEVER guess.
 targetReps     new-habit + good: reps per targetPeriodWeeks (1=week 4=month 12=quarter).
+logNow         new-habit only: how much of it was ALREADY DONE today, when the same
+  sentence sets the thing up and reports against it. 0 when nothing was
+  reported as done. Never larger than what was actually stated.
 dailyTarget    new-habit + good: reps expected in ONE DAY, when the sentence caps or
   sets a per-day amount. "gym 5 times a week, once a day" => targetReps 5,
   dailyTarget 1. "2 leetcode questions every day" => dailyTarget 2, targetReps 14.
@@ -241,7 +253,7 @@ MORE is never a swap.
 Never invent items. Never merge two distinct items.
 
 Respond with ONLY this JSON:
-{"items":[{"kind":"habit|progress|skipped|task|new-habit|new-reward","text":string,"refId":string|null,"name":string|null,"polarity":"good|bad|null","count":number,"dailyAllowance":number|null,"targetReps":number,"dailyTarget":number,"targetPeriodWeeks":number,"unit":string,"damagePct":number,"dueDate":string|null,"deadline":string|null,"cadence":"daily|anytime|null","newTarget":number|null}]}`;
+{"items":[{"kind":"habit|progress|skipped|task|new-habit|new-reward","text":string,"refId":string|null,"name":string|null,"polarity":"good|bad|null","count":number,"dailyAllowance":number|null,"targetReps":number,"dailyTarget":number,"logNow":number,"targetPeriodWeeks":number,"unit":string,"damagePct":number,"dueDate":string|null,"deadline":string|null,"cadence":"daily|anytime|null","newTarget":number|null}]}`;
 
 async function chatJSON(messages, model) {
   const res = await fetch(CHAT_ENDPOINT, {
@@ -384,6 +396,14 @@ function coerce(raw, ctx) {
       // period goal: "5 a week, once a day" is both, and means neither alone.
       dailyTarget: Number.isFinite(r.dailyTarget)
         ? Math.max(0, Math.min(99, Math.round(r.dailyTarget)))
+        : 0,
+      /*
+       * Work already done, reported in the same sentence that set the thing
+       * up. It cannot be a separate `habit` item because the habit has no id
+       * until it is created, so it rides along and is logged straight after.
+       */
+      logNow: Number.isFinite(r.logNow)
+        ? Math.max(0, Math.min(999, Math.round(r.logNow)))
         : 0,
       targetPeriodWeeks: [1, 2, 4, 12].includes(Number(r.targetPeriodWeeks))
         ? Number(r.targetPeriodWeeks) : 1,

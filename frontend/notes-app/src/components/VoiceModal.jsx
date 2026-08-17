@@ -30,7 +30,16 @@ const clock = (ms) => {
  * habit rep is a wrong entry in the ledger the game is scored on — so nothing
  * is written until the user has looked at it and said yes.
  */
+/** The caller's own calendar days, which is what a spoken date means. */
+const localDay = (offset = 0) => {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return d.toLocaleDateString('en-CA');
+};
+
 const VoiceModal = ({ habits = [], tasks = [], onClose, refreshData, showToast }) => {
+  const today = localDay(0);
+  const tomorrow = localDay(1);
   const [phase, setPhase] = useState('idle'); // idle | listening | thinking | preview | saving
   const [transcript, setTranscript] = useState('');
   const [items, setItems] = useState([]);
@@ -121,7 +130,6 @@ const VoiceModal = ({ habits = [], tasks = [], onClose, refreshData, showToast }
   const commit = async () => {
     setPhase('saving');
     try {
-      const today = new Date().toLocaleDateString('en-CA');
 
       for (const it of items) {
         if (it.kind === 'skipped') {
@@ -169,14 +177,36 @@ const VoiceModal = ({ habits = [], tasks = [], onClose, refreshData, showToast }
           const next = Math.min(target, (it.taskBefore ?? 0) + it.count);
           await api.post('/logs', { taskId: it.refId, date: today, completedCount: next });
         } else if (it.kind === 'new-habit') {
-          await api.post('/habits', {
+          const made = await api.post('/habits', {
             name: it.text,
             polarity: it.polarity,
             dailyAllowance: it.polarity === 'bad' ? (it.dailyAllowance ?? 0) : 0,
             targetReps: it.polarity === 'good' ? it.targetReps : 0,
+            // Was parsed and then dropped, so "8 hours a day" arrived as a
+            // habit with no idea what a day's worth of it was.
+            dailyTarget: it.polarity === 'good' ? (it.dailyTarget ?? 0) : 0,
             targetPeriodWeeks: it.targetPeriodWeeks,
             unit: it.polarity === 'good' ? it.unit : '',
           });
+
+          /*
+           * One sentence can set a thing up AND report work against it:
+           * "work 8 hours a day this week, I did 6 today". That cannot be a
+           * separate item because the habit has no id until this moment, so
+           * the amount rides along on the item and is logged here.
+           */
+          const newId = made?.data?.habit?._id;
+          if (newId && it.logNow > 0) {
+            if (it.unit) {
+              // Measured: one row carrying the amount. Six hours is one
+              // stretch of six, not six stretches of one.
+              await api.post(`/habits/${newId}/log`, { amount: it.logNow, date: today });
+            } else {
+              for (let n = 0; n < it.logNow; n++) {
+                await api.post(`/habits/${newId}/log`, { date: today });
+              }
+            }
+          }
         } else if (it.kind === 'new-reward') {
           await api.post('/rewards', { name: it.text, damagePct: it.damagePct });
         } else {
@@ -362,13 +392,35 @@ const VoiceModal = ({ habits = [], tasks = [], onClose, refreshData, showToast }
                       </span>
                     )}
 
-                    {it.kind === 'task' && <span>from {it.dueDate}</span>}
+                    {/*
+                      A task dated ahead is stored for THAT day and will not be
+                      on today's list. It used to say only "from 2026-08-19",
+                      which reads as a detail rather than as the reason the
+                      thing is about to vanish from the home screen.
+                    */}
+                    {it.kind === 'task' && (
+                      it.dueDate > today ? (
+                        <span className="text-[#c0b3a5]" data-testid={`vlater-${it.id}`}>
+                          {it.dueDate === tomorrow
+                            ? 'scheduled for tomorrow, not today'
+                            : `scheduled for ${it.dueDate}, not today`}
+                        </span>
+                      ) : (
+                        <span>from {it.dueDate}</span>
+                      )
+                    )}
                     {it.kind === 'task' && it.deadline && (
                       <span className="text-[#c0b3a5]">by {it.deadline}</span>
                     )}
                     {it.kind === 'new-habit' && (
                       <span className={it.polarity === 'bad' ? 'text-focus-red' : 'text-[#c0b3a5]'}>
                         {it.polarity === 'bad' ? 'break' : 'build'}
+                      </span>
+                    )}
+                    {/* Set up AND reported against in one sentence. */}
+                    {it.kind === 'new-habit' && it.logNow > 0 && (
+                      <span className="text-[#3ecf8e]" data-testid={`vlognow-${it.id}`}>
+                        logging {it.logNow}{it.unit ? ` ${it.unit}` : ''} for today
                       </span>
                     )}
                     {it.kind === 'new-habit' && it.polarity === 'good' && it.targetReps > 0 && (
