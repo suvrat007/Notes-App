@@ -152,3 +152,47 @@ export async function pushToGoogleCalendar(task) {
   const created = await call(`${CALENDAR_API}/calendars/primary/events`, token, body);
   return created.id;
 }
+
+/**
+ * Take a finished task back off Google.
+ *
+ * A tracker that only ever ADDS to someone's calendar makes their calendar
+ * worse. Once the work is done the entry is noise — and worse than noise on a
+ * shared calendar, where it still tells colleagues you are busy.
+ *
+ * Deletion is never automatic. The calendar is not this app's to prune, and a
+ * a silent delete of something a person put in their own calendar is the kind
+ * of surprise that ends trust in a sync. The caller asks first.
+ *
+ * A 404 or 410 counts as success: the entry is gone, which is the outcome
+ * wanted, and failing on it would strand the local id forever.
+ */
+export async function removeFromGoogle(task) {
+  const gone = { event: false, task: false };
+
+  if (task.googleEventId) {
+    const token = await tokenFor(CALENDAR_SCOPE);
+    const res = await fetch(
+      `${CALENDAR_API}/calendars/primary/events/${encodeURIComponent(task.googleEventId)}`,
+      { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!res.ok && ![404, 410].includes(res.status)) {
+      throw new GoogleSignInError(`Calendar returned ${res.status}`);
+    }
+    gone.event = true;
+  }
+
+  if (task.googleTaskId) {
+    const token = await tokenFor(TASKS_SCOPE);
+    const res = await fetch(
+      `${TASKS_API}/lists/@default/tasks/${encodeURIComponent(task.googleTaskId)}`,
+      { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!res.ok && ![404, 410].includes(res.status)) {
+      throw new GoogleSignInError(`Tasks returned ${res.status}`);
+    }
+    gone.task = true;
+  }
+
+  return gone;
+}

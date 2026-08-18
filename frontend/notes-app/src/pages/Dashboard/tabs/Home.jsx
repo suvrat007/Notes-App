@@ -10,6 +10,7 @@ import RewardPanel from '../../../components/RewardPanel';
 import WeekTargets from '../../../components/WeekTargets';
 import RankBadge from '../../../components/RankBadge';
 import TaskRow from '../../../components/TaskRow';
+import GoogleCleanup from '../../../components/GoogleCleanup';
 import { usePref, SHOW_BACKLOG, CARRY_DAYS } from '../../../utils/prefs';
 
 /*
@@ -55,6 +56,8 @@ const todayKey = () => new Date().toLocaleDateString('en-CA');
 const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) => {
   const reduce = useReducedMotion();
   const [showHabitModal, setShowHabitModal] = useState(false);
+  /** A finished task that still has a Google copy sitting in the calendar. */
+  const [tidyUp, setTidyUp] = useState(null);
   // Some people want yesterday in front of them; some find it discouraging.
   const [showBacklog] = usePref(SHOW_BACKLOG, true);
   const [carryDays] = usePref(CARRY_DAYS, 2);
@@ -173,6 +176,18 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
   const logTask = async (task, completedCount) => {
     await api.post('/logs', { taskId: task._id, date: todayKey(), completedCount });
     await refreshData();
+
+    /*
+     * Finishing something that was pushed to Google leaves a copy behind, and
+     * a stale entry on a shared calendar still tells colleagues you are busy.
+     * Offered only on the tap that COMPLETES it - asking every tap of a
+     * five-unit job would be nagging - and only once, since answering either
+     * way clears the link.
+     */
+    const finished = completedCount >= Math.max(1, task.targetCount || 1);
+    if (finished && !task.done && (task.googleEventId || task.googleTaskId)) {
+      setTidyUp(task);
+    }
   };
 
 
@@ -511,6 +526,15 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
           )}
         </motion.div>
       </motion.div>
+
+      {tidyUp && (
+        <GoogleCleanup
+          task={tidyUp}
+          onClose={() => setTidyUp(null)}
+          refreshData={refreshData}
+          showToast={showToast}
+        />
+      )}
 
       <RewardPanel
         rewards={rewards}
