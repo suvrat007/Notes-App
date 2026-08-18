@@ -58,7 +58,7 @@ const User = require('./models/user.model.js');
 const Task = require('./models/task.model.js');
 const Log = require('./models/log.model.js');
 const BreakDay = require('./models/breakday.model.js');
-const { authenticateToken, COOKIE_NAME, cookieOptionsFor } = require('./utilities.js');
+const { authenticateToken, COOKIE_NAME, cookieOptionsFor, signSession } = require('./utilities.js');
 const stars = require('./engine/stars.js');
 const { rateLimit } = require('./lib/ratelimit.js');
 const { OAuth2Client } = require('google-auth-library');
@@ -112,8 +112,12 @@ app.use(cors({
   credentials: true,
 }));
 
-const issueToken = (userId) =>
-    jwt.sign({ _id: userId }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '7d' });
+/*
+ * One definition of how long a session lasts, in utilities.js beside the
+ * cookie that carries it. They were set separately at seven days each, and a
+ * token outliving its cookie (or the reverse) is a logout nobody can explain.
+ */
+const issueToken = signSession;
 
 // --- Auth Routes ---
 app.post("/create-account", async(req, res) => {

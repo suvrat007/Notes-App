@@ -7,6 +7,7 @@ import { SkeletonRows } from './Skeleton';
 import {
   parseSpokenDay, transcribe, startRecording,
   isGroqConfigured, isRecordingSupported,
+  MAX_RECORDING_MS, RECORDING_WARN_MS,
 } from '../utils/voice';
 import { toCrewItem, describeCrewItem } from '../utils/crewItem';
 
@@ -30,6 +31,7 @@ const CrewDetail = ({ crewId, onClose, onChanged, showToast }) => {
   const [parsing, setParsing] = useState(false);
   /** The live recorder, when one is running. */
   const [recording, setRecording] = useState(null);
+  const [elapsed, setElapsed] = useState(0);
   /** What the parser made of the sentence, held until it is confirmed. */
   const [draft, setDraft] = useState(null);
 
@@ -120,6 +122,23 @@ const CrewDetail = ({ crewId, onClose, onChanged, showToast }) => {
       showToast?.(err.message || 'No microphone available', 'error');
     }
   };
+
+  /*
+   * A countdown, because recording stops itself at the cap. Without it the
+   * cut-off arrives unannounced mid-sentence and the half that was still
+   * being said is simply gone.
+   */
+  useEffect(() => {
+    if (!recording) { setElapsed(0); return undefined; }
+    const tick = () => setElapsed(Date.now() - recording.startedAt);
+    tick();
+    const id = window.setInterval(tick, 250);
+    return () => clearInterval(id);
+  }, [recording]);
+
+  const remaining = Math.max(0, MAX_RECORDING_MS - elapsed);
+  const nearLimit = !!recording && remaining <= RECORDING_WARN_MS;
+  const clock = `${Math.floor(remaining / 60000)}:${String(Math.floor(remaining / 1000) % 60).padStart(2, '0')}`;
 
   /*
    * A recorder left running when the sheet closes keeps the mic light on, so
@@ -287,7 +306,9 @@ const CrewDetail = ({ crewId, onClose, onChanged, showToast }) => {
               <input
                 value={title}
                 onChange={(ev) => { setTitle(ev.target.value); setDraft(null); }}
-                placeholder={recording ? 'Listening…' : 'Everyone does gym 5 times a week, once a day'}
+                placeholder={recording
+                  ? `Listening… ${clock} left`
+                  : 'Everyone does gym 5 times a week, once a day'}
                 maxLength={160}
                 disabled={!!recording}
                 aria-label="What everyone is doing"
@@ -312,6 +333,18 @@ const CrewDetail = ({ crewId, onClose, onChanged, showToast }) => {
                 >
                   {recording ? <Square size={14} fill="currentColor" /> : <Mic size={16} />}
                 </button>
+              )}
+
+              {recording && (
+                <span
+                  data-testid="mic-timer"
+                  aria-live="polite"
+                  className={`self-center text-xs font-bold tabular-nums shrink-0 ${
+                    nearLimit ? 'text-[#e5484d]' : 'text-white/50'
+                  }`}
+                >
+                  {clock}
+                </span>
               )}
 
               <button type="submit" disabled={busy || parsing || !!recording || !title.trim()}

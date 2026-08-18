@@ -2,6 +2,32 @@ const jwt= require('jsonwebtoken');
 
 const COOKIE_NAME = 'token';
 
+const SESSION_DAYS = 30;
+const COOKIE_MAX_AGE = SESSION_DAYS * 24 * 60 * 60 * 1000;
+
+/**
+ * Re-issue once the session is more than half spent.
+ *
+ * Refreshing on EVERY request would write a cookie on every call for no gain;
+ * waiting until the halfway mark means one write every couple of weeks per
+ * active user, and still leaves a fortnight of slack before anything lapses.
+ */
+const REFRESH_AFTER = COOKIE_MAX_AGE / 2;
+
+const signSession = (userId) =>
+    jwt.sign({ _id: userId }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: `${SESSION_DAYS}d` });
+
+/**
+ * Authenticate, and keep an active session alive.
+ *
+ * The token was signed once at login and never renewed, so everyone was
+ * logged out on a fixed schedule no matter how much they used the app - open
+ * it every day for a week and you were still thrown back to the login screen
+ * on the seventh day.
+ *
+ * The session now SLIDES: using the app pushes the expiry out, so an active
+ * user is never signed out, while an abandoned session still lapses on its own.
+ */
 function authenticateToken (req,res,next){
 
     const token = req.cookies?.[COOKIE_NAME];
@@ -11,11 +37,22 @@ function authenticateToken (req,res,next){
     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, payload) => {
         if (err) return res.status(401).json({ error: true, message: "Token expired or invalid" });
         req.userId = payload._id;
+
+        /*
+         * `exp` is in SECONDS since the epoch, which is the classic place to
+         * be off by a thousand and either refresh on every request or never.
+         */
+        const msLeft = (payload.exp * 1000) - Date.now();
+        if (msLeft < REFRESH_AFTER) {
+            try {
+                res.cookie(COOKIE_NAME, signSession(payload._id), cookieOptionsFor(req));
+            } catch {
+                /* a failed refresh is not a failed request; the old token still works */
+            }
+        }
         next();
     });
 }
-
-const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 /**
  * How to write the auth cookie, decided PER REQUEST.
@@ -75,6 +112,8 @@ const cookieOptions = {
 };
 
 module.exports = {
+    signSession,
+    SESSION_DAYS,
     authenticateToken,
     COOKIE_NAME,
     cookieOptions,
