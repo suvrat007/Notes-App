@@ -59,7 +59,16 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
   const [showBacklog] = usePref(SHOW_BACKLOG, true);
   const [carryDays] = usePref(CARRY_DAYS, 2);
 
-  const habits = state?.habits ?? [];
+  const allHabits = state?.habits ?? [];
+  /*
+   * Crew work gets its own section rather than being mixed into your habits.
+   * It is a different KIND of commitment - someone else is watching it, and
+   * this week's board is scored on it - so burying it in the same list makes
+   * the one thing with a contest attached look like everything else.
+   */
+  const habits = allHabits.filter((h) => !h.groupId);
+  const crewHabits = allHabits.filter((h) => h.groupId);
+  const crewNames = state?.crewNames ?? {};
   // Owed work, but only while it is still worth chasing. Past the window it
   // drops off the home screen; it is not deleted, and Manage still has it.
   const carried = (state?.carriedTasks ?? []).filter((t) => t.lateBy <= carryDays);
@@ -362,6 +371,55 @@ const Home = ({ user, tasks, logs, state, refreshData, showToast, onNavigate }) 
       <div className="md:shrink-0">
         <WeekTargets onNavigate={onNavigate} />
       </div>
+
+      {/*
+        What a crew expects of you.
+        Above your own list on purpose: it is the only work with someone else
+        watching and a board scored on it this week. Only here at all if you
+        are actually in a crew that has agreed to something.
+      */}
+      {crewHabits.length > 0 && (
+        <motion.div
+          variants={rise}
+          data-testid="crew-section"
+          className="bg-[#16191e] border border-white/5 border-l-[3px] border-l-[#e0b062] rounded-3xl p-5 md:p-6 md:shrink-0"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="min-w-0">
+              <h3 className="font-heading font-black text-white text-xl truncate">With your crew</h3>
+              <p className="text-[11px] text-white/40 mt-0.5 truncate">
+                {[...new Set(crewHabits.map((h) => crewNames[h.groupId]).filter(Boolean))].join(' · ')
+                  || 'Shared this week'}
+              </p>
+            </div>
+            <button
+              className="flex items-center gap-1 text-[11px] font-bold text-[#e0b062] hover:text-white transition-colors shrink-0"
+              onClick={() => onNavigate?.('squad')}
+            >
+              Standings <ArrowRight size={12} />
+            </button>
+          </div>
+
+          <motion.div variants={list} className="space-y-2">
+            {crewHabits.map((h) => (
+              <motion.div key={h._id} variants={row}>
+                <HabitCard habit={h} onChange={changeHabit} />
+                {/*
+                  The same act promised twice. Logging either credits both, so
+                  the row says so — a count moving on its own otherwise looks
+                  like a bug rather than the point.
+                */}
+                {h.twin && (
+                  <p className="text-[10px] text-white/35 mt-1 ml-11" data-testid={`twin-${h._id}`}>
+                    also counts toward your own {h.twin.name}
+                    {h.twin.target > 0 && ` (${h.twin.target} a week)`}
+                  </p>
+                )}
+              </motion.div>
+            ))}
+          </motion.div>
+        </motion.div>
+      )}
 
       {/*
         Desktop gets columns, not one long scroll. Habits, today's plan and

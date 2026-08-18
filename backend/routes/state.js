@@ -9,6 +9,8 @@ const e = require('../engine/stars.js');
 const rank = require('../engine/rank.js');
 const { lifetimeStarsFor, logsInRange, weekBalanceOf } = require('../lib/totals.js');
 const { settleShortfalls, periodStartOf, periodDays } = require('../lib/shortfall.js');
+const { normalise } = require('../lib/twins.js');
+const Group = require('../models/group.model.js');
 const { settleOverdue } = require('../lib/overdue.js');
 
 const router = express.Router();
@@ -197,6 +199,36 @@ router.get('/', async (req, res) => {
       };
     });
 
+    /*
+     * Which of these are the same promise made twice.
+     *
+     * A personal "gym 4 a week" and a crew's "gym 6 a week" are one activity,
+     * and logging either credits both (see lib/twins.js). The UI has to say so
+     * on the row, or a count moving on its own looks like a bug.
+     */
+    const byName = new Map();
+    for (const v of habitViews) {
+      const key = `${v.polarity}:${normalise(v.name)}`;
+      if (!byName.has(key)) byName.set(key, []);
+      byName.get(key).push(v);
+    }
+    for (const group of byName.values()) {
+      const own = group.find((x) => !x.groupId);
+      const crew = group.find((x) => x.groupId);
+      if (!own || !crew) continue;
+      own.twin = { _id: crew._id, name: crew.name, crew: true, target: crew.targetReps };
+      crew.twin = { _id: own._id, name: own.name, crew: false, target: own.targetReps };
+    }
+
+    /* ---- what the crews expect of you, named so the UI can group it ---- */
+    const crewIds = [...new Set(habitViews.filter((h) => h.groupId).map((h) => String(h.groupId)))];
+    const crewNames = crewIds.length
+      ? Object.fromEntries(
+          (await Group.find({ _id: { $in: crewIds } }).select('name').lean())
+            .map((g) => [String(g._id), g.name]),
+        )
+      : {};
+
     return res.json({
       error: false,
       date: dateKey,
@@ -207,6 +239,8 @@ router.get('/', async (req, res) => {
         avatarUrl: user.avatarUrl,
       },
       habits: habitViews,
+      /** Crew name per group id, so a crew row can say whose it is. */
+      crewNames,
       settled,
       missed,
       tasks: dayTasks.map((t) => taskView(t, logs, dateKey)),

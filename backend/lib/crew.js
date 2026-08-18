@@ -146,8 +146,14 @@ async function settlePodium(group, todayKey) {
   const lastWeek = e.addDays(thisWeek, -7);
 
   if (group.lastPodiumWeek === lastWeek) return [];
-  // A crew younger than the week being judged never competed in it.
-  if (e.dayKey(group.createdAt) > lastWeek) {
+  /*
+   * A crew that did not exist for ANY of the judged week never competed in
+   * it. Comparing against the week's START was wrong: a crew founded on the
+   * Tuesday competed in the week beginning Monday, and its first week was
+   * silently never paid out - which only showed up on a day of the week the
+   * test had not previously run on.
+   */
+  if (e.dayKey(group.createdAt) > e.addDays(lastWeek, 6)) {
     await Group.updateOne({ _id: group._id }, { lastPodiumWeek: lastWeek });
     return [];
   }

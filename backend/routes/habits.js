@@ -4,6 +4,7 @@ const Log = require('../models/log.model.js');
 const { authenticateToken } = require('../utilities.js');
 const { rateLimit } = require('../lib/ratelimit.js');
 const { periodStartOf, periodDays } = require('../lib/shortfall.js');
+const { twinOf, mirrorTo } = require('../lib/twins.js');
 const e = require('../engine/stars.js');
 
 const router = express.Router();
@@ -211,7 +212,25 @@ router.post('/:habitId/log', logLimit, async (req, res) => {
       date: at, count: amount, starsDelta,
     });
 
-    return res.json({ error: false, log, starsDelta });
+    /*
+     * The same act promised twice counts twice, and is paid once.
+     *
+     * "Gym 4 times a week" of your own and "gym 6 times a week" with your crew
+     * are two promises about ONE activity: going once satisfies part of both,
+     * and making the user tap two rows to say so misdescribes what happened.
+     * See lib/twins.js for why the stars stay on this row only.
+     */
+    const twin = await twinOf(req.userId, habit);
+    const mirrored = await mirrorTo(req.userId, twin, amount, key, at);
+
+    return res.json({
+      error: false,
+      log,
+      starsDelta,
+      alsoCounted: mirrored
+        ? { habitId: twin._id, name: twin.name, crew: Boolean(twin.groupId), count: mirrored.count }
+        : null,
+    });
   } catch (err) {
     return res.status(400).json({ error: true, message: err.message || 'Could not log that' });
   }
@@ -266,7 +285,33 @@ router.delete('/:habitId/log', async (req, res) => {
       remaining -= take;
     }
 
-    return res.json({ error: false, removed: removedStars, units: removedUnits });
+    /*
+     * Take it off the twin as well, or the two drift apart: undoing a gym rep
+     * would leave the crew's copy still claiming you went. Mirrored rows carry
+     * no stars, so nothing is refunded here - only the count comes back off.
+     */
+    let alsoRemoved = null;
+    if (removedUnits > 0) {
+      const habit = await Habit.findOne({ _id: req.params.habitId, userId: req.userId }).lean();
+      const twin = habit ? await twinOf(req.userId, habit) : null;
+      if (twin) {
+        let left = removedUnits;
+        const mirrorRows = await Log.find({
+          userId: req.userId, kind: 'habit', refId: twin._id, date: at,
+        }).sort({ createdAt: -1 });
+        for (const row of mirrorRows) {
+          if (left <= 0) break;
+          const take = Math.min(row.count || 1, left);
+          const rest = (row.count || 1) - take;
+          if (rest <= 0) await Log.deleteOne({ _id: row._id });
+          else await Log.updateOne({ _id: row._id }, { count: rest });
+          left -= take;
+        }
+        alsoRemoved = { habitId: twin._id, name: twin.name, units: removedUnits - left };
+      }
+    }
+
+    return res.json({ error: false, removed: removedStars, units: removedUnits, alsoRemoved });
   } catch {
     return res.status(500).json({ error: true, message: 'Internal Server Error' });
   }
