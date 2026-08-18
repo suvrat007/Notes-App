@@ -36,25 +36,64 @@
     -->
     <style>
       html, body { margin: 0; background: #0d0f12; color: #e6e8eb; }
+      /*
+        The splash before React exists.
+        It cannot use the app's loading screen - no JS has run yet - so it is
+        built to look like its opening beat instead: same wordmark, same
+        cycling lines, same bar. When React mounts, ColdStart continues the
+        sequence rather than replacing one loader with a different one.
+
+        Pure CSS on purpose. Script here would delay the very bundle this is
+        covering for.
+      */
       #boot {
         position: fixed; inset: 0;
-        display: grid; place-items: center; gap: 18px;
-        grid-auto-flow: row; align-content: center;
-        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        gap: 26px; padding: 0 24px;
       }
       #boot .mark {
-        font-weight: 800; font-size: 15px; letter-spacing: .32em;
-        color: #c0b3a5;
+        font-weight: 900; font-size: 20px; letter-spacing: .3em;
+        color: #fff;
       }
-      #boot .ring {
-        width: 26px; height: 26px; border-radius: 50%;
-        border: 2px solid rgba(255,255,255,.10);
-        border-top-color: #c0b3a5;
-        animation: boot-spin .7s linear infinite;
+      /* The lines are stacked and each takes its turn, so no JS is needed. */
+      #boot .lines {
+        position: relative; height: 20px; width: 100%;
+        max-width: 340px; text-align: center;
       }
-      @keyframes boot-spin { to { transform: rotate(360deg); } }
+      #boot .lines span {
+        position: absolute; inset: 0;
+        font-size: 13px; color: rgba(255,255,255,.7);
+        opacity: 0;
+        animation: boot-line 8s ease-in-out infinite;
+      }
+      #boot .lines span:nth-child(2) { animation-delay: 2s; }
+      #boot .lines span:nth-child(3) { animation-delay: 4s; }
+      #boot .lines span:nth-child(4) { animation-delay: 6s; }
+      @keyframes boot-line {
+        0%      { opacity: 0; transform: translateY(6px); }
+        4%, 22% { opacity: 1; transform: none; }
+        26%,100%{ opacity: 0; transform: translateY(-4px); }
+      }
+      #boot .bar {
+        width: 100%; max-width: 340px; height: 3px; border-radius: 999px;
+        background: rgba(255,255,255,.06); overflow: hidden;
+      }
+      #boot .bar i {
+        display: block; height: 100%; width: 40%; border-radius: 999px;
+        background: #c0b3a5;
+        animation: boot-sweep 1.5s ease-in-out infinite;
+      }
+      /* Sweeps rather than fills: it has no idea how far along it is, and a
+         bar that pretends to know is a bar that lies. */
+      @keyframes boot-sweep {
+        0%   { transform: translateX(-100%); }
+        100% { transform: translateX(250%); }
+      }
       @media (prefers-reduced-motion: reduce) {
-        #boot .ring { animation-duration: 2.4s; }
+        #boot .lines span { animation: none; opacity: 0; }
+        #boot .lines span:first-child { opacity: 1; }
+        #boot .bar i { animation-duration: 3s; }
       }
     </style>
   </head>
@@ -62,7 +101,13 @@
     <div id="root">
       <div id="boot">
         <span class="mark">FORGE</span>
-        <span class="ring"></span>
+        <span class="lines">
+          <span>You are what you repeatedly do.</span>
+          <span>Not what you meant to do.</span>
+          <span>Not what you said you would.</span>
+          <span>The ledger only counts what happened.</span>
+        </span>
+        <span class="bar"><i></i></span>
       </div>
     </div>
     <script type="module" src="/src/main.jsx"></script>

@@ -183,7 +183,12 @@ function useRunner(canvasRef, active) {
   return { score, high, jump };
 }
 
-const ColdStart = () => {
+/**
+ * @param {string} [waitingFor] What is being waited on, when it is not the
+ *   server waking up — the Google round trip uses the same screen, because
+ *   that wait ends in the same cold backend and is just as long.
+ */
+const ColdStart = ({ waitingFor }) => {
   const [elapsed, setElapsed] = useState(0);
   const canvasRef = useRef(null);
   const playing = elapsed >= GAME_AT_MS;
@@ -255,11 +260,15 @@ const ColdStart = () => {
           />
         </div>
         <p className="text-[10px] text-white/30 mt-2 text-center">
-          {slow
-            ? 'Still waking the server. It has been longer than usual — hold on.'
-            : elapsed > GAME_AT_MS
-              ? 'Waking the server. This can take up to a minute on the first visit.'
-              : 'Waking the server…'}
+          {waitingFor
+            ? (slow
+              ? `Still waiting on ${waitingFor}. It has been longer than usual — hold on.`
+              : `Waiting on ${waitingFor}…`)
+            : (slow
+              ? 'Still waking the server. It has been longer than usual — hold on.'
+              : elapsed > GAME_AT_MS
+                ? 'Waking the server. This can take up to a minute on the first visit.'
+                : 'Waking the server…')}
         </p>
       </div>
 

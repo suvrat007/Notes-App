@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Eye, AtSign, TerminalSquare } from 'lucide-react';
 import { requestGoogleAccessToken, isGoogleConfigured } from '../../utils/google';
+import ColdStart from '../../components/ColdStart';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -71,6 +72,13 @@ const Login = () => {
    * 100dvh rather than 100vh because on mobile vh counts browser chrome that
    * is not actually there, which pushes the card under the address bar.
    */
+  /*
+     * The Google round trip ends in the same cold backend as everything else,
+     * so it gets the same screen rather than a button that says nothing is
+     * happening. A label on a disabled button is not a loading state.
+     */
+  if (googleBusy) return <ColdStart waitingFor="Google" />;
+
   return (
     <div className="min-h-[100dvh] flex items-center justify-center p-4 sm:p-6 bg-[#0d0f12]">
       <motion.div 
@@ -185,7 +193,7 @@ const Login = () => {
                 <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
               </svg>
-              {googleBusy ? 'WAITING FOR GOOGLE...' : 'GOOGLE'}
+              GOOGLE
             </Button>
             {!googleReady && (
               <p className="text-[10px] text-white/40 text-center mt-3 tracking-wider">
